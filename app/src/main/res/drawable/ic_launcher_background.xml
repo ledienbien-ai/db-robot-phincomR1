@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flat white ground for the adaptive launcher icon (API 26+); the DB-Robot mark sits on it. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFFF" />
+</shape>

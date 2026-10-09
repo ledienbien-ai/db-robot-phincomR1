@@ -1,0 +1,76 @@
+Vendored from: https://github.com/rhasspy/pymicro-features
+Commit:        96bd69cfad79aa67697e176570d3dd87052c3def (branch main, 2025-10-09)
+License:       Apache License 2.0 (see LICENSE in this directory; per-file Apache-2.0
+                headers are also present on every tensorflow/lite/experimental/
+                microfrontend/lib/*.{cc,h} file, copyright The TensorFlow Authors).
+                kissfft/*.cc carry their own embedded BSD-3-Clause notice
+                (Copyright (c) 2003-2010, Mark Borgerding) - preserved verbatim.
+                pymicro-features itself vendors kissfft without an extra top-level
+                kissfft LICENSE file; this vendor drop mirrors that exactly (no
+                license file was invented or added beyond what upstream ships).
+
+What this is:
+  The portable C/C++ "TFLite Micro audio frontend" algorithm (16-bit PCM audio ->
+  40-dim log-mel-ish feature vectors), which is what pymicro-features' compiled
+  extension (imported in Python as `micro_features_cpp`) wraps. This is the exact
+  feature-extraction algorithm used to train the "Mai ơi" wake-word model
+  (microWakeWord / pymicro-features dependency chain).
+
+Files copied verbatim from upstream (no logic changes):
+  tensorflow/lite/experimental/microfrontend/lib/
+    bits.h, fft.cc, fft.h, fft_util.cc, fft_util.h,
+    filterbank.cc, filterbank.h, filterbank_util.cc, filterbank_util.h,
+    frontend.cc, frontend.h, frontend_util.cc, frontend_util.h,
+    kiss_fft_common.h, kiss_fft_int16.cc, kiss_fft_int16.h,
+    log_lut.cc, log_lut.h, log_scale.cc, log_scale.h,
+    log_scale_util.cc, log_scale_util.h,
+    noise_reduction.cc, noise_reduction.h,
+    noise_reduction_util.cc, noise_reduction_util.h,
+    pcan_gain_control.cc, pcan_gain_control.h,
+    pcan_gain_control_util.cc, pcan_gain_control_util.h,
+    window.cc, window.h, window_util.cc, window_util.h
+  kissfft/
+    kiss_fft.cc, kiss_fft.h, _kiss_fft_guts.h
+    tools/kiss_fftr.cc, tools/kiss_fftr.h
+
+Deliberately NOT vendored:
+  - src/micro_features.cpp (upstream's CPython extension-module glue: uses
+    Python.h, PyCapsule, PyArg_ParseTupleAndKeywords, Py_LIMITED_API, etc. -
+    CPython-specific, will not compile for Android/NDK, and is not needed since
+    Task 3 writes its own plain-C++/JNI glue against FrontendPopulateState /
+    FrontendProcessSamples / FrontendFreeStateContents directly).
+  - kissfft/kissfft.hh and kissfft/tools/* other than kiss_fftr.{cc,h} (the
+    C++ template FFT API and command-line utilities - unused by this frontend,
+    upstream's own setup.py doesn't compile them either).
+  - tests/, .github/, README.md, CHANGELOG.md, script/, Makefile, pyproject.toml,
+    setup.py/setup.cfg, MANIFEST.in, mypy.ini, .projectile, .gitignore
+    (packaging/CI/test scaffolding for the Python package, not needed here).
+
+Build notes (see ../CMakeLists.txt, target micro_features_jni):
+  - Must compile with -DFIXED_POINT=16 (matches upstream setup.py's
+    `flags = ["-DFIXED_POINT=16"]`) so kiss_fft_common.h's FIXED_POINT-gated
+    branch is active when it's included ahead of kiss_fft_int16.h/.cc's own
+    local #define FIXED_POINT 16.
+  - Include paths must contain BOTH this directory (micro_features/, so
+    `#include "tensorflow/lite/experimental/microfrontend/lib/..."` resolves)
+    AND micro_features/kissfft/ (so kiss_fft_int16.h/.cc's unqualified
+    `#include "kiss_fft.h"` / `#include "tools/kiss_fftr.h"` resolve) - this
+    exactly mirrors upstream setup.py's
+    `include_dirs=[str(_INCLUDE_DIR), str(_KISSFFT_DIR)]`.
+  - Frontend config used by pymicro-features (src/micro_features.cpp,
+    `init_cfg()`) that Task 3 must replicate exactly to match the trained
+    model's expected features:
+      window.size_ms = 30, window.step_size_ms = 10
+      filterbank.num_channels = 40, lower_band_limit = 125.0, upper_band_limit = 7500.0
+      noise_reduction.smoothing_bits = 10, even_smoothing = 0.025,
+        odd_smoothing = 0.06, min_signal_remaining = 0.05
+      pcan_gain_control.enable_pcan = 1, strength = 0.95, offset = 80.0, gain_bits = 21
+      log_scale.enable_log = 1, scale_shift = 6
+      sample_rate passed to FrontendPopulateState = 16000
+    Output scaling: each fo.values[i] (uint16_t) must be multiplied by
+    FLOAT32_SCALE = 0.0390625f before use, to match the float32 feature values
+    the model was trained on.
+    Per-call chunk size: FrontendProcessSamples expects 10ms of audio per call
+    (SAMPLES_PER_CHUNK = 160 samples = 320 bytes of 16-bit PCM @ 16kHz); feeding
+    fewer samples than that returns num_samples_read may be less and
+    FrontendOutput.size == 0 (no feature vector produced yet).
