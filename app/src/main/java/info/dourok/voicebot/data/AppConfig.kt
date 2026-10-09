@@ -19,10 +19,10 @@ object AppConfig {
 
     /**
      * Music server the Media tab searches and plays from (`/stream_pcm?song=` + the MP3 stream it
-     * points at). A LAN address, so it only suits the network it was set up on -- change it in the
-     * panel's Setup tab; blank falls back to the upstream server-driven media path.
+     * points at). This is the DB-Robot one; the panel's Setup tab takes a custom address instead,
+     * and a blank one falls back to the upstream server-driven media path.
      */
-    const val MUSIC_URL = "http://192.168.1.3:5003"
+    const val MUSIC_URL = "https://ms.dbrobot.vn"
 
     /** Wake engine used until one is picked in the panel: "nabu" = microWakeWord "OK Nabu". */
     const val WAKE_ENGINE = "nabu"

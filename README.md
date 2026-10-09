@@ -4,22 +4,26 @@ Bản DB-Robot của [kuteo-git/xiaozhi-android](https://github.com/kuteo-git/xi
 (fork từ [douo/xiaozhi-android](https://github.com/douo/xiaozhi-android)). Khác bản gốc ở các điểm:
 
 - **Thương hiệu**: tên app, icon và trang điều khiển (cổng `8088`) mang tên DB-Robot.
-- **Máy chủ**: OTA mặc định là `https://sv1.dbrobot.vn/xiaozhi/ota/` (`AppConfig.OTA_URL`). App tự
-  hỏi OTA khi khởi động để lấy địa chỉ WebSocket và mã kích hoạt; mã hiện trong thẻ **Server** của
-  tab Setup cho tới khi thiết bị được thêm vào tài khoản trên máy chủ. Đổi máy chủ khác ngay trong
-  thẻ đó, không cần build lại.
+- **Máy chủ**: thẻ **Server** của tab Setup có hai máy chủ cố định, bấm là kết nối: DB-Robot
+  (`https://sv1.dbrobot.vn/xiaozhi/ota/`, mặc định, `AppConfig.OTA_URL`) và Xiaozhi
+  (`https://api.tenclass.net/xiaozhi/ota/`), kèm ô Tuỳ chỉnh cho OTA URL khác. App tự hỏi OTA khi
+  khởi động để lấy địa chỉ WebSocket và mã kích hoạt; mã hiện trong thẻ đó cho tới khi thiết bị
+  được thêm vào tài khoản trên máy chủ. Chọn máy chủ cố định cũng đặt luôn định dạng âm thanh của
+  máy chủ đó (16 kHz cho DB-Robot, 24 kHz cho Xiaozhi) và app tự khởi động lại nếu định dạng đổi.
 - **Âm thanh**: mặc định 16 kHz mono, khớp với định dạng máy chủ DB-Robot gửi về.
 - **Từ đánh thức**: mặc định "OK Nabu".
 - **`applicationId`**: `vn.dbrobot.r1`.
 
 - **Nhạc**: tab Media tìm và phát nhạc từ máy chủ nhạc DB-Robot (`/stream_pcm?song=` rồi luồng MP3
-  nó trả về), phát ngay trên loa bằng `media/LocalMusicPlayer.kt`. Địa chỉ đặt ở thẻ **Máy chủ
-  nhạc** của tab Setup, mặc định `AppConfig.MUSIC_URL`. Nhạc tự tạm dừng khi trợ lý nghe/nói và
+  nó trả về), phát ngay trên loa bằng `media/LocalMusicPlayer.kt`. Thẻ **Máy chủ nhạc** của tab Setup
+  có máy chủ cố định `https://ms.dbrobot.vn` (mặc định, `AppConfig.MUSIC_URL`) và ô Tuỳ chỉnh cho
+  máy chủ nhạc riêng. Nhạc tự tạm dừng khi trợ lý nghe/nói và
   phát tiếp khi phiên thoại kết thúc; bấm nút trên loa lúc đang phát nhạc là dừng nhạc.
 
 Các tính năng cần máy chủ riêng của bản gốc ([kuteo-git/robot-esp32](https://github.com/kuteo-git/robot-esp32))
-— bản tin hằng ngày, chọn giọng đọc VieNeu, cấu hình LLM/Home Assistant/persona theo phiên —
-không hoạt động với máy chủ xiaozhi thông thường.
+không hoạt động với máy chủ xiaozhi thông thường. Bốn thẻ của chúng — Giọng đọc, Bản tin,
+Assistant (persona), AI Model — được ẩn trên trang điều khiển (thuộc tính `hidden` trong
+`control.html`); thẻ Home Assistant vẫn hiện nhưng cũng cần máy chủ đó.
 
 Phần dưới đây là tài liệu của bản gốc.
 

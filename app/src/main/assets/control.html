@@ -207,6 +207,10 @@ body.fab-hide .fab{opacity:0;pointer-events:none;transform:translateY(12px);}
 .settings{padding:10px 13px var(--fab-clear);}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
   padding:13px;margin-bottom:9px;transition:background .3s,border-color .3s;}
+/* Cards for features only the upstream author's own server provides (voice picker, news bulletin,
+   persona, per-session LLM) stay in the markup -- their scripts expect the elements -- but are
+   not shown in the DB-Robot build. */
+.card[hidden]{display:none;}
 .ch{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
 .ch h2{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.9px;font-weight:700;}
 .icon-badge{width:26px;height:26px;border-radius:8px;flex-shrink:0;display:grid;place-items:center;color:#fff;}
@@ -584,12 +588,12 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
       <div class="row"><label>Độ to</label><input type="range" id="lden" min="0" max="2000" step="100"><span class="val" id="ldenv">–</span></div>
       <div class="hint">Kéo để chỉnh âm lượng loa. Áp dụng ngay, không cần restart.<details><summary>Chi tiết</summary><p><b>Độ to</b> là LoudnessEnhancer của hệ thống — nó có limiter nên tăng mà không rè, và nó là chỗ để chữa "nghe quá nhỏ" chứ không phải kéo dải tần lên. Mặc định 0 (tắt): đo ngày 25/07/2026, +3 dB boost đã làm loa trong máy rè trong khi file gốc vẫn sạch, nên trần ở đó là trần analog. Loa Bluetooth có ampli riêng nên chịu được nhiều hơn — đây là con số của cái loa đang nghe, không phải của mọi máy.</p></details></div>
     </div>
-    <div class="card">
+    <div class="card" id="cardVoice" hidden>
       <div class="ch"><span class="icon-badge ib-voice"><svg viewBox="0 0 20 20" fill="currentColor"><rect x="2" y="7" width="2.2" height="6" rx="1.1"/><rect x="6.3" y="4" width="2.2" height="12" rx="1.1"/><rect x="10.6" y="1" width="2.2" height="18" rx="1.1"/><rect x="14.9" y="4" width="2.2" height="12" rx="1.1"/></svg></span><h2>Giọng đọc</h2></div>
       <div class="row"><label>Giọng</label><select id="voice" style="flex:1"><option>(đang tải…)</option></select></div>
       <div class="hint">10 giọng VieNeu — nữ và nam, nhiều phong cách. Áp dụng từ câu trả lời kế tiếp.</div>
     </div>
-    <div class="card">
+    <div class="card" id="cardNews" hidden>
       <div class="ch"><span class="icon-badge ib-ai"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="15" height="12" rx="1.5"/><line x1="6" y1="8" x2="14" y2="8"/><line x1="6" y1="11" x2="11" y2="11"/></svg></span><h2>Bản tin</h2><label class="sw"><input type="checkbox" id="newsOn" aria-label="Bật/tắt bản tin tự động"><span></span></label></div>
       <div class="row"><label>Giờ đọc</label><input type="time" class="codein ui" id="newsTime" style="flex:1"></div>
       <div id="newsCats"></div>
@@ -651,7 +655,7 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
 <!-- SETUP -->
 <div id="psetup" class="page">
   <div class="settings">
-    <div class="card">
+    <div class="card" id="cardAssistant" hidden>
       <div class="ch"><span class="icon-badge ib-ai"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a4 4 0 00-4 4v1a3 3 0 000 6v1a4 4 0 008 0v-1a3 3 0 000-6V6a4 4 0 00-4-4z"/></svg></span><h2>Assistant</h2></div>
       <div class="row" style="align-items:flex-start"><label style="padding-top:8px">Persona</label>
         <textarea class="codein-area" id="assistantPrompt" placeholder="Để trống = dùng persona mặc định của server"></textarea></div>
@@ -661,17 +665,20 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
 
     <div class="card">
       <div class="ch"><span class="icon-badge ib-srv"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c2.5 2 2.5 12 0 14M10 3c-2.5 2-2.5 12 0 14"/></svg></span><h2>Server</h2></div>
-      <div class="row"><label>OTA URL</label><input class="codein" id="ota" placeholder="https://sv1.dbrobot.vn/xiaozhi/ota/"></div>
+      <div class="row"><label>Máy chủ</label><div class="segsel" style="flex:1"><button id="srvDb" onclick="connectPreset('db')">DB-Robot</button><button id="srvXz" onclick="connectPreset('xz')">Xiaozhi</button></div></div>
+      <div class="row"><label>Tuỳ chỉnh</label><input class="codein" id="ota" placeholder="https://máy-chủ-của-bạn/xiaozhi/ota/"></div>
+      <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="connectServer()">Save</button><span class="hint" id="srvStat" style="flex:1"></span></div>
       <div class="row"><label>Mã thiết bị</label><span class="hint" id="devId" style="flex:1;-webkit-user-select:text;user-select:text">—</span></div>
       <div class="hint" id="actBox" hidden style="margin:2px 0 8px;color:var(--a1);font-weight:600;-webkit-user-select:text;user-select:text"></div>
-      <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="connectServer()">Connect</button><span class="hint" id="srvStat" style="flex:1"></span></div>
+      <div class="hint">Bấm DB-Robot hoặc Xiaozhi là kết nối ngay. Máy chủ khác: nhập OTA URL vào ô Tuỳ chỉnh rồi bấm Save.</div>
     </div>
 
     <div class="card">
       <div class="ch"><span class="icon-badge ib-srv"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 3v9.2a3 3 0 101.5 2.6V6.9l6-1.2v6.5a3 3 0 101.5 2.6V3l-9 1.8V3z"/></svg></span><h2>Máy chủ nhạc</h2></div>
-      <div class="row"><label>Địa chỉ</label><input class="codein" id="musicUrl" placeholder="http://192.168.1.3:5003"></div>
+      <div class="row"><label>Máy chủ</label><div class="segsel" style="flex:1"><button id="msDb" onclick="setMusicPreset()">DB-Robot</button></div></div>
+      <div class="row"><label>Tuỳ chỉnh</label><input class="codein" id="musicUrl" placeholder="http://địa-chỉ:cổng"></div>
       <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="saveMusicUrl()">Save</button><span class="hint" id="musicStat" style="flex:1"></span></div>
-      <div class="hint">Tab Media tìm và phát nhạc từ máy chủ này, ngay trên loa. Để trống nếu máy chủ xiaozhi của bạn tự phát nhạc qua kênh thoại.</div>
+      <div class="hint">Tab Media tìm và phát nhạc từ máy chủ này, ngay trên loa. Bấm DB-Robot để dùng máy chủ nhạc mặc định; nếu có máy chủ nhạc riêng, nhập địa chỉ vào ô Tuỳ chỉnh rồi bấm Save.</div>
     </div>
 
     <div class="card">
@@ -683,7 +690,7 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
       <div class="hint" id="btStat">Ghép đôi một loa hoặc tai nghe để phát tiếng ra đó.<details><summary>Chi tiết</summary><p>Nối rồi thì <b>mọi</b> tiếng của máy đi ra thiết bị đó — câu trả lời, nhạc và bản tin — còn loa trong máy im. Quét chạy 12 giây một lần bấm chứ không chạy liên tục, vì Bluetooth và wifi dùng chung radio và panel này đi qua wifi. Equalizer vẫn giữ nguyên curve, nhưng curve đó đo cho loa của máy nên nên tắt hoặc chỉnh lại khi nghe qua loa khác.</p></details></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="cardLlm" hidden>
       <div class="ch"><span class="icon-badge ib-ai"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a4 4 0 00-4 4v1a3 3 0 000 6v1a4 4 0 008 0v-1a3 3 0 000-6V6a4 4 0 00-4-4z"/></svg></span><h2>AI Model</h2></div>
       <div class="row"><label>Provider</label><select id="prov" onchange="onProv()"><option value="custom">Custom</option><option value="openai">OpenAI</option><option value="openrouter">OpenRouter</option><option value="moonshot">Moonshot</option><option value="gemini">Gemini</option><option value="omniroute">OmniRoute</option></select></div>
       <div class="row"><label>Base URL</label><input class="codein" id="burl" placeholder="https://.../v1"></div>
@@ -1155,13 +1162,16 @@ function render(s){
         <div class="eq-wrap"><input class="vert" type="range" min="${s.eq.min}" max="${s.eq.max}" step="100" value="${bands[i]}" oninput="onEq(${i},this.value)"></div>
         <div class="eqf">${hz}</div></div>`;}).join('');
     s.eq.freqs.forEach((f,i)=>$('g'+i).textContent=(bands[i]/100).toFixed(0));}
-  if(s.tts_host&&s.tts_host!==TTS_HOST){TTS_HOST=s.tts_host;loadVoices();}
+  // The voice list comes from a TTS service this build's servers do not run; with its card hidden
+  // there is nothing to fill, so do not go looking for it.
+  if(!$('cardVoice').hidden&&s.tts_host&&s.tts_host!==TTS_HOST){TTS_HOST=s.tts_host;loadVoices();}
   // Populate the Setup inputs ONCE (from saved state); never on later polls, so unsaved edits
   // (text fields, provider combobox, model) are not clobbered every 1.5s.
   if(!setupInit){setupInit=true;
     $('assistantPrompt').value=s.custom_prompt||'';
-    $('ota').value=s.ota_url||'';
-    $('musicUrl').value=s.music_url||'';
+    // The custom boxes stay empty while one of the fixed servers is the one in use.
+    $('ota').value=presetOf(s.ota_url)?'':(s.ota_url||'');
+    $('musicUrl').value=isMusicPreset(s.music_url)?'':(s.music_url||'');
     $('prov').value=s.llm_provider||'custom';onProv();
     if(s.llm_base_url)$('burl').value=s.llm_base_url;
     if(s.llm_model)$('lmodel').innerHTML=`<option value="${s.llm_model}">${s.llm_model}</option>`;
@@ -1189,6 +1199,8 @@ function render(s){
   $('headSub').textContent='Trợ lý thông minh · '+(WAKE_NAME[s.wake_engine]||'PHICOMM R1');
   $('devId').textContent=(s.device_id||'—')+(s.app_version?' · v'+s.app_version:'');
   renderActivation(s.activation_code,s.activation_msg);
+  (function(){const k=presetOf(s.ota_url);activateSeg(SRV_PRESET_IDS,k?SRV_PRESET[k].id:null);})();
+  $('msDb').classList.toggle('on',isMusicPreset(s.music_url));
   $('moT').value=parseFloat(s.mai_oi_threshold||'0.5');$('moTv').textContent=s.mai_oi_threshold||'0.5';
   $('moTs').value=parseFloat(s.mai_oi_threshold_speaking||'0.5');$('moTsv').textContent=s.mai_oi_threshold_speaking||'0.5';
   const sig=JSON.stringify(s.chat);
@@ -1281,15 +1293,40 @@ async function saveLlm(){const p=$('prov').value;
   if($('akey').value)kv.llm_api_key=$('akey').value;   // don't wipe the saved key when left blank
   for(const k in kv)await fetch(`/api/set?key=${k}&value=${encodeURIComponent(kv[k])}`,{method:'POST'});
   $('llmStat').textContent='Đã lưu — áp dụng từ lần wake kế tiếp.';}
-async function saveMusicUrl(){$('musicStat').textContent='Đang lưu…';
-  try{await fetch('/api/set?key=music_url&value='+encodeURIComponent($('musicUrl').value.trim()),{method:'POST'});
+// Fixed servers. Each carries the audio format its server sends: the two ends cannot negotiate it
+// (see the System card), so picking a server has to set it too -- the app restarts by itself when
+// that changes the format. A custom OTA url leaves the format alone.
+const SRV_PRESET={
+  db:{id:'srvDb',ota:'https://sv1.dbrobot.vn/xiaozhi/ota/',sr:16000,ch:1},
+  xz:{id:'srvXz',ota:'https://api.tenclass.net/xiaozhi/ota/',sr:24000,ch:1}};
+const SRV_PRESET_IDS=Object.values(SRV_PRESET).map(p=>p.id);
+const MUSIC_PRESET='https://ms.dbrobot.vn';
+const normUrl=u=>(u||'').trim().replace(/\/+$/,'').toLowerCase();
+function presetOf(ota){const n=normUrl(ota);
+  for(const k in SRV_PRESET)if(normUrl(SRV_PRESET[k].ota)===n)return k;
+  return null;}
+const isMusicPreset=u=>normUrl(u)===normUrl(MUSIC_PRESET);
+async function saveMusic(v){$('musicStat').textContent='Đang lưu…';
+  try{await fetch('/api/set?key=music_url&value='+encodeURIComponent(v),{method:'POST'});
+    $('msDb').classList.toggle('on',isMusicPreset(v));
     $('musicStat').textContent='Đã lưu — áp dụng ngay.';}
   catch(e){$('musicStat').textContent='✗ '+e;}}
-async function connectServer(){$('srvStat').textContent='Connecting…';
-  try{const j=await(await fetch('/api/setup/server?ota='+encodeURIComponent($('ota').value.trim()),{method:'POST'})).json();
-    $('srvStat').textContent=j.ok?('● '+j.ws_url+(j.src==='derived'?' (derived)':'')):('✗ '+j.error);
-    if(j.ok)renderActivation(j.activation_code,j.activation_msg);}
+function setMusicPreset(){$('musicUrl').value='';saveMusic(MUSIC_PRESET);}
+function saveMusicUrl(){const v=$('musicUrl').value.trim();
+  if(!v){$('musicStat').textContent='Nhập địa chỉ vào ô Tuỳ chỉnh trước khi lưu.';return;}
+  saveMusic(v);}
+async function doConnect(ota,sr,ch){$('srvStat').textContent='Đang kết nối…';
+  let q='/api/setup/server?ota='+encodeURIComponent(ota);
+  if(sr)q+='&sr='+sr+'&ch='+ch;
+  try{const j=await(await fetch(q,{method:'POST'})).json();
+    $('srvStat').textContent=j.ok?('● '+j.ws_url+(j.src==='derived'?' (derived)':'')+(j.restart?' — đang khởi động lại app…':'')):('✗ '+j.error);
+    if(j.ok){const k=presetOf(ota);activateSeg(SRV_PRESET_IDS,k?SRV_PRESET[k].id:null);
+      renderActivation(j.activation_code,j.activation_msg);}}
   catch(e){$('srvStat').textContent='✗ '+e;}}
+function connectPreset(k){const p=SRV_PRESET[k];$('ota').value='';doConnect(p.ota,p.sr,p.ch);}
+function connectServer(){const v=$('ota').value.trim();
+  if(!v){$('srvStat').textContent='Nhập OTA URL vào ô Tuỳ chỉnh trước khi lưu.';return;}
+  doConnect(v);}
 // Shown while the server still has this device unbound: the code its owner types into the server
 // console. Empty code = bound (or not asked yet), and the box goes away.
 function renderActivation(code,msg){const b=$('actBox');

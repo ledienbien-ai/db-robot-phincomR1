@@ -24,6 +24,7 @@ import info.dourok.voicebot.domain.voice.MediaCommands
 import info.dourok.voicebot.domain.voice.MediaPlaybackState
 import info.dourok.voicebot.domain.voice.MediaSessionState
 import info.dourok.voicebot.domain.voice.MicTest
+import info.dourok.voicebot.domain.voice.ServerAudioParams
 import info.dourok.voicebot.domain.voice.TextCommands
 import info.dourok.voicebot.media.LocalMusicPlayer
 import okhttp3.MediaType.Companion.toMediaType
@@ -441,8 +442,32 @@ class ControlServer @Inject constructor(
         Settings.otaUrl = ota
         val r = ServerProvisioner.provision(deviceInfo, ota, deriveOnFailure = true)
         if (!r.ok) return """{"ok":false,"error":${JSONObject.quote(r.error)}}"""
+        // What the previous server announced says nothing about this one; until the new one has
+        // said hello the panel must not warn about (or vouch for) a format mismatch.
+        ServerAudioParams.sampleRate = -1
+        ServerAudioParams.channels = -1
+        // The panel's fixed servers send along the audio format their server uses, because the two
+        // ends cannot negotiate it and a wrong one plays as noise. Playback is opened once at
+        // start-up, so a change only takes effect after a restart -- done here, so that picking a
+        // server is one tap rather than a tap, two more settings and a restart.
+        val sr = param(session, "sr").toIntOrNull()
+        val ch = param(session, "ch").toIntOrNull()
+        var restart = false
+        if (sr != null && sr != Settings.playbackSampleRate) {
+            Settings.playbackSampleRate = sr
+            restart = true
+        }
+        if (ch != null && ch != Settings.playbackChannels) {
+            Settings.playbackChannels = ch
+            restart = true
+        }
+        if (restart) {
+            AppLog.i("Đổi định dạng âm thanh theo máy chủ (${Settings.playbackSampleRate} Hz, ${Settings.playbackChannels} kênh) -> khởi động lại app")
+            scheduleRestart()
+        }
         return JSONObject()
             .put("ok", true)
+            .put("restart", restart)
             .put("ws_url", r.wsUrl)
             .put("src", r.source)
             .put("activation_code", ServerProvisioner.activationCode)
