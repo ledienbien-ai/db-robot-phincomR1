@@ -17,6 +17,13 @@ object AppConfig {
      */
     const val OTA_URL = "https://sv1.dbrobot.vn/xiaozhi/ota/"
 
+    /**
+     * Music server the Media tab searches and plays from (`/stream_pcm?song=` + the MP3 stream it
+     * points at). A LAN address, so it only suits the network it was set up on -- change it in the
+     * panel's Setup tab; blank falls back to the upstream server-driven media path.
+     */
+    const val MUSIC_URL = "http://192.168.1.3:5003"
+
     /** Wake engine used until one is picked in the panel: "nabu" = microWakeWord "OK Nabu". */
     const val WAKE_ENGINE = "nabu"
 

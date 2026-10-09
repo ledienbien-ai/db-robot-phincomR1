@@ -25,6 +25,7 @@ import info.dourok.voicebot.domain.voice.MediaPlaybackState
 import info.dourok.voicebot.domain.voice.MediaSessionState
 import info.dourok.voicebot.domain.voice.MicTest
 import info.dourok.voicebot.domain.voice.TextCommands
+import info.dourok.voicebot.media.LocalMusicPlayer
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -100,15 +101,31 @@ class ControlServer @Inject constructor(
             "/api/ha/test" -> json(handleHaTest(session))
             "/api/media/search" -> json(handleMediaSearch(param(session, "q")))
             "/api/media/play" -> json(handleMediaPlay(session))
+            // With a music server configured the song plays on this device (LocalMusicPlayer);
+            // without one these go to the xiaozhi server over the voice channel, as upstream.
             "/api/media/seek" -> {
-                param(session, "position_s").toIntOrNull()
-                    ?.let { MediaCommands.flow.tryEmit(MediaCommands.Command.Seek(it)) }
+                param(session, "position_s").toIntOrNull()?.let {
+                    if (localMusic()) LocalMusicPlayer.seekTo(it)
+                    else MediaCommands.flow.tryEmit(MediaCommands.Command.Seek(it))
+                }
                 json("""{"ok":true}""")
             }
-            "/api/media/next" -> { MediaCommands.flow.tryEmit(MediaCommands.Command.Next); json("""{"ok":true}""") }
-            "/api/media/pause" -> { MediaCommands.flow.tryEmit(MediaCommands.Command.Pause); json("""{"ok":true}""") }
-            "/api/media/resume" -> { MediaCommands.flow.tryEmit(MediaCommands.Command.Resume); json("""{"ok":true}""") }
-            "/api/media/stop" -> { MediaCommands.flow.tryEmit(MediaCommands.Command.Stop); json("""{"ok":true}""") }
+            "/api/media/next" -> {
+                if (localMusic()) LocalMusicPlayer.next() else MediaCommands.flow.tryEmit(MediaCommands.Command.Next)
+                json("""{"ok":true}""")
+            }
+            "/api/media/pause" -> {
+                if (localMusic()) LocalMusicPlayer.pause() else MediaCommands.flow.tryEmit(MediaCommands.Command.Pause)
+                json("""{"ok":true}""")
+            }
+            "/api/media/resume" -> {
+                if (localMusic()) LocalMusicPlayer.resume() else MediaCommands.flow.tryEmit(MediaCommands.Command.Resume)
+                json("""{"ok":true}""")
+            }
+            "/api/media/stop" -> {
+                if (localMusic()) LocalMusicPlayer.stop() else MediaCommands.flow.tryEmit(MediaCommands.Command.Stop)
+                json("""{"ok":true}""")
+            }
             "/api/media/state" -> json(buildMediaState())
             "/api/logs" -> json(buildLogs(param(session, "since").toLongOrNull() ?: 0L))
             "/api/logs/clear" -> { AppLog.clear(); AppLog.i("Đã xoá log"); json("""{"ok":true}""") }
@@ -203,6 +220,7 @@ class ControlServer @Inject constructor(
             "llm_transport" -> Settings.llmTransport = v
             "wake_engine" -> Settings.wakeEngine = v
             "ota_url" -> Settings.otaUrl = v
+            "music_url" -> Settings.musicUrl = v
             "ha_url" -> Settings.haUrl = v
             "ha_token" -> Settings.haToken = v
             "ha_devices" -> Settings.haDevices = v
@@ -298,6 +316,7 @@ class ControlServer @Inject constructor(
         o.put("llm_transport", Settings.llmTransport)
         o.put("wake_engine", Settings.wakeEngine)
         o.put("ota_url", Settings.otaUrl)
+        o.put("music_url", Settings.musicUrl)
         o.put("ws_url", Settings.wsUrl)
         // Identity the server knows this device by, and the code its owner types into the server
         // console while it is still unbound ("" once bound). See ServerProvisioner.
@@ -354,6 +373,45 @@ class ControlServer @Inject constructor(
         return try {
             "http://${java.net.URI(ws).host}:$PYTUBE_PORT"
         } catch (e: Exception) { "" }
+    }
+
+    /** Base url of the DB-Robot music server, without a trailing slash; "" = not configured. */
+    private fun musicBase(): String = Settings.musicUrl.trim().trimEnd('/')
+
+    /** True when the Media tab should search and play through the music server on this device. */
+    private fun localMusic(): Boolean = Settings.musicUrl.isNotBlank()
+
+    // The music server searches and resolves the stream before it answers, which takes far longer
+    // than the 15s the shared client allows.
+    private val musicHttp = OkHttpClient.Builder()
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(45, TimeUnit.SECONDS)
+        .build()
+
+    /**
+     * GET {musicBase()}/stream_pcm?song= → reshaped as {"ok":true,"results":[...]}. The server
+     * returns its single best match, so the list holds one song or none.
+     */
+    private fun handleMusicServerSearch(query: String): String {
+        if (query.isBlank()) return """{"ok":true,"results":[]}"""
+        return try {
+            val url = "${musicBase()}/stream_pcm?song=${java.net.URLEncoder.encode(query, "UTF-8")}"
+            val req = Request.Builder().url(url).get().build()
+            val body = musicHttp.newCall(req).execute().use { it.body?.string().orEmpty() }
+            val arr = JSONArray()
+            info.dourok.voicebot.media.parseMusicServerSong(body)?.let {
+                arr.put(
+                    JSONObject()
+                        .put("video_id", it.videoId).put("title", it.title)
+                        .put("artist", it.artist).put("duration", it.duration)
+                        .put("thumbnail", it.thumbnailUrl)
+                )
+            }
+            """{"ok":true,"results":$arr}"""
+        } catch (e: Exception) {
+            AppLog.w("Không tìm được nhạc: ${e.message}")
+            """{"ok":false,"error":${JSONObject.quote(e.message ?: "network error")}}"""
+        }
     }
 
     private fun ttsHostFromWs(wsUrl: String): String {
@@ -498,6 +556,7 @@ class ControlServer @Inject constructor(
 
     /** GET {pytubeBase()}/v3/search?q=&limit= → reshaped as {"ok":true,"results":[...]}. */
     private fun handleMediaSearch(query: String): String {
+        if (localMusic()) return handleMusicServerSearch(query)
         val base = pytubeBase()
         if (base.isBlank()) return """{"ok":false,"error":"no server configured yet (Setup tab)"}"""
         if (query.isBlank()) return """{"ok":true,"results":[]}"""
@@ -585,6 +644,28 @@ class ControlServer @Inject constructor(
         val items = root.optJSONArray("items")
             ?: return """{"ok":false,"error":"items must be a JSON array"}"""
         if (items.length() == 0) return """{"ok":false,"error":"empty items"}"""
+        if (localMusic()) {
+            val base = musicBase()
+            val tracks = ArrayList<LocalMusicPlayer.Track>()
+            for (i in 0 until items.length()) {
+                val it = items.optJSONObject(i) ?: continue
+                val id = it.optString("video_id", "")
+                if (id.isEmpty()) continue
+                tracks.add(
+                    LocalMusicPlayer.Track(
+                        id = id,
+                        title = it.optString("title", ""),
+                        artist = it.optString("artist", ""),
+                        thumbnail = it.optString("thumbnail", ""),
+                        duration = it.optString("duration", ""),
+                        url = info.dourok.voicebot.media.musicStreamUrl(base, id),
+                    )
+                )
+            }
+            if (tracks.isEmpty()) return """{"ok":false,"error":"no playable items"}"""
+            LocalMusicPlayer.play(tracks, root.optInt("start_index", 0))
+            return """{"ok":true}"""
+        }
         MediaCommands.flow.tryEmit(
             MediaCommands.Command.Play(items.toString(), root.optInt("start_index", 0))
         )
@@ -671,6 +752,7 @@ class ControlServer @Inject constructor(
     }
 
     private fun buildMediaState(): String {
+        if (localMusic()) return LocalMusicPlayer.snapshot()
         val np = MediaSessionState.nowPlaying.value
         val queueArr = JSONArray()
         MediaSessionState.queue.value.forEach {

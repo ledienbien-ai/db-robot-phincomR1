@@ -114,6 +114,10 @@ object Settings {
     var otaUrl: String
         get() = prefs.getString("ota_url", AppConfig.OTA_URL)!!
         set(v) = prefs.edit().putString("ota_url", v).apply()
+    /** Base url of the music server behind the Media tab; "" = upstream server-driven media. */
+    var musicUrl: String
+        get() = prefs.getString("music_url", AppConfig.MUSIC_URL)!!
+        set(v) = prefs.edit().putString("music_url", v.trim()).apply()
     var wsUrl: String
         get() = prefs.getString("ws_url", "")!!
         set(v) = prefs.edit().putString("ws_url", v).apply()

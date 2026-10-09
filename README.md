@@ -12,9 +12,14 @@ Bản DB-Robot của [kuteo-git/xiaozhi-android](https://github.com/kuteo-git/xi
 - **Từ đánh thức**: mặc định "OK Nabu".
 - **`applicationId`**: `vn.dbrobot.r1`.
 
+- **Nhạc**: tab Media tìm và phát nhạc từ máy chủ nhạc DB-Robot (`/stream_pcm?song=` rồi luồng MP3
+  nó trả về), phát ngay trên loa bằng `media/LocalMusicPlayer.kt`. Địa chỉ đặt ở thẻ **Máy chủ
+  nhạc** của tab Setup, mặc định `AppConfig.MUSIC_URL`. Nhạc tự tạm dừng khi trợ lý nghe/nói và
+  phát tiếp khi phiên thoại kết thúc; bấm nút trên loa lúc đang phát nhạc là dừng nhạc.
+
 Các tính năng cần máy chủ riêng của bản gốc ([kuteo-git/robot-esp32](https://github.com/kuteo-git/robot-esp32))
-— tìm và phát nhạc ở tab Media, bản tin hằng ngày, chọn giọng đọc VieNeu, cấu hình LLM/Home
-Assistant/persona theo phiên — không hoạt động với máy chủ xiaozhi thông thường.
+— bản tin hằng ngày, chọn giọng đọc VieNeu, cấu hình LLM/Home Assistant/persona theo phiên —
+không hoạt động với máy chủ xiaozhi thông thường.
 
 Phần dưới đây là tài liệu của bản gốc.
 

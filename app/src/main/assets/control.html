@@ -668,6 +668,13 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
     </div>
 
     <div class="card">
+      <div class="ch"><span class="icon-badge ib-srv"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 3v9.2a3 3 0 101.5 2.6V6.9l6-1.2v6.5a3 3 0 101.5 2.6V3l-9 1.8V3z"/></svg></span><h2>Máy chủ nhạc</h2></div>
+      <div class="row"><label>Địa chỉ</label><input class="codein" id="musicUrl" placeholder="http://192.168.1.3:5003"></div>
+      <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="saveMusicUrl()">Save</button><span class="hint" id="musicStat" style="flex:1"></span></div>
+      <div class="hint">Tab Media tìm và phát nhạc từ máy chủ này, ngay trên loa. Để trống nếu máy chủ xiaozhi của bạn tự phát nhạc qua kênh thoại.</div>
+    </div>
+
+    <div class="card">
       <div class="ch"><span class="icon-badge ib-bt"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="5.4 5.4 14.6 14.6 10 19.2 10 0.8 14.6 5.4 5.4 14.6"/></svg></span><h2>Bluetooth</h2><label class="sw"><input type="checkbox" id="btOn" onchange="btEnable(this.checked)" aria-label="Bật/tắt Bluetooth"><span></span></label></div>
       <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" id="btScanBtn" onclick="btScan()">Quét</button><button class="btn rec" style="flex:1;width:auto" onclick="btSay()">Phát thử</button></div>
       <div class="row"><label>Tự nối lại</label><label class="sw sw-sm"><input type="checkbox" id="btAuto" onchange="btAutoSet(this.checked)" aria-label="Tự nối lại thiết bị cuối"><span></span></label></div>
@@ -1154,6 +1161,7 @@ function render(s){
   if(!setupInit){setupInit=true;
     $('assistantPrompt').value=s.custom_prompt||'';
     $('ota').value=s.ota_url||'';
+    $('musicUrl').value=s.music_url||'';
     $('prov').value=s.llm_provider||'custom';onProv();
     if(s.llm_base_url)$('burl').value=s.llm_base_url;
     if(s.llm_model)$('lmodel').innerHTML=`<option value="${s.llm_model}">${s.llm_model}</option>`;
@@ -1273,6 +1281,10 @@ async function saveLlm(){const p=$('prov').value;
   if($('akey').value)kv.llm_api_key=$('akey').value;   // don't wipe the saved key when left blank
   for(const k in kv)await fetch(`/api/set?key=${k}&value=${encodeURIComponent(kv[k])}`,{method:'POST'});
   $('llmStat').textContent='Đã lưu — áp dụng từ lần wake kế tiếp.';}
+async function saveMusicUrl(){$('musicStat').textContent='Đang lưu…';
+  try{await fetch('/api/set?key=music_url&value='+encodeURIComponent($('musicUrl').value.trim()),{method:'POST'});
+    $('musicStat').textContent='Đã lưu — áp dụng ngay.';}
+  catch(e){$('musicStat').textContent='✗ '+e;}}
 async function connectServer(){$('srvStat').textContent='Connecting…';
   try{const j=await(await fetch('/api/setup/server?ota='+encodeURIComponent($('ota').value.trim()),{method:'POST'})).json();
     $('srvStat').textContent=j.ok?('● '+j.ws_url+(j.src==='derived'?' (derived)':'')):('✗ '+j.error);

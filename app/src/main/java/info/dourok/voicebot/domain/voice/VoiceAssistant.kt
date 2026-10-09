@@ -5,6 +5,7 @@ import info.dourok.voicebot.OpusEncoder
 import info.dourok.voicebot.data.Settings
 import info.dourok.voicebot.domain.voice.model.ChatMessage
 import info.dourok.voicebot.domain.voice.model.VoiceState
+import info.dourok.voicebot.media.LocalMusicPlayer
 import info.dourok.voicebot.protocol.AbortReason
 import info.dourok.voicebot.protocol.AudioState
 import info.dourok.voicebot.protocol.ListeningMode
@@ -187,6 +188,7 @@ class VoiceAssistant @Inject constructor(
         if (text.isBlank()) return
         ConversationLog.add("user", text)
         AppLog.i("Nhận lệnh dạng chữ: \"$text\"")
+        LocalMusicPlayer.holdForVoice()
         if (!protocol.isAudioChannelOpened()) protocol.openAudioChannel()
         isAwake = true
         autoTurns = 0
@@ -286,6 +288,9 @@ class VoiceAssistant @Inject constructor(
         Log.i(TAG, ">>> wake word detected: isAwake=$isAwake state=${state.value} t=${System.currentTimeMillis()}")
         AppLog.i(if (isAwake) "Nghe từ khóa (đang thức) -> ngắt lời" else "Nghe từ khóa -> bắt đầu nghe")
         autoTurns = 0
+        // A song from the music server plays outside the voice pipeline, so nothing else would
+        // stop it from drowning the command and being transcribed along with it.
+        LocalMusicPlayer.holdForVoice()
         chimeGuard(sounds.playWake())
         if (isAwake) {
             // Speaking / music -> interrupt: flush buffered audio + suppress the SPEAKING override so
@@ -340,6 +345,7 @@ class VoiceAssistant @Inject constructor(
         // that ends a goodbye (see SessionEnd), so the session's end drops it with everything else.
         MediaSessionState.clear()
         wakeWord.reset()
+        LocalMusicPlayer.releaseAfterVoice()
     }
 
     private fun handleServerMessage(json: JSONObject) {
@@ -468,6 +474,13 @@ class VoiceAssistant @Inject constructor(
         Log.i(TAG, "onButtonPress: isAwake=$isAwake state=${state.value} t=${System.currentTimeMillis()}")
         scope.launch {
             autoTurns = 0  // explicit user intent -> reset the false-wake blast-radius cap
+            if (!isAwake && LocalMusicPlayer.isActive) {
+                // The button stays the reliable "turn it off": with a song playing and no session
+                // open, the thing to turn off is the song.
+                LocalMusicPlayer.stop()
+                AppLog.i("Nút bấm -> dừng nhạc")
+                return@launch
+            }
             if (!isAwake) {
                 chimeGuard(sounds.playWake())
                 if (!protocol.isAudioChannelOpened()) protocol.openAudioChannel()
@@ -487,6 +500,7 @@ class VoiceAssistant @Inject constructor(
                 isMusic = false
                 protocol.closeAudioChannel()
                 state.value = VoiceState.IDLE
+                LocalMusicPlayer.releaseAfterVoice()
                 // Matches backToWake()'s reset -- without it, a wake detector with real
                 // cross-call state (e.g. MaiOiWakeWordDetector's frame accumulator + native
                 // frontend buffers) can carry stale partial state into the next listening
