@@ -21,8 +21,8 @@ android {
         // One number per release, said in both places and by the git tag. Left at 1 / "1.0" for
         // months, which is how a fix measured on one build gets reported as still broken on
         // another -- nothing on the device could say which binary was running.
-        versionCode = 5
-        versionName = "1.3.0"
+        versionCode = 6
+        versionName = "1.3.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -34,7 +34,24 @@ android {
         }
     }
 
+    // One fixed key for every build, wherever it is built. The default debug key is generated per
+    // machine, and a CI runner is a new machine each time: every APK came out signed differently,
+    // so `pm install -r` over the previous one failed with INSTALL_FAILED_UPDATE_INCOMPATIBLE and
+    // the only way forward was an uninstall that wiped the settings and the device's identity.
+    // This key is committed on purpose and is NOT a secret -- it only keeps updates installable.
+    signingConfigs {
+        create("dbrobot") {
+            storeFile = file("dbrobot.keystore")
+            storePassword = "android"
+            keyAlias = "dbrobot"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("dbrobot")
+        }
         release {
             isMinifyEnabled = true              // R8: tối ưu + thu gọn code
             isShrinkResources = false           // tắt -> tránh xén nhầm res (Compose)
@@ -42,8 +59,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Ký bằng debug key -> cài đè (pm install -r) lên bản .dev hiện tại được, khỏi gỡ.
-            signingConfig = signingConfigs.getByName("debug")
+            // Cùng một khoá với debug -> bản nào cũng cài đè (pm install -r) lên bản nào được.
+            signingConfig = signingConfigs.getByName("dbrobot")
         }
     }
     compileOptions {
