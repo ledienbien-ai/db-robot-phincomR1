@@ -8,23 +8,48 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
-      # The native code (Opus, micro-features) needs the NDK and CMake on top of the SDK platform.
-      - name: Install SDK packages
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
+      # The runner image ships the Android SDK. The Gradle plugin downloads whatever this project
+      # needs on top of it (NDK 27, CMake 3.22.1) by itself, as long as the licences are accepted.
+      - name: Accept SDK licences
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Build release APK
-        run: ./gradlew :app:assembleRelease --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleRelease --stacktrace 2>&1 | tee build.log
+
+      # The step logs need a GitHub sign-in to read; annotations and the job summary do not. Put the
+      # lines that say what went wrong where they can be seen from the run page.
+      - name: Report build errors
+        if: failure()
+        run: |
+          if [ -f build.log ]; then
+            grep -E "^e: |^w: .*error|error:|What went wrong|^> |Caused by:|FAILED$" build.log | head -10 \
+              | while IFS= read -r line; do echo "::error::${line}"; done
+            {
+              echo '### Build failed'
+              echo '```'
+              grep -E "^e: |error:|What went wrong|^> |Caused by:|FAILED$" build.log | head -80
+              echo '```'
+              echo '<details><summary>Last 120 log lines</summary>'
+              echo
+              echo '```'
+              tail -120 build.log
+              echo '```'
+              echo '</details>'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::Build did not start: no build.log was written"
+          fi
 
       - name: Rename APK
         run: |
