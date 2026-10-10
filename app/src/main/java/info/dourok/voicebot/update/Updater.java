@@ -77,7 +77,7 @@ public final class Updater {
     private static final int READ_TIMEOUT_MS = 30_000;
     private static final int MANIFEST_LIMIT = 64 * 1024;
     private static final long APK_LIMIT = 200L * 1024 * 1024;
-    private static final int ADB_TIMEOUT_MS = 15_000;
+    private static final int ADB_TIMEOUT_MS = 6_000;   // a healthy adbd answers in milliseconds
     private static final long LOG_POLL_MS = 2_000;
 
     private final Config cfg;
@@ -93,6 +93,7 @@ public final class Updater {
     private long size;
     private int progress;
     private long checkedMs;
+    private long lastAttemptMs;
     private String lastResult = "";
     private boolean busy;
 
@@ -112,6 +113,13 @@ public final class Updater {
     public boolean isBusy() {
         synchronized (lock) {
             return busy;
+        }
+    }
+
+    /** When an install was last launched, successfully or not; 0 if never in this process. */
+    public long lastAttemptMs() {
+        synchronized (lock) {
+            return lastAttemptMs;
         }
     }
 
@@ -336,6 +344,19 @@ public final class Updater {
             state = DOWNLOADING;
             error = "";
         }
+        // One install at a time. The shell that performs it runs on its own and outlives whatever
+        // started it; a second one launched meanwhile overwrites the file the first is installing
+        // from. A log without its end marker is the sign that one is still at work.
+        String running = readSmallFile(cfg.logFile);
+        if (running != null) {
+            boolean finished = running.contains("exit=");
+            boolean stale = System.currentTimeMillis() - cfg.logFile.lastModified() > cfg.installTimeoutMs;
+            if (!finished && !stale) {
+                fail("Một lần cài đặt khác đang chạy. Hãy chờ vài phút rồi tải lại trang.");
+                return;
+            }
+            cfg.logFile.delete();
+        }
         try {
             download(url, expected, expectedSize);
         } catch (Exception e) {
@@ -344,9 +365,17 @@ public final class Updater {
         }
 
         set(INSTALLING);
-        cfg.logFile.delete();
+        synchronized (lock) {
+            lastAttemptMs = System.currentTimeMillis();
+        }
         try {
             AdbLoopback.shell(cfg.adbHost, cfg.adbPort, installCommand(), ADB_TIMEOUT_MS);
+        } catch (AdbLoopback.BusyException e) {
+            cfg.apkFile.delete();
+            fail("Loa đang được một máy tính điều khiển qua adb nên chưa tự cài được. Trên máy "
+                    + "tính đó hãy chạy lệnh \"adb disconnect\" (hoặc tắt máy), rồi bấm Cập nhật "
+                    + "ngay lần nữa.");
+            return;
         } catch (IOException e) {
             cfg.apkFile.delete();
             fail("Không gọi được trình cài đặt trên loa (adb " + cfg.adbHost + ":" + cfg.adbPort

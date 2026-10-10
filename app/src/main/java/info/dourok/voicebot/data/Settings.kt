@@ -143,6 +143,11 @@ object Settings {
         get() = prefs.getString("loc_tz", AppConfig.TIME_ZONE)!!
         set(v) = prefs.edit().putString("loc_tz", v).apply()
 
+    /** Ignore the wake word while a song or a radio station is playing (see VoiceGate). */
+    var pauseOnMusic: Boolean
+        get() = prefs.getBoolean("pause_on_music", false)
+        set(v) = prefs.edit().putBoolean("pause_on_music", v).apply()
+
     var wsUrl: String
         get() = prefs.getString("ws_url", "")!!
         set(v) = prefs.edit().putString("ws_url", v).apply()

@@ -29,7 +29,9 @@ màn hình.
   mạng Wi-Fi. Có giao diện sáng (xanh, đồng bộ với dbrobot.vn) và tối.
 - **Ra lệnh bằng giọng nói** — "mở bài Nơi này có anh", "tăng âm lượng lên 70", "mở VOV giao
   thông Hà Nội", "dừng nhạc" (xem [Lệnh giọng nói](#lệnh-giọng-nói)).
-- **Radio** — 14 kênh VOV, mở bằng giọng nói hoặc bấm trong tab Media.
+- **Radio** — 8 kênh VOV, mở bằng giọng nói hoặc bấm trong tab Media.
+- **Tắt nghe và gọi loa bằng tay** — hai nút trên trang điều khiển để tắt từ đánh thức khi
+  không muốn loa xen vào (lúc nghe nhạc, xem tivi) và gọi loa khi cần.
 - **Nghe nhạc** — tìm bài hát và phát ngay trên loa, có quang phổ theo nhạc, thanh âm lượng, nút
   phát / tạm dừng / bài kế. Nhạc tự tạm dừng khi bạn nói chuyện với loa và phát tiếp sau đó.
 - **Chọn máy chủ bằng một nút bấm** — máy chủ DB-Robot hoặc Xiaozhi có sẵn, và ô nhập cho máy chủ
@@ -55,7 +57,7 @@ màn hình.
   <tr>
     <td align="center"><img src="docs/images/settings.png" width="260" alt="Tab Settings"><br><b>Settings</b> — âm thanh, micro, đèn</td>
     <td align="center"><img src="docs/images/setup.png" width="260" alt="Tab Setup"><br><b>Setup</b> — máy chủ, máy chủ nhạc</td>
-    <td align="center"><img src="docs/images/media.png" width="260" alt="Tab Media"><br><b>Media</b> — trình phát nhạc</td>
+    <td align="center"><img src="docs/images/media.png" width="260" alt="Tab Media"><br><b>Media</b> — nhạc, radio, nút Tắt nghe / Gọi loa</td>
   </tr>
   <tr>
     <td align="center"><img src="docs/images/ai-model.png" width="260" alt="Thẻ AI Model"><br><b>AI Model</b> — dùng API key riêng</td>
@@ -104,8 +106,9 @@ và cách xử lý trục trặc: [install/HUONG_DAN_CAI_DAT.md](install/HUONG_D
 | **Setup** | Server · Máy chủ nhạc · Vị trí & thời tiết · Bluetooth · AI Model · Home Assistant · Wake word · Cập nhật phần mềm · Khởi động lại ứng dụng |
 | **Media** | Trình phát nhạc, quang phổ, âm lượng, ô tìm bài hát, hàng nút kênh radio |
 
-Hai nút nổi ở góc dưới mở khung **Chat** (gõ chữ thay cho nói, xem lại hội thoại) và **Log** (nhật
-ký hoạt động của loa). Mỗi thẻ có dòng mô tả ngắn và mục **Chi tiết** giải thích cách chỉnh.
+Hai nút nổi ở góc dưới bên phải mở khung **Chat** (gõ chữ thay cho nói, xem lại hội thoại) và
+**Log** (nhật ký hoạt động của loa). Hai nút ở góc dưới bên trái là **Tắt nghe** và **Gọi loa**
+(xem [Tắt nghe và gọi loa](#tắt-nghe-và-gọi-loa)). Mỗi thẻ có dòng mô tả ngắn và mục **Chi tiết** giải thích cách chỉnh.
 
 ### Từ đánh thức
 
@@ -116,6 +119,20 @@ ký hoạt động của loa). Mỗi thẻ có dòng mô tả ngắn và mục *
 | **Nabi ơi** (thử nghiệm) | Chỉnh được ngưỡng |
 
 Đổi từ đánh thức trong tab Setup → **Wake word**, rồi khởi động lại ứng dụng.
+
+### Tắt nghe và gọi loa
+
+Loa chỉ có micro, không có mạch khử tiếng vọng, nên tiếng nhạc hay tiếng tivi đôi khi bị nghe nhầm
+thành từ đánh thức. Hai nút ở góc dưới bên trái trang điều khiển dành cho lúc đó:
+
+| Nút | Tác dụng |
+|---|---|
+| **Tắt nghe** | Tắt từ đánh thức và kết thúc cuộc trò chuyện đang diễn ra. Nút chuyển sang màu đỏ "Đang tắt nghe"; bấm lần nữa để loa nghe lại. Loa tự nghe lại sau khi khởi động lại. |
+| **Gọi loa** | Loa bắt đầu nghe ngay, giống như vừa được gọi tên — dùng được cả khi đang tắt nghe. |
+
+Nút trên đỉnh loa vẫn đánh thức được trong mọi trường hợp. Muốn loa tự làm việc này mỗi khi phát
+nhạc, bật **Tắt khi phát nhạc** trong tab Setup → **Wake word**: trong lúc có nhạc hoặc radio, loa
+bỏ qua từ đánh thức, và nghe lại khi nhạc dừng.
 
 ## Máy chủ
 
@@ -170,8 +187,9 @@ nó chỉ trả lời rằng không có gì để đổi.
 Nhạc và radio bắt đầu ngay sau khi trợ lý nói xong câu trả lời. Máy chủ phải hỗ trợ MCP trên thiết
 bị; các bản xiaozhi-esp32-server gần đây có sẵn.
 
-Radio gồm các kênh VOV1, VOV2, VOV3, VOV5, VOV Giao thông Hà Nội và TP.HCM, VOV Mekong, các kênh
-VOV4 khu vực và VOV5 tiếng Anh.
+Radio gồm 8 kênh: VOV1, VOV2, VOV3, VOV4, VOV5, VOV Giao thông Hà Nội, VOV Giao thông TP.HCM và
+VOV Mekong FM. Đài phát các kênh này dưới dạng HLS qua https; loa tự đọc luồng đó và chuyển cho
+trình phát trên máy (`media/HlsAudioStream.java`), mỗi kênh có địa chỉ dự phòng.
 
 ## Vị trí và thời tiết
 
@@ -206,6 +224,11 @@ ngay**. Loa tải bản mới, đối chiếu mã SHA-256, cài đặt rồi t�
 được giữ nguyên. Bật **Tự động cập nhật** thì loa tự cài khi đang rảnh (không trò chuyện, không
 phát nhạc).
 
+Loa chỉ nhận một kết nối adb tại một thời điểm, và việc tự cài đặt cần chính kết nối đó. Nếu một
+máy tính trong mạng đang nối adb tới loa, trang điều khiển sẽ báo "Loa đang được một máy tính điều
+khiển qua adb": chạy `adb disconnect` trên máy tính đó (hoặc tắt máy) rồi bấm **Cập nhật ngay**
+lần nữa. Bộ cài trong thư mục `install/` tự ngắt kết nối khi chạy xong.
+
 ## Dành cho nhà phát triển
 
 ### Build
@@ -234,7 +257,8 @@ Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `appl
 | `…/voicebot/media/LocalMusicPlayer.kt` | Phát nhạc từ máy chủ nhạc, lấy quang phổ |
 | `…/voicebot/weather/` | Vị trí, múi giờ, thời tiết (`Weather.java`, `LocationManager.kt`) |
 | `…/voicebot/mcp/` | Công cụ MCP cho trợ lý (`DeviceMcp.java`, `DeviceTools.kt`) |
-| `…/voicebot/media/RadioStations.java`, `MusicService.kt` | Danh sách kênh radio; phát nhạc/radio theo lệnh giọng nói |
+| `…/voicebot/media/RadioStations.java`, `HlsAudioStream.java`, `MusicService.kt` | Danh sách kênh radio, đọc luồng HLS của đài; phát nhạc/radio theo lệnh giọng nói |
+| `…/voicebot/domain/voice/VoiceGate.kt` | Tắt nghe từ đánh thức và gọi loa từ trang điều khiển |
 | `…/voicebot/net/Https.java` | Kết nối https với danh sách chứng chỉ gốc đi kèm ứng dụng |
 | `…/voicebot/update/` | Tự cập nhật: `Updater.java`, `AdbLoopback.java`, `UpdateManager.kt` |
 | `install/` | Bộ cài cho người dùng và script đóng gói bản phát hành |

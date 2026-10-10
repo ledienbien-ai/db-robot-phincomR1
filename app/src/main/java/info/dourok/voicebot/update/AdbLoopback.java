@@ -39,17 +39,41 @@ public final class AdbLoopback {
     /** Refuse absurd lengths rather than allocate them: a corrupt header is not worth an OOM. */
     private static final int SANE_PAYLOAD = 1 << 20;
     private static final byte[] EMPTY = new byte[0];
+    /** How long to go on listening once the shell is running; see {@link #shell}. */
+    private static final int LAUNCH_GRACE_MS = 1500;
+
+    /**
+     * The daemon took the connection but never answered it. On this device that has one cause:
+     * adbd files every network client under the same name, "host", and refuses a second one while
+     * the first is still attached -- without closing the socket or saying a word. So if a computer
+     * on the network still has its {@code adb connect} open, the speaker cannot reach its own
+     * daemon. Measured on the R1, 10/10/2026: 15 s of silence with a PC connected, an immediate
+     * answer the moment the PC ran {@code adb kill-server}.
+     */
+    public static final class BusyException extends IOException {
+        private static final long serialVersionUID = 1L;
+
+        BusyException() {
+            super("adbd is serving another host");
+        }
+    }
 
     private AdbLoopback() {
     }
 
     /**
-     * Run {@code command} in a device shell and return what it printed (stdout and stderr, as adbd
-     * merges them).
+     * Start {@code command} in a device shell.
      *
-     * @param timeoutMs longest silence tolerated while waiting for the daemon; a command that
-     *                  backgrounds its work returns at once, so this only bounds the handshake.
-     * @throws IOException if the daemon is unreachable, wants authorisation, or refuses the stream.
+     * Returns as soon as the daemon has accepted the command, plus a short moment to collect
+     * whatever it prints straight away -- not when the shell exits. The command this is used for
+     * detaches its work and prints nothing, and adbd does not report the stream closed until every
+     * process holding the shell's terminal is gone, which for a detached job can be minutes.
+     * Waiting for that close would turn every successful launch into a timeout.
+     *
+     * @param timeoutMs longest silence tolerated during the handshake.
+     * @return what the shell printed in its first moment (usually nothing).
+     * @throws BusyException if the daemon accepts the connection but does not answer.
+     * @throws IOException   if the daemon is unreachable, wants authorisation, or refuses the stream.
      */
     public static String shell(String host, int port, String command, int timeoutMs)
             throws IOException {
@@ -66,7 +90,12 @@ public final class AdbLoopback {
             OutputStream out = socket.getOutputStream();
 
             send(out, A_CNXN, VERSION, MAX_PAYLOAD, "host::\0".getBytes(StandardCharsets.US_ASCII));
-            Message reply = read(in);
+            Message reply;
+            try {
+                reply = read(in);
+            } catch (java.net.SocketTimeoutException e) {
+                throw new BusyException();
+            }
             if (reply.command == A_AUTH) {
                 throw new IOException("adbd on this device asks for authorisation");
             }
@@ -79,12 +108,24 @@ public final class AdbLoopback {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             boolean opened = false;
             while (true) {
-                Message m = read(in);
+                Message m;
+                try {
+                    m = read(in);
+                } catch (java.net.SocketTimeoutException e) {
+                    if (opened) {
+                        return new String(output.toByteArray(), StandardCharsets.UTF_8);
+                    }
+                    throw new IOException("adbd did not open a shell");
+                }
                 if (m.arg1 != localId) {
                     continue;   // not about our stream (a late CNXN, or noise) -- nothing to answer
                 }
                 if (m.command == A_OKAY) {
-                    opened = true;
+                    if (!opened) {
+                        // The shell is running. Anything it says from here on is a bonus.
+                        opened = true;
+                        socket.setSoTimeout(LAUNCH_GRACE_MS);
+                    }
                 } else if (m.command == A_WRTE) {
                     opened = true;
                     output.write(m.payload, 0, m.payload.length);

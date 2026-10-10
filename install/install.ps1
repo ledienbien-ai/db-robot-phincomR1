@@ -177,6 +177,8 @@ function Select-Speaker([string]$Given) {
             $n++
             [void](Invoke-Adb @("connect", "${f}:$Port") 15)
             $model = (Invoke-Adb @("-s", "${f}:$Port", "shell", "getprop ro.product.model") 15).Out.Trim()
+            # Chi hoi ten; khong giu ket noi voi may khong duoc chon.
+            [void](Invoke-Adb @("disconnect", "${f}:$Port") 15)
             if (-not $model) { $model = "(chua ro thiet bi)" }
             Say "  $n) $f   $model"
         }
@@ -191,6 +193,13 @@ function Select-Speaker([string]$Given) {
         }
     }
     if ($ip -match ":") { $script:Serial = $ip } else { $script:Serial = "${ip}:$Port" }
+}
+
+# Ngat ket noi adb toi loa. Bat buoc phai lam khi xong: loa chi phuc vu duoc mot may qua adb tai
+# mot thoi diem, nen neu may nay cu giu ket noi thi loa khong goi duoc trinh cai dat cua chinh no
+# - nut "Cap nhat ngay" tren trang dieu khien se bao loi cho toi khi may nay tat.
+function Disconnect-Speaker {
+    if ($script:Serial) { [void](Invoke-Adb @("disconnect", $script:Serial) 15) }
 }
 
 # -- 4. Noi chuyen voi loa ------------------------------------------------
@@ -317,6 +326,7 @@ function Install-DBRobot([string]$GivenIp) {
     Resolve-Rivals
     Start-App
     [void](Invoke-Dev @("shell", "rm -f $DevApk $DevLog") 20)
+    Disconnect-Speaker
 
     $hostIp = $script:Serial.Substring(0, $script:Serial.LastIndexOf(":"))
     Say ""
@@ -330,4 +340,4 @@ function Install-DBRobot([string]$GivenIp) {
 
 # Khong dung "exit": khi chay bang "irm ... | iex" lenh do dong luon cua so PowerShell cua nguoi dung.
 try { Install-DBRobot $Ip }
-catch { Write-Host ""; Write-Host "[LOI] $($_.Exception.Message)" -ForegroundColor Red }
+catch { Disconnect-Speaker; Write-Host ""; Write-Host "[LOI] $($_.Exception.Message)" -ForegroundColor Red }

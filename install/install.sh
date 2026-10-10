@@ -24,7 +24,15 @@ OUT=""
 
 say()  { printf '%s\n' "$*"; }
 step() { printf '\n==> %s\n' "$*"; }
-die()  { printf '\n[LỖI] %s\n' "$*" >&2; exit 1; }
+die()  { release; printf '\n[LỖI] %s\n' "$*" >&2; exit 1; }
+
+# Ngắt kết nối adb tới loa. Bắt buộc phải làm khi xong: loa chỉ phục vụ được một máy qua adb tại
+# một thời điểm, nên nếu máy này cứ giữ kết nối thì loa không gọi được trình cài đặt của chính nó
+# -- nút "Cập nhật ngay" trên trang điều khiển sẽ báo lỗi cho tới khi máy này tắt.
+release() {
+  [ -n "$SERIAL" ] && "$ADB" disconnect "$SERIAL" >/dev/null 2>&1
+  return 0
+}
 
 # Hỏi người dùng. Đọc từ /dev/tty để vẫn hỏi được khi script chạy qua "curl ... | bash".
 ask() {
@@ -169,6 +177,7 @@ choose_speaker() {
       n=$((n + 1))
       "$ADB" connect "$ip:$PORT" >/dev/null 2>&1
       model="$("$ADB" -s "$ip:$PORT" shell getprop ro.product.model 2>/dev/null | tr -d '\r' | head -n 1)"
+      "$ADB" disconnect "$ip:$PORT" >/dev/null 2>&1   # chỉ hỏi tên; không giữ kết nối với máy không được chọn
       say "  $n) $ip   ${model:-(chưa rõ thiết bị)}"
     done
     if [ "$count" -eq 1 ]; then
@@ -308,6 +317,7 @@ main() {
   start_app
   adbs shell "rm -f $DEV_APK $DEV_LOG" >/dev/null 2>&1
   local host="${SERIAL%:*}"
+  release
   say ""
   say "=============================================="
   say "  XONG. Mở trang điều khiển của loa:"

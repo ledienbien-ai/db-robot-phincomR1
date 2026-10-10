@@ -51,4 +51,5 @@ Loa tự kiểm tra bản mới. Khi có, trang điều khiển hiện thông b�
 | "Không kết nối được" hoặc cài mãi không xong | Rút điện loa 10 giây, cắm lại, chờ 1 phút rồi chạy lại bộ cài. |
 | Loa không nghe "OK Nabu" | Trên loa còn ứng dụng trợ lý khác (ví dụ AI Box) đang giữ micro. Chạy lại bộ cài và trả lời **C** khi được hỏi tắt ứng dụng đó. |
 | Muốn dùng lại ứng dụng trợ lý cũ | `adb connect <IP-loa>:5555` rồi `adb shell pm enable info.dourok.voicebot` |
-| Nút Cập nhật báo lỗi | Cài lại bằng bộ cài ở trên — bộ cài luôn tải bản mới nhất và giữ nguyên cài đặt. |
+| Nút Cập nhật báo "loa đang được một máy tính điều khiển qua adb" | Trên máy tính đã dùng adb với loa, chạy `adb disconnect` (hoặc tắt máy đó), rồi bấm **Cập nhật ngay** lần nữa. |
+| Nút Cập nhật báo lỗi khác | Cài lại bằng bộ cài ở trên — bộ cài luôn tải bản mới nhất và giữ nguyên cài đặt. |

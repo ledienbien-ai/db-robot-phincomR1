@@ -68,9 +68,9 @@ object MusicService {
         artist = "Radio",
         thumbnail = "",
         duration = "",
-        // Not the station's own address: the speaker's Android cannot verify today's https
-        // certificates by itself, so the stream is relayed by ControlServer (/radio/stream), which
-        // fetches it with the app's current root list.
+        // Not the station's own address: stations broadcast as HLS over https, which this
+        // Android's player cannot be trusted with. ControlServer (/radio/stream) reads the
+        // broadcast itself and serves it here as one plain audio stream -- see HlsAudioStream.
         url = "$LOCAL/radio/stream?id=${station.key}",
     )
 

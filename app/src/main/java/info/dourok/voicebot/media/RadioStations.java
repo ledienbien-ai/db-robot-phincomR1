@@ -10,9 +10,11 @@ import java.util.Locale;
  * The internet radio stations the speaker can play, and the matching of what somebody said
  * ("VOV giao thông Sài Gòn", "vov một") to one of them.
  *
- * The list -- Voice of Vietnam's channels and their stream addresses -- is the one the Vietnamese
- * xiaozhi ESP32 firmware carries (TienHuyIoT/xiaozhi-esp32_vietnam, MIT), so a speaker and a robot
- * on the same server answer to the same station names. The streams are plain AAC over https.
+ * Voice of Vietnam's channels. Every address is an HLS playlist, read through
+ * {@link HlsAudioStream}; a station may list several, tried in order, because VOV serves the same
+ * channel from more than one system and they do not fail together. The addresses were checked
+ * against the live servers on 10/10/2026 -- the host the ESP32 firmwares still carry
+ * (stream.vovmedia.vn) answered 503 to everything by then.
  *
  * Plain Java, so the matching can be tested off the device.
  */
@@ -23,45 +25,60 @@ public final class RadioStations {
         /** A few characters for a button in the panel. */
         public final String shortName;
         public final String name;
-        public final String url;
+        /** HLS playlists carrying this station, best first. */
+        public final String[] urls;
         /** Ways people ask for it, already normalised (see {@link #normalise}). */
         final String[] aliases;
 
-        Station(String key, String shortName, String name, String url, String... aliases) {
+        Station(String key, String shortName, String name, String[] urls, String... aliases) {
             this.key = key;
             this.shortName = shortName;
             this.name = name;
-            this.url = url;
+            this.urls = urls;
             this.aliases = aliases;
         }
     }
 
-    private static final String BASE = "https://stream.vovmedia.vn/";
+    // VOV's three delivery systems: its Wowza origin (256 kbit/s AAC), the traffic channels' own
+    // player, and the low-bitrate web player.
+    private static final String WOWZA = "https://str.vov.gov.vn/vovlive/";
+    private static final String TRAFFIC = "https://play.vovgiaothong.vn/live/";
+    private static final String LIGHT = "https://audio-lss.vov.vn/live/";
     private static final List<Station> ALL;
+
+    private static String[] urls(String... u) {
+        return u;
+    }
 
     static {
         List<Station> s = new ArrayList<Station>();
-        s.add(new Station("VOV1", "VOV1", "VOV 1 - Thời sự", BASE + "vov-1", "vov1", "thoisu"));
-        s.add(new Station("VOV2", "VOV2", "VOV 2 - Văn hóa & Giáo dục", BASE + "vov-2", "vov2", "vanhoa", "giaoduc"));
-        s.add(new Station("VOV3", "VOV3", "VOV 3 - Âm nhạc & Giải trí", BASE + "vov-3", "vov3", "amnhac", "giaitri"));
-        s.add(new Station("VOV5", "VOV5", "VOV 5 - Đối ngoại", BASE + "vov5", "vov5", "doingoai"));
-        s.add(new Station("VOV_GT_HN", "Giao thông HN", "VOV Giao thông Hà Nội", BASE + "vovgt-hn",
+        s.add(new Station("VOV1", "VOV1", "VOV 1 - Thời sự",
+                urls(WOWZA + "vov1vov5Vietnamese.sdp_aac/playlist.m3u8", LIGHT + "vov1.m3u8"),
+                "vov1", "thoisu"));
+        s.add(new Station("VOV2", "VOV2", "VOV 2 - Văn hóa & Giáo dục",
+                urls(WOWZA + "vov2.sdp_aac/playlist.m3u8", LIGHT + "vov2.m3u8"),
+                "vov2", "vanhoa", "giaoduc"));
+        s.add(new Station("VOV3", "VOV3", "VOV 3 - Âm nhạc & Giải trí",
+                urls(WOWZA + "vov3.sdp_aac/playlist.m3u8", LIGHT + "vov3.m3u8"),
+                "vov3", "amnhac", "giaitri"));
+        s.add(new Station("VOV4", "VOV4", "VOV 4 - Dân tộc",
+                urls(LIGHT + "vov4.m3u8"),
+                "vov4", "dantoc"));
+        s.add(new Station("VOV5", "VOV5", "VOV 5 - Đối ngoại",
+                urls(WOWZA + "vov5.sdp_aac/playlist.m3u8", LIGHT + "vov5.m3u8"),
+                "vov5", "doingoai"));
+        s.add(new Station("VOV_GT_HN", "Giao thông HN", "VOV Giao thông Hà Nội",
+                urls(WOWZA + "vovGTHN.sdp_aac/playlist.m3u8", TRAFFIC + "gthn/playlist.m3u8",
+                        LIGHT + "giao_thong_ha_noi.m3u8"),
                 "giaothong", "vovgt", "giaothonghanoi", "vovgthn", "vovgthanoi", "giaothonghn"));
-        s.add(new Station("VOV_GT_HCM", "Giao thông HCM", "VOV Giao thông TP.HCM", BASE + "vovgt-hcm",
+        s.add(new Station("VOV_GT_HCM", "Giao thông HCM", "VOV Giao thông TP.HCM",
+                urls(WOWZA + "vovGTHCM.sdp_aac/playlist.m3u8", TRAFFIC + "gthcm/playlist.m3u8"),
                 "giaothonghochiminh", "giaothongtphochiminh", "giaothongthanhphohochiminh",
                 "giaothongsaigon", "giaothonghcm", "giaothongtphcm", "vovgthcm", "vovgtsaigon",
                 "vovgthochiminh", "vovgttphcm"));
-        s.add(new Station("VOV_MEKONG", "Mekong", "VOV Mekong FM", BASE + "vovmekong", "mekong", "mientay"));
-        s.add(new Station("VOV4_MIENTRUNG", "VOV4 Miền Trung", "VOV4 Miền Trung", BASE + "vov4mt", "vov4mientrung", "mientrung"));
-        s.add(new Station("VOV4_TAYBAC", "VOV4 Tây Bắc", "VOV4 Tây Bắc", BASE + "vov4tb", "vov4taybac", "taybac"));
-        s.add(new Station("VOV4_DONGBAC", "VOV4 Đông Bắc", "VOV4 Đông Bắc", BASE + "vov4db", "vov4dongbac", "dongbac"));
-        s.add(new Station("VOV4_TAYNGUYEN", "VOV4 Tây Nguyên", "VOV4 Tây Nguyên", BASE + "vov4tn", "vov4taynguyen", "taynguyen"));
-        s.add(new Station("VOV4_DBSCL", "VOV4 ĐBSCL", "VOV4 ĐBSCL", BASE + "vov4dbscl",
-                "vov4dbscl", "dbscl", "dongbangsongcuulong"));
-        s.add(new Station("VOV4_HCM", "VOV4 TP.HCM", "VOV4 TP.HCM", BASE + "vov4hcm",
-                "vov4hcm", "vov4tphcm", "vov4hochiminh", "vov4tphochiminh", "vov4saigon"));
-        s.add(new Station("VOV5_ENGLISH", "English", "VOV 5 - English 24/7", BASE + "vov247",
-                "english", "tienganh", "vov247", "vov5english"));
+        s.add(new Station("VOV_MEKONG", "Mekong", "VOV Mekong FM",
+                urls(TRAFFIC + "mekong/playlist.m3u8"),
+                "mekong", "mientay"));
         ALL = Collections.unmodifiableList(s);
     }
 

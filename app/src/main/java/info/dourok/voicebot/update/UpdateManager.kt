@@ -35,6 +35,11 @@ object UpdateManager {
     private const val CHECK_INTERVAL_MS = 6 * 60 * 60_000L
     /** How often to look for a quiet moment once an automatic install is waiting for one. */
     private const val IDLE_POLL_MS = 2 * 60_000L
+    /**
+     * No automatic attempt this soon after any attempt, the owner's included. Without it a failed
+     * press of the button was followed within the minute by the scheduler trying the same thing.
+     */
+    private const val AUTO_COOLDOWN_MS = 30 * 60_000L
     /** Automatic attempts per published version; see [mayAutoInstall]. */
     private const val MAX_AUTO_ATTEMPTS = 2
 
@@ -94,7 +99,8 @@ object UpdateManager {
             if (due && !u.isBusy) {
                 if (u.check()) AppLog.i("Có bản cập nhật mới: v${u.latestName()}")
             }
-            if (u.isUpdateAvailable && mayAutoInstall(u) && isQuiet() && !u.isBusy) {
+            val cooledDown = System.currentTimeMillis() - u.lastAttemptMs() >= AUTO_COOLDOWN_MS
+            if (u.isUpdateAvailable && mayAutoInstall(u) && cooledDown && isQuiet() && !u.isBusy) {
                 noteAutoAttempt(u)
                 AppLog.i("Tự động cập nhật lên v${u.latestName()}")
                 u.install()   // returns only if the install failed; success replaces this process

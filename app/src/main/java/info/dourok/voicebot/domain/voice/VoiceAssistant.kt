@@ -147,6 +147,14 @@ class VoiceAssistant @Inject constructor(
             launch { protocol.incomingJsonFlow.collect(::handleServerMessage) }
             launch { TextCommands.flow.collect { onTextCommand(it) } }
             launch { MediaCommands.flow.collect { onMediaCommand(it) } }
+            launch {
+                VoiceCommands.flow.collect {
+                    when (it) {
+                        VoiceCommands.Command.WAKE -> wakeByCommand()
+                        VoiceCommands.Command.SLEEP -> sleepByCommand()
+                    }
+                }
+            }
             // Media state is server-pushed only, so a dropped channel would freeze the last
             // snapshot on the control panel (a song stuck "playing" with silence). Clear it.
             launch {
@@ -276,7 +284,17 @@ class VoiceAssistant @Inject constructor(
                     // while speaking so the speaker output doesn't false-trigger; AEC keeps a real
                     // "Alexa" audible.
                     wakeWord.setStrict(state.value == VoiceState.SPEAKING)
-                    if (wakeWord.process(pcm)) onWake()
+                    if (wakeWord.process(pcm)) {
+                        // While the owner has the wake word switched off (VoiceGate) the detector
+                        // is still fed, and only its verdict is thrown away: a streaming detector
+                        // left unfed comes back cold and can misfire on its first frames.
+                        if (VoiceGate.wakeWordAllowed && !(Settings.pauseOnMusic && isMusic)) {
+                            onWake()
+                        } else {
+                            AppLog.i("Nghe thấy từ khóa nhưng đang tắt nghe -> bỏ qua")
+                            wakeWord.reset()
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "audio loop error (frame skipped): ${e.message}")
@@ -474,6 +492,42 @@ class VoiceAssistant @Inject constructor(
             is MediaCommands.Command.Stop -> protocol.sendMediaStop()
             is MediaCommands.Command.Play -> {}  // handled above
         }
+    }
+
+    /**
+     * The panel's "Gọi loa": open a session and listen, exactly as the wake word would have --
+     * the way to talk to the assistant while the wake word is switched off (see [VoiceGate]).
+     */
+    private suspend fun wakeByCommand() {
+        if (isAwake) return
+        AppLog.i("Gọi loa từ trang điều khiển -> bắt đầu nghe")
+        autoTurns = 0
+        LocalMusicPlayer.holdForVoice()
+        chimeGuard(sounds.playWake())
+        if (!protocol.isAudioChannelOpened()) protocol.openAudioChannel()
+        capture.drainBuffered()
+        protocol.sendStartListening(ListeningMode.AUTO_STOP)
+        isAwake = true
+        startAgc()
+        state.value = VoiceState.LISTENING
+        wakeWord.reset()
+    }
+
+    /**
+     * The panel's "Tắt nghe": end whatever conversation is running, quietly. Same teardown as the
+     * button's, minus the chime -- the owner has just said they want silence.
+     */
+    private suspend fun sleepByCommand() {
+        if (!isAwake) return
+        AppLog.i("Tắt nghe -> kết thúc phiên trò chuyện")
+        playback.flush()
+        isAwake = false
+        isMusic = false
+        protocol.closeAudioChannel()
+        state.value = VoiceState.IDLE
+        MediaSessionState.clear()
+        LocalMusicPlayer.releaseAfterVoice()
+        wakeWord.reset()
     }
 
     /** Hardware button: idle -> wake; awake (listening OR speaking) -> sleep. */

@@ -3,6 +3,13 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.5
+
+- Radio phát được trở lại: 8 kênh VOV lấy từ nguồn phát mới của đài.
+- Nút **Tắt nghe** và **Gọi loa** ở góc dưới bên trái trang điều khiển: tắt từ đánh thức khi không muốn loa xen vào, và gọi loa bằng tay khi cần.
+- Tuỳ chọn "Tắt khi phát nhạc" (Setup → Wake word): loa không nghe từ đánh thức trong lúc phát nhạc hoặc radio.
+- Cập nhật ổn định hơn: bộ cài tự ngắt kết nối với loa khi xong; nếu loa đang bị một máy tính giữ qua adb, trang điều khiển nói rõ cách xử lý thay vì đứng ở "Đang cài đặt".
+
 ## v1.5.4
 
 - Đèn LED: chọn hiệu ứng theo tên cho từng trạng thái thay vì nhập mã; đèn đổi ngay để xem thử.

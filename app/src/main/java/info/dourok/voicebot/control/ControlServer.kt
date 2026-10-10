@@ -136,6 +136,24 @@ class ControlServer @Inject constructor(
             // The player's spectrum bars. Polled several times a second while a song plays and
             // the Media tab is open, so it is its own tiny reply rather than part of the state.
             "/api/media/spectrum" -> json(if (localMusic()) LocalMusicPlayer.spectrumJson() else """{"ok":false}""")
+            // Stop / resume listening for the wake word, and call the assistant by hand.
+            "/api/voice/pause" -> {
+                val on = param(session, "on") == "1"
+                info.dourok.voicebot.domain.voice.VoiceGate.paused = on
+                if (on) {
+                    info.dourok.voicebot.domain.voice.VoiceCommands.flow.tryEmit(
+                        info.dourok.voicebot.domain.voice.VoiceCommands.Command.SLEEP
+                    )
+                }
+                AppLog.i(if (on) "Tắt nghe: loa bỏ qua từ đánh thức" else "Nghe lại từ đánh thức")
+                json("""{"ok":true,"paused":$on}""")
+            }
+            "/api/voice/wake" -> {
+                info.dourok.voicebot.domain.voice.VoiceCommands.flow.tryEmit(
+                    info.dourok.voicebot.domain.voice.VoiceCommands.Command.WAKE
+                )
+                json("""{"ok":true}""")
+            }
             // Internet radio: the station list for the panel, play by key, and the relay the
             // on-device player reads the stream through (see MusicService.radioTrack).
             "/api/radio/stations" -> json(buildRadioStations())
@@ -246,6 +264,7 @@ class ControlServer @Inject constructor(
             "ota_url" -> Settings.otaUrl = v
             "music_url" -> Settings.musicUrl = v
             "auto_update" -> Settings.autoUpdate = v == "true"
+            "pause_on_music" -> Settings.pauseOnMusic = v == "true"
             "ha_url" -> Settings.haUrl = v
             "ha_token" -> Settings.haToken = v
             "ha_devices" -> Settings.haDevices = v
@@ -416,6 +435,11 @@ class ControlServer @Inject constructor(
         // than only logged (the R1's logcat is drowned by its mic driver).
         o.put("voice_state", info.dourok.voicebot.domain.voice.VoiceDebugState.voiceState)
         o.put("voice_awake", info.dourok.voicebot.domain.voice.VoiceDebugState.awake)
+        o.put("voice_paused", info.dourok.voicebot.domain.voice.VoiceGate.paused)
+        o.put("pause_on_music", Settings.pauseOnMusic)
+        // True whenever the wake word is being ignored, whichever of the two reasons applies, so
+        // the panel can say why the speaker is not answering to its name.
+        o.put("wake_muted", !info.dourok.voicebot.domain.voice.VoiceGate.wakeWordAllowed)
         return o.toString()
     }
 
@@ -902,32 +926,19 @@ class ControlServer @Inject constructor(
     }
 
     /**
-     * Relay one radio station's stream. The on-device player reads it from here (127.0.0.1) instead
-     * of from the station, because the fetching is then done with the app's own, current list of
-     * root certificates (net/Https) -- the platform player of this Android 5.1 has only the ROM's.
+     * One radio station as a continuous audio stream, for the on-device player. The station
+     * broadcasts HLS over https; [info.dourok.voicebot.media.HlsAudioStream] follows it (with the
+     * app's own, current root certificates) and this hands the audio on over plain local http.
      * Only stations from the built-in list can be asked for, so this is not an open proxy.
      */
     private fun serveRadioStream(id: String): Response {
         val station = info.dourok.voicebot.media.RadioStations.byKey(id)
             ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "unknown station")
         return try {
-            val conn = info.dourok.voicebot.net.Https.get(station.url, mapOf("User-Agent" to "db-robot-r1/$appVersion"))
-            if (conn.responseCode != 200) {
-                val code = conn.responseCode
-                conn.disconnect()
-                AppLog.e("Radio ${station.name}: máy chủ trả về HTTP $code")
-                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "upstream $code")
-            } else {
-                // Closing the stream (the player went away) must also drop the upstream connection.
-                val stream = object : java.io.FilterInputStream(conn.inputStream) {
-                    override fun close() {
-                        try { super.close() } finally { conn.disconnect() }
-                    }
-                }
-                NanoHTTPD.newChunkedResponse(Response.Status.OK, conn.contentType ?: "audio/aac", stream)
-            }
+            val stream = info.dourok.voicebot.media.HlsAudioStream.open(station.urls, "db-robot-r1/$appVersion")
+            NanoHTTPD.newChunkedResponse(Response.Status.OK, stream.contentType(), stream)
         } catch (e: Exception) {
-            AppLog.e("Radio ${station.name}: ${e.message}")
+            AppLog.e("Radio ${station.name}: không mở được luồng phát (${e.message})")
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "stream error")
         }
     }
