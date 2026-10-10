@@ -497,6 +497,11 @@ select::-ms-expand{display:none;}
 .wifi-form{margin:9px 0 6px;padding:10px 11px 4px;border-radius:10px;background:var(--card2);border:1px solid var(--line);}
 .wifi-form[hidden]{display:none;}
 .wifi-sub{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin:11px 0 3px;}
+.wifi-find{margin:8px 0 4px;padding:11px 12px;border-radius:10px;background:var(--grad-dim);border:1px solid rgba(var(--ar),.2);font-size:12.5px;line-height:1.5;}
+.wifi-find[hidden]{display:none;}
+.wifi-find a{display:block;margin-top:6px;font-weight:700;font-size:14px;color:var(--a1);word-break:break-all;}
+.wifi-tag.ap{background:rgba(234,179,8,.16);color:#b45309;}
+[data-theme=dark] .wifi-tag.ap{color:#facc15;}
 #wifiStat.err{color:var(--err);}
 #wifiStat.good{color:var(--ok);}
 
@@ -765,6 +770,10 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 9l4 4 4-4M4 16.5h12"/></svg>
   <span id="updBannerText">Có bản cập nhật mới</span><em>Xem ›</em>
 </div>
+<div class="upd-banner" id="apBanner" hidden onclick="apOpen()" role="button" tabindex="0">
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 8a11 11 0 0115 0"/><path d="M5.2 10.9a7 7 0 019.6 0"/><path d="M7.8 13.7a3.3 3.3 0 014.4 0"/><circle cx="10" cy="16.3" r="1.1" fill="currentColor" stroke="none"/></svg>
+  <span>Loa đang phát Wi-Fi để cài đặt, chưa vào mạng nhà bạn</span><em>Chọn Wi-Fi ›</em>
+</div>
 
 <div class="panes">
 <!-- SETTINGS -->
@@ -899,7 +908,11 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
       </div>
       <div id="wifiList"></div>
       <div class="hint" id="wifiStat"></div>
-      <div class="hint">Xem loa đang dùng mạng nào và chuyển loa sang mạng Wi-Fi khác. Bấm <b>Quét mạng</b>, chọn mạng, nhập mật khẩu rồi bấm <b>Kết nối</b>.<details><summary>Chi tiết</summary><p>Trong lúc loa đổi mạng, trang này có thể mất kết nối. Nếu loa không vào được mạng mới (sai mật khẩu, sóng yếu), nó tự quay lại mạng cũ sau khoảng một phút.</p><p>Khi đã sang mạng mới, loa có thể nhận địa chỉ IP khác. Hãy nối điện thoại hoặc máy tính vào cùng mạng đó, rồi tìm địa chỉ của loa trong danh sách thiết bị của bộ phát Wi-Fi.</p><p>Mạng loa đang dùng không đổi mật khẩu hay xoá được từ đây, để loa luôn còn một mạng quay về.</p><p><b>Mạng ẩn…</b> dùng cho mạng không phát tên: nhập đúng tên mạng, kiểu bảo mật và mật khẩu.</p></details></div>
+      <div class="wifi-find" id="wifiFind" hidden>
+        <div id="wifiFindText"></div>
+        <div class="row" id="wifiFindNetRow" style="margin-top:8px"><label class="wide">Mạng nhà bắt đầu bằng</label><input class="codein" id="wifiFindNet" placeholder="192.168.1" inputmode="decimal" autocomplete="off" onkeydown="if(event.key==='Enter')wifiSeekRestart()"><button class="tbtn" style="flex:0 0 auto;width:auto;padding:0 10px" onclick="wifiSeekRestart()">Tìm</button></div>
+      </div>
+      <div class="hint">Xem loa đang dùng mạng nào và chuyển loa sang mạng Wi-Fi khác. Bấm <b>Quét mạng</b>, chọn mạng, nhập mật khẩu rồi bấm <b>Kết nối</b>.<details><summary>Chi tiết</summary><p>Trong lúc loa đổi mạng, trang này có thể mất kết nối. Nếu loa không vào được mạng mới (sai mật khẩu, sóng yếu), nó tự quay lại mạng cũ sau khoảng một phút.</p><p><b>Khi loa không vào được mạng nào</b> (loa mới, đổi bộ phát, đổi mật khẩu Wi-Fi): giữ nút trên đỉnh loa khoảng 5 giây, loa sẽ phát một mạng Wi-Fi tên <b>Phicomm R1</b>. Nối điện thoại vào mạng đó, mở <b>http://192.168.43.1:8088</b> rồi chọn Wi-Fi nhà ngay trong thẻ này. Sai mật khẩu thì loa phát lại mạng đó để bạn thử lại.</p><p>Loa đang phát Wi-Fi thì không nghe được các mạng xung quanh: bấm <b>Quét mạng</b> sẽ ngắt mạng của loa khoảng 15 giây để tìm, hoặc bấm <b>Mạng ẩn…</b> để gõ tên mạng.</p><p>Khi đã sang mạng mới, loa có thể nhận địa chỉ IP khác. Trang này tự dò tìm loa trong mạng nhà và đưa đường dẫn mới; nếu không thấy, xem địa chỉ của loa trong danh sách thiết bị của bộ phát Wi-Fi.</p><p>Mạng loa đang dùng không đổi mật khẩu hay xoá được từ đây, để loa luôn còn một mạng quay về.</p><p><b>Mạng ẩn…</b> dùng cho mạng không phát tên: nhập đúng tên mạng, kiểu bảo mật và mật khẩu.</p></details></div>
     </div>
 
     <div class="card">
@@ -1430,6 +1443,9 @@ function updateVoiceOrb(s){
   // "paused" has no bar animation of its own: the orb goes flat and grey, as when offline.
   $('vorb').dataset.state=vstate==='paused'?'offline':vstate;
   voiceRender(s);chatBgRender(s.chat_bg);aboutVersion(s.app_version);
+  if(s.device_id)lastDeviceId=s.device_id;
+  $('apBanner').hidden=!s.wifi_hotspot;
+  if(s.wifi_hotspot&&!apJumped){apJumped=true;apOpen();}   // opened on the speaker's hotspot: go to the card that ends it
   $('st').textContent=VOICE_ORB_TEXT[vstate];
 }
 function render(s){
@@ -1625,6 +1641,9 @@ async function chatBgClear(){
 // polled faster. The move itself can take this page's connection away with it (the speaker is
 // reached over the very Wi-Fi being changed), so a failed poll during one is reported as that.
 let wifiState=null,wifiNets=[],wifiTimer=null,wifiSel=null,wifiMoving='',wifiLost=0,wifiErr='';
+// Set when the move started from the speaker's setup hotspot: this page will lose the speaker for
+// good if it works, so it goes looking for it on the home network (see wifiSeek).
+let wifiFromAp=false,lastDeviceId='',apJumped=false;
 const WIFI_SEC={psk:'WPA/WPA2',wep:'WEP',open:'Mở',eap:'Doanh nghiệp'};
 const WIFI_LOCK='<svg class="lock" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4.5" y="9" width="11" height="8" rx="1.8"/><path d="M7 9V6.5a3 3 0 016 0V9"/></svg>';
 function wifiBars(n){return '<span class="wifi-bars" data-b="'+(n|0)+'"><i></i><i></i><i></i><i></i></span>';}
@@ -1634,31 +1653,41 @@ async function wifiTick(){
   clearTimeout(wifiTimer);
   try{wifiState=await(await fetch('/api/wifi/state')).json();wifiLost=0;}catch(e){wifiLost++;}
   wifiRender();
-  const busy=wifiState&&(wifiState.scanning||(wifiState.job&&wifiState.job.state==='connecting'));
+  const busy=wifiState&&(wifiState.scanning||wifiState.busy||(wifiState.job&&wifiState.job.state==='connecting'));
   wifiTimer=setTimeout(wifiTick,(busy||wifiMoving)?1000:4000);}
 function wifiSay(text,cls){const e=$('wifiStat');e.textContent=text;e.className='hint'+(cls?' '+cls:'');}
+function apOpen(){tab('setup');
+  setTimeout(()=>{const c=$('cardWifi');if(c&&c.scrollIntoView)c.scrollIntoView({behavior:'smooth',block:'start'});},60);}
 function wifiRender(){
   const s=wifiState;
+  if(wifiSeekFound&&wifiLost>0)return;      // found at its new address; what this page last heard is history
   if(wifiMoving&&wifiLost>=3){
+    if(wifiFromAp){wifiSeekStart();return;}
     wifiSay('Mất kết nối với loa — có thể loa đã sang mạng “'+wifiMoving+'”. Hãy nối thiết bị này vào mạng đó rồi mở trang điều khiển theo địa chỉ mới của loa. Nếu loa không vào được mạng mới, nó sẽ quay lại và trang này tự hoạt động tiếp.','');
     return;}
   if(!s)return;
   if(!s.ok){$('wifiNow').innerHTML='<div class="li-info"><div class="li-title">'+esc(s.error||'Không đọc được Wi-Fi')+'</div></div>';return;}
-  $('wifiNow').innerHTML=s.connected
+  if(wifiSeekOn&&!wifiSeekFound)wifiSeekStop();        // the speaker answers here again: the move did not happen
+  const ap=!!s.ap;
+  $('wifiNow').innerHTML=ap
+    ? '<div class="li-info"><div class="li-title" style="white-space:normal">Loa đang phát Wi-Fi “'+esc(s.ap_ssid||'')+'”</div><div class="li-sub" style="white-space:normal">Chọn Wi-Fi nhà bạn bên dưới để đưa loa vào mạng</div></div><span class="wifi-tag ap">Chờ cài đặt</span>'
+    : s.connected
     ? wifiBars(s.bars)+'<div class="li-info"><div class="li-title">'+esc(s.ssid)+'</div><div class="li-sub">'
       +esc([s.ip,s.band?s.band+' GHz':'',s.link_mbps>0?s.link_mbps+' Mbps':''].filter(Boolean).join(' · '))+'</div></div><span class="wifi-tag on">Đang dùng</span>'
     : '<div class="li-info"><div class="li-title">Chưa vào mạng nào</div></div>';
-  $('wifiScanBtn').textContent=s.scanning?'Đang quét…':'Quét mạng';
-  $('wifiScanBtn').disabled=!!s.scanning;
+  $('wifiScanBtn').textContent=(s.scanning||s.busy)?'Đang quét…':'Quét mạng';
+  $('wifiScanBtn').disabled=!!(s.scanning||s.busy);
   wifiNets=(s.networks||[]).filter(n=>!n.current);
   let html=wifiNets.map((n,i)=>{
     const sub=[n.band?n.band+' GHz':'',WIFI_SEC[n.security]||'',n.saved?'đã lưu':''].filter(Boolean).join(' · ');
     return '<div class="wifi-row'+(wifiSel===n.ssid?' sel':'')+'" role="button" tabindex="0" onclick="wifiPick('+i+')">'+wifiBars(n.bars)
       +'<div class="li-info"><div class="li-title">'+esc(n.ssid)+'</div><div class="li-sub">'+esc(sub)+'</div></div>'
       +(n.security!=='open'?WIFI_LOCK:'')
-      +(n.saved?'<button class="tbtn" style="flex:0 0 auto;width:auto;padding:0 10px" onclick="event.stopPropagation();wifiForget('+i+',false)" aria-label="Xoá mạng đã lưu">Xoá</button>':'')
+      +(n.saved&&!ap?'<button class="tbtn" style="flex:0 0 auto;width:auto;padding:0 10px" onclick="event.stopPropagation();wifiForget('+i+',false)" aria-label="Xoá mạng đã lưu">Xoá</button>':'')
       +'</div>';}).join('');
-  if(!html)html='<div class="hint">'+(s.scanning?'(đang tìm…)':'(chưa thấy mạng nào khác — bấm Quét mạng)')+'</div>';
+  if(!html)html='<div class="hint">'+(s.scanning?'(đang tìm…)'
+    :ap?'(chưa có danh sách mạng — bấm Quét mạng, hoặc Mạng ẩn… để gõ tên mạng)':'(chưa thấy mạng nào khác — bấm Quét mạng)')+'</div>';
+  else if(ap&&s.scan_age_s>=120)html+='<div class="hint">Danh sách quét cách đây '+Math.round(s.scan_age_s/60)+' phút.</div>';
   const away=s.saved_away||[];
   if(away.length)html+='<div class="wifi-sub">Đã lưu, ngoài vùng sóng</div>'+away.map((ssid,i)=>
     '<div class="wifi-row cur"><div class="li-info"><div class="li-title">'+esc(ssid)+'</div></div>'
@@ -1668,13 +1697,16 @@ function wifiRender(){
   const j=s.job||{};
   if(wifiErr){wifiSay('✗ '+wifiErr,'err');}
   else if(j.state==='connecting'){wifiSay('Đang chuyển loa sang mạng “'+j.ssid+'”…','');}
-  else if(j.state==='connected'&&j.age_s>=0&&j.age_s<600){wifiMoving='';wifiSay('✓ Đã vào mạng “'+j.ssid+'”. '+j.message,'good');}
-  else if(j.state==='failed'&&j.age_s>=0&&j.age_s<600){wifiMoving='';wifiSay('✗ Mạng “'+j.ssid+'”: '+j.message,'err');}
+  else if(j.state==='connected'&&j.age_s>=0&&j.age_s<600){wifiMoving='';wifiFromAp=false;wifiSay('✓ Đã vào mạng “'+j.ssid+'”. '+j.message,'good');}
+  else if(j.state==='failed'&&j.age_s>=0&&j.age_s<600){wifiMoving='';wifiFromAp=false;wifiSay('✗ Mạng “'+j.ssid+'”: '+j.message,'err');}
   else if(!wifiMoving){wifiSay('','');}}
 async function wifiPost(url,obj){
   try{return await(await fetch(url,{method:'POST',body:obj?JSON.stringify(obj):undefined})).json();}
   catch(e){return {ok:false,error:'Không gọi được loa.'};}}
-async function wifiScan(){wifiErr='';const j=await wifiPost('/api/wifi/scan');if(!j.ok)wifiErr=j.error||'Không quét được';wifiTick();}
+async function wifiScan(){
+  const ap=wifiState&&wifiState.ap;
+  if(ap&&!confirm('Để tìm các mạng xung quanh, loa phải ngừng phát Wi-Fi khoảng 15 giây.\n\nThiết bị này sẽ bị ngắt khỏi mạng “'+(wifiState.ap_ssid||'')+'”. Khi mạng đó hiện lại, hãy nối vào rồi mở lại trang này.'))return;
+  wifiErr='';const j=await wifiPost('/api/wifi/scan');if(!j.ok)wifiErr=j.error||'Không quét được';wifiTick();}
 function wifiSecChanged(){$('wifiPassRow').hidden=$('wifiSec').value==='open';}
 function wifiOpenForm(ssid,security,saved,manual){
   wifiErr='';wifiSel=manual?null:ssid;
@@ -1696,18 +1728,66 @@ function wifiTogPass(){const p=$('wifiPass');p.type=p.type==='password'?'text':'
 async function wifiConnect(){
   const ssid=$('wifiSsid').value,manual=$('wifiForm').dataset.manual==='1';
   const security=$('wifiSec').value,password=security==='open'?'':$('wifiPass').value;
+  const ap=!!(wifiState&&wifiState.ap);
   if(!ssid.trim()){wifiErr='Hãy nhập tên mạng.';wifiRender();return;}
-  if(!confirm('Chuyển loa sang mạng “'+ssid+'”?\n\nTrang này có thể mất kết nối trong lúc loa đổi mạng. Nếu không vào được mạng mới, loa tự quay lại mạng cũ sau khoảng một phút.'))return;
+  if(!confirm(ap
+    ? 'Đưa loa vào mạng “'+ssid+'”?\n\nLoa sẽ ngừng phát mạng “'+(wifiState.ap_ssid||'Phicomm R1')+'”, nên thiết bị này bị ngắt khỏi loa. Hãy nối thiết bị này vào mạng “'+ssid+'”; trang này sẽ tự tìm loa ở đó. Nếu sai mật khẩu, loa phát lại mạng cũ sau khoảng một phút để bạn thử lại.'
+    : 'Chuyển loa sang mạng “'+ssid+'”?\n\nTrang này có thể mất kết nối trong lúc loa đổi mạng. Nếu không vào được mạng mới, loa tự quay lại mạng cũ sau khoảng một phút.'))return;
   wifiErr='';
   const j=await wifiPost('/api/wifi/connect',{ssid:ssid,password:password,security:security,hidden:manual});
   if(!j.ok){wifiErr=j.error||'Loa từ chối yêu cầu.';wifiRender();return;}
-  wifiMoving=ssid;wifiLost=0;wifiCancel();
+  wifiMoving=ssid;wifiFromAp=ap;wifiLost=0;wifiCancel();
   wifiSay('Đang chuyển loa sang mạng “'+ssid+'”…','');wifiTick();}
 async function wifiForget(i,away){
   const ssid=away?((wifiState&&wifiState.saved_away)||[])[i]:(wifiNets[i]||{}).ssid;if(!ssid)return;
   if(!confirm('Xoá mạng “'+ssid+'” khỏi loa? Loa sẽ không tự vào mạng này nữa.'))return;
   wifiErr='';const j=await wifiPost('/api/wifi/forget',{ssid:ssid});
   if(!j.ok)wifiErr=j.error||'Không xoá được';wifiTick();}
+// ── Finding the speaker again on the home network ──
+// It left its hotspot for the home network and nothing can tell this page its new address. But
+// once this device is back on the home network too, the speaker is one of at most a few hundred
+// addresses, and it answers /api/state with its own id -- so ask them all. Home networks are
+// tried by how common their numbering is; the owner can type theirs to skip the queue.
+const SEEK_NETS=['192.168.1','192.168.0','192.168.2','192.168.100','192.168.68','192.168.31','192.168.50','192.168.88',
+  '192.168.10','192.168.3','192.168.4','192.168.8','10.0.0','192.168.86','192.168.11','192.168.20','192.168.123','192.168.5'];
+const SEEK_LIMIT_MS=5*60*1000,SEEK_PROBE_MS=1500,SEEK_WORKERS=40;
+let wifiSeekOn=false,wifiSeekFound='',wifiSeekRun=0,wifiSeekT0=0;
+async function wifiProbe(ip){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),SEEK_PROBE_MS);
+  try{const j=await(await fetch('http://'+ip+':8088/api/state',{signal:c.signal,cache:'no-store'})).json();
+    return j&&j.device_id&&(!lastDeviceId||j.device_id===lastDeviceId);}
+  catch(e){return false;}finally{clearTimeout(t);}}
+async function wifiSeekNet(prefix,run){
+  let next=1,found='';
+  const worker=async()=>{while(next<=254&&!found&&wifiSeekOn&&run===wifiSeekRun){const ip=prefix+'.'+(next++);if(await wifiProbe(ip))found=ip;}};
+  await Promise.all(Array.from({length:SEEK_WORKERS},worker));
+  return found;}
+function wifiSeekSay(html){$('wifiFind').hidden=false;$('wifiFindText').innerHTML=html;}
+function wifiSeekStop(){wifiSeekOn=false;wifiSeekRun++;$('wifiFind').hidden=true;}
+function wifiSeekRestart(){wifiSeekOn=false;wifiSeekFound='';wifiSeekStart();}
+async function wifiSeekStart(){
+  if(wifiSeekOn||wifiSeekFound)return;
+  wifiSeekOn=true;const run=++wifiSeekRun;wifiSeekT0=Date.now();
+  wifiSay('','');$('wifiFindNetRow').hidden=false;
+  const typed=$('wifiFindNet').value.trim().replace(/\.+$/,'');
+  const nets=(/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(typed)?[typed]:[]).concat(SEEK_NETS.filter(n=>n!==typed));
+  while(wifiSeekOn&&run===wifiSeekRun&&Date.now()-wifiSeekT0<SEEK_LIMIT_MS){
+    for(const net of nets){
+      if(!wifiSeekOn||run!==wifiSeekRun)return;
+      wifiSeekSay('Loa đã ngừng phát Wi-Fi để vào mạng “'+esc(wifiMoving)+'”. Hãy nối thiết bị này vào mạng đó.<br>Đang tìm loa ở '+net+'.x …');
+      const ip=await wifiSeekNet(net,run);
+      if(ip&&run===wifiSeekRun){
+        const net=wifiMoving;
+        wifiSeekFound=ip;wifiSeekOn=false;wifiMoving='';wifiFromAp=false;$('wifiFindNetRow').hidden=true;
+        $('apBanner').hidden=true;wifiSay('','');$('wifiList').innerHTML='';
+        $('wifiNow').innerHTML='<div class="li-info"><div class="li-title" style="white-space:normal">Loa đã vào mạng “'+esc(net)+'”</div><div class="li-sub">'+ip+'</div></div><span class="wifi-tag on">Đã kết nối</span>';
+        wifiSeekSay('✓ Loa đã vào mạng nhà. Địa chỉ mới của trang điều khiển:<a href="http://'+ip+':8088/">http://'+ip+':8088</a>Hãy lưu địa chỉ này lại.');
+        return;}
+    }
+    await new Promise(r=>setTimeout(r,2500));
+  }
+  if(run===wifiSeekRun&&wifiSeekOn){wifiSeekOn=false;
+    wifiSeekSay('Chưa tìm thấy loa. Nếu mạng “Phicomm R1” của loa hiện lại, mật khẩu Wi-Fi vừa nhập chưa đúng: nối vào mạng đó và thử lại. Nếu không, xem địa chỉ của loa trong danh sách thiết bị của bộ phát Wi-Fi, hoặc nhập ba số đầu của mạng nhà bạn rồi bấm Tìm.');}}
 
 // ── About / contact ──────────────────────────────
 // One block, shown at the end of every tab (under the song list on Media).

@@ -88,7 +88,7 @@ Web control on-device (NanoHTTPD) như control center của aiboxplus. Mở `htt
   | Vị trí & thời tiết | `/api/weather`, `/api/location/search?q=`, `/api/location/set` (POST body JSON), `/api/location/clear` (xem `weather/LocationManager.kt`; công cụ MCP cho trợ lý ở `mcp/DeviceTools.kt`) |
   | Radio | `/api/radio/stations`, `/api/radio/play?id=`, `/radio/stream?id=` (đọc luồng HLS của đài bằng `media/HlsAudioStream.java` rồi chuyển cho trình phát trên máy dưới dạng AAC/MP3 liên tục; danh sách kênh và địa chỉ dự phòng ở `media/RadioStations.java`) |
   | Giọng nói | `/api/voice/pause?on=1\|0` (tắt/bật từ đánh thức, không lưu qua lần khởi động lại), `/api/voice/wake` (gọi loa bằng tay) — xem `domain/voice/VoiceGate.kt`; `pause_on_music` đặt qua `/api/set` |
-  | Wi-Fi | `/api/wifi/state`, `/api/wifi/scan`, `/api/wifi/connect` (POST body JSON `{ssid,password,security,hidden}`), `/api/wifi/forget` (POST body JSON) — xem `net/WifiSetup.java`: đổi mạng có đường lui (không vào được mạng mới sau 30 giây thì quay lại mạng cũ; mạng đang dùng không sửa/xoá được). Hai lệnh ghi bị từ chối nếu `Origin` khác `Host`. |
+  | Wi-Fi | `/api/wifi/state`, `/api/wifi/scan`, `/api/wifi/connect` (POST body JSON `{ssid,password,security,hidden}`), `/api/wifi/forget` (POST body JSON), `GET /api/wifi/list` (text thuần, mỗi dòng `bảo-mật TAB số-vạch TAB tên` — cho bộ cài, vốn không có JSON parser) — xem `net/WifiSetup.java`. Đổi mạng có đường lui: từ một mạng sang mạng khác, không vào được sau 30 giây thì quay lại mạng cũ; từ chế độ cài đặt mạng (loa đang phát "Phicomm R1", `ap:true`), không vào được thì bật lại đúng hotspot đó. Mạng đang dùng không sửa/xoá được. `wifi_hotspot` trong `/api/state` cho panel biết đang ở chế độ này. Các lệnh ghi bị từ chối nếu `Origin` khác `Host`. **Body JSON gửi từ script phải kèm `charset=utf-8` trong Content-Type**: NanoHTTPD 2.3.1 đọc body theo US-ASCII khi thiếu charset, tên mạng có dấu sẽ hỏng (trình duyệt tự thêm `text/plain;charset=UTF-8`). |
   | Ảnh nền chat | `GET /api/chat/bg?v=<stamp>`, `POST /api/chat/bg/set` (body = data URL base64), `/api/chat/bg/clear`; `chat_bg` trong `/api/state` là mốc thời gian của ảnh (0 = không có) — xem `control/ChatBackground.java` |
   | Log | `/api/logs?since=<seq>` (chỉ trả entry mới hơn `seq`), `/api/logs/clear` |
   | Bản tin | `/api/news/save` (POST body JSON), `/api/news/test` |
@@ -293,6 +293,32 @@ hai cú chạm, nên trạng thái hỏng chỉ cách một lần bấm.
 - `data/.config.yaml` bị gitignore (có key + token), nên số kênh của server **sống ngoài git**:
   khôi phục config từ backup có thể cho server mono trong khi app stereo, và cảnh báo trên là thứ
   bắt được trường hợp đó.
+
+### Chế độ cài đặt mạng (hotspot "Phicomm R1") — v1.5.7, CHƯA đo trên loa thật
+
+Giữ nút trên đỉnh loa 5 giây → firmware phát hotspot "Phicomm R1", loa ở `192.168.43.1`. Đó là
+việc của firmware; **DB-Robot không tự phát Wi-Fi** (bản nháp có luồng tự phát khi mất mạng +
+công tắc + nút bật tay; chủ dự án bảo bỏ — đừng thêm lại). Phần DB-Robot làm:
+- `WifiSetup` nhận ra chế độ này (`isWifiApEnabled` qua reflection) và cho thẻ Wi-Fi chạy trong đó:
+  `connect()` = tắt hotspot → bật client → add/select; thất bại → bật lại đúng hotspot cũ
+  (`stopAp()` giữ `getWifiApConfiguration()` trong `lastAp`, `restoreAp()` gọi
+  `setWifiApEnabled(lastAp, true)`). Bật lại không được thì để client bật — không bao giờ tắt cả hai.
+- Android 5.1 không vừa phát vừa làm client: `scan()` ở chế độ này = tắt hotspot ~6 giây, quét, bật
+  lại; trả `{"ok":true,"interrupts":true}`. Panel hỏi trước khi quét. Trước lần quét đầu danh sách rỗng.
+- Cần `CHANGE_NETWORK_STATE` ngoài hai quyền Wi-Fi để gọi `setWifiApEnabled` trên API 22.
+- Panel (`control.html`): `wifi_hotspot` true → banner + tự nhảy tới thẻ Wi-Fi; sau khi loa rời
+  hotspot, panel dò `http://<prefix>.<1-254>:8088/api/state` trên các dải mạng nhà phổ biến
+  (`SEEK_NETS`) và so `device_id` để tìm địa chỉ mới.
+- Bộ cài (`install.ps1`, `install.sh`): gõ `M` (hoặc quét không thấy loa → trả lời "loa mới") →
+  hướng dẫn giữ nút + nối vào "Phicomm R1" → cài qua `192.168.43.1:5555` → `GET /api/wifi/list`,
+  `POST /api/wifi/connect` → dò lại loa trong mạng nhà bằng cổng 8088 + `device_id`. Bộ cài không
+  gọi `scan` (máy tính sẽ nhảy về Wi-Fi nhà khi hotspot tắt), nên lần đầu người dùng gõ tên mạng.
+  Biến môi trường để thử: `LOA_AP_IP`, `LOA_PREFIX` (ps1 nhận danh sách cách nhau bằng dấu phẩy).
+- Đã kiểm ngoài loa: mô phỏng `WifiManager` (8 nhóm kịch bản) và chạy hai bộ cài với adb giả +
+  máy chủ giả. **Chưa kiểm trên loa thật**: tên hotspot và việc nút bấm còn hoạt động sau khi cài
+  DB-Robot (nhất là khi bộ cài đã tắt AI Box Plus); firmware có để yên khi app khác tắt/bật lại
+  hotspot của nó không; firmware gốc có mở adb 5555 ở `192.168.43.1` không; app `com.phicomm.*`
+  có giữ micro không (bộ cài chỉ in danh sách, không tắt gì).
 
 ### adb rớt giữa một lần push để lại adbd chết mà cổng vẫn "open"
 

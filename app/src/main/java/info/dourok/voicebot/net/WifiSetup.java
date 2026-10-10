@@ -21,52 +21,112 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * The speaker's Wi-Fi, for the control panel: what it is on, what is in range, and moving it to
- * another network.
+ * The speaker's Wi-Fi, for the control panel and the installer: what it is on, what is in range,
+ * and moving it to another network.
  *
- * The speaker has no screen and the panel reaches it over the very connection being changed, so a
- * move that goes wrong must undo itself: {@link #connect} remembers the network it started on, and
- * when the new one has not come up within {@link #JOIN_TIMEOUT_MS} it goes back and waits for the
- * old one. For the same reason the network in use can neither be re-keyed nor forgotten from here
- * -- a wrong password typed for it would leave nothing to go back to.
+ * The speaker has no screen and is reached over the very connection being changed, so nothing here
+ * may leave it unreachable:
  *
- * Everything is plain {@link WifiManager} as an ordinary app may use it on Android 5.1 (API 22),
- * where any app holding CHANGE_WIFI_STATE may add, change and select networks.
+ * <ul>
+ * <li>A move to another network that has not come up within {@link Timing#joinMs} is undone: back
+ *     to the network it started on. The network in use can neither be re-keyed nor forgotten.</li>
+ * <li>A speaker on no network at all (fresh from the box, a new router, a changed password) is put
+ *     into setup mode by its owner: holding the button on top for five seconds makes the speaker's
+ *     firmware broadcast a Wi-Fi network of its own ("Phicomm R1"), on which the speaker is
+ *     {@value #HOTSPOT_IP}. The panel opened there shows this same Wi-Fi card. A move from that
+ *     state that fails brings the same hotspot back, so the owner can try again without touching
+ *     the speaker.</li>
+ * </ul>
+ *
+ * On this Android (5.1, API 22) the radio is either a client or an access point, never both. That
+ * is why, in setup mode, looking for networks interrupts the hotspot for a few seconds, and why
+ * the list shown is the one taken during that pause.
+ *
+ * Client mode is plain {@link WifiManager}; any app holding CHANGE_WIFI_STATE may add and select
+ * networks on API 22. The access-point switch is the platform's tethering switch, which the SDK
+ * hides, so it is called by name (see {@link #setAp}). This class never starts a hotspot that was
+ * not on before: it only stops the one it finds and, when a move fails, puts that one back.
  */
 @SuppressLint("MissingPermission")
 public final class WifiSetup {
 
-    /** Where progress lines go (the panel's Log drawer). Never given a password. */
-    public interface Log {
+    /** What this needs from the app around it. */
+    public interface Host {
+        /** A progress line for the panel's Log drawer. Never given a password. */
         void line(String message);
     }
 
-    /** How long a network is given to associate and get an address before the move is undone. */
-    static final long JOIN_TIMEOUT_MS = 30_000;
-    /** How long the old network is then given to come back. */
-    static final long RETURN_TIMEOUT_MS = 25_000;
-    private static final long POLL_MS = 500;
-    /** Head start given to the "started" reply before the connection it travels on is dropped. */
-    private static final long REPLY_GRACE_MS = 800;
-    /** A scan is considered running this long after it was asked for; the platform reports no end. */
-    private static final long SCAN_WINDOW_MS = 6_000;
+    /** Every wait in one place; a test shortens them. */
+    public static final class Timing {
+        /** A network gets this long to associate and get an address before the move is undone. */
+        public long joinMs = 30_000;
+        /** The old network then gets this long to come back. */
+        public long returnMs = 25_000;
+        public long pollMs = 500;
+        /** Head start for the "started" reply before the connection it travels on is dropped. */
+        public long replyGraceMs = 800;
+        /** A scan is shown as running this long; the platform reports no end. */
+        public long scanWindowMs = 6_000;
+        /** How long a scan is given before its results are read. */
+        public long scanWaitMs = 6_000;
+        /** Switching the radio between off, client and access point. */
+        public long radioMs = 12_000;
+    }
+
+    public final Timing timing = new Timing();
+
+    /** The address every Android of this generation gives itself as an access point. */
+    public static final String HOTSPOT_IP = "192.168.43.1";
     private static final int MAX_NETWORKS = 40;
 
-    private final WifiManager wifi;
-    private final Log log;
+    /** One network as heard in a scan, kept for when the radio can no longer listen. */
+    private static final class Heard {
+        final String ssid, capabilities;
+        final int level, frequency;
 
+        Heard(String ssid, int level, int frequency, String capabilities) {
+            this.ssid = ssid;
+            this.level = level;
+            this.frequency = frequency;
+            this.capabilities = capabilities;
+        }
+    }
+
+    private final WifiManager wifi;
+    private final Host host;
+
+    /** One radio operation at a time: a move, or a look around from setup mode. */
     private final Object jobLock = new Object();
     private boolean jobRunning;
+
     private volatile String jobSsid = "";
     /** "", "connecting", "connected" or "failed". */
     private volatile String jobState = "";
     private volatile String jobMessage = "";
-    private volatile long jobAtMs;
-    private volatile long scanAtMs;
+    private volatile long jobAt;
+    private volatile long scanAt;
 
-    public WifiSetup(Context context, Log log) {
+    private volatile List<Heard> heard = new ArrayList<Heard>();
+    private volatile long heardAt;
+    private volatile Set<String> savedNames = new HashSet<String>();
+
+    /** The hotspot as it was when this class last switched it off, to switch the same one back on. */
+    private volatile WifiConfiguration lastAp;
+    /** Why the hotspot is on again after a move away from it; "" otherwise. */
+    private volatile String apNote = "";
+
+    public WifiSetup(Context context, Host host) {
         this.wifi = (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        this.log = log;
+        this.host = host;
+    }
+
+    /** Monotonic milliseconds. The wall clock jumps when the speaker gets the time after booting. */
+    private static long now() {
+        return System.nanoTime() / 1_000_000L;
+    }
+
+    public boolean isHotspotOn() {
+        return wifi != null && apOn();
     }
 
     // ── What the panel shows ─────────────────────────────────────────────────────────────────
@@ -75,10 +135,16 @@ public final class WifiSetup {
         JSONObject o = new JSONObject();
         try {
             if (wifi == null) return o.put("ok", false).put("error", "Máy này không có Wi-Fi.").toString();
+            boolean ap = apOn();
             o.put("ok", true);
             o.put("enabled", wifi.isWifiEnabled());
+            o.put("ap", ap);
+            o.put("ap_ssid", ap ? apName() : "");
+            o.put("ap_ip", HOTSPOT_IP);
+            o.put("ap_note", ap ? apNote : "");
+            o.put("busy", isBusy());
 
-            WifiInfo info = wifi.getConnectionInfo();
+            WifiInfo info = ap ? null : wifi.getConnectionInfo();
             String current = connectedSsid(info);
             o.put("connected", !current.isEmpty());
             o.put("ssid", current);
@@ -90,50 +156,50 @@ public final class WifiSetup {
                 o.put("link_mbps", info.getLinkSpeed());
             }
 
-            Map<String, WifiConfiguration> saved = savedBySsid();
-            long sinceScan = System.currentTimeMillis() - scanAtMs;
-            o.put("scanning", scanAtMs != 0 && sinceScan < SCAN_WINDOW_MS);
-
-            // One row per name: the same network is usually heard from several access points and
-            // on both bands, and the owner chooses a name, not a radio.
-            Map<String, ScanResult> best = new HashMap<String, ScanResult>();
-            List<ScanResult> heard = wifi.getScanResults();
-            if (heard != null) {
-                for (ScanResult r : heard) {
-                    if (r == null || r.SSID == null || r.SSID.isEmpty()) continue;
-                    ScanResult have = best.get(r.SSID);
-                    if (have == null || r.level > have.level) best.put(r.SSID, r);
-                }
+            Set<String> saved;
+            List<Heard> rows;
+            if (ap) {
+                // The radio is busy being an access point: show what was heard the last time it
+                // could listen (a look around from this mode, or a move that failed).
+                saved = savedNames;
+                rows = new ArrayList<Heard>(heard);
+                o.put("scanning", false);
+                o.put("scan_age_s", heardAt == 0 ? -1 : (now() - heardAt) / 1000);
+            } else {
+                saved = savedBySsid().keySet();
+                rows = listen();
+                o.put("scanning", scanAt != 0 && now() - scanAt < timing.scanWindowMs);
             }
-            List<ScanResult> rows = new ArrayList<ScanResult>(best.values());
             final String cur = current;
-            Collections.sort(rows, new Comparator<ScanResult>() {
-                @Override public int compare(ScanResult a, ScanResult b) {
-                    boolean ca = a.SSID.equals(cur), cb = b.SSID.equals(cur);
+            Collections.sort(rows, new Comparator<Heard>() {
+                @Override public int compare(Heard a, Heard b) {
+                    boolean ca = a.ssid.equals(cur), cb = b.ssid.equals(cur);
                     if (ca != cb) return ca ? -1 : 1;
                     return b.level - a.level;
                 }
             });
             JSONArray networks = new JSONArray();
             Set<String> inRange = new HashSet<String>();
-            for (ScanResult r : rows) {
+            for (Heard r : rows) {
                 if (networks.length() >= MAX_NETWORKS) break;
-                inRange.add(r.SSID);
+                inRange.add(r.ssid);
                 networks.put(new JSONObject()
-                        .put("ssid", r.SSID)
+                        .put("ssid", r.ssid)
                         .put("rssi", r.level)
                         .put("bars", bars(r.level))
                         .put("band", band(r.frequency))
                         .put("security", security(r.capabilities))
-                        .put("saved", saved.containsKey(r.SSID))
-                        .put("current", r.SSID.equals(current)));
+                        .put("saved", saved.contains(r.ssid))
+                        .put("current", r.ssid.equals(current)));
             }
             o.put("networks", networks);
 
             // Remembered networks that are not in range right now, so they can still be forgotten.
             JSONArray away = new JSONArray();
-            for (String ssid : saved.keySet()) {
-                if (!inRange.contains(ssid) && !ssid.equals(current)) away.put(ssid);
+            if (!ap) {
+                for (String ssid : saved) {
+                    if (!inRange.contains(ssid) && !ssid.equals(current)) away.put(ssid);
+                }
             }
             o.put("saved_away", away);
 
@@ -142,18 +208,58 @@ public final class WifiSetup {
                     .put("state", jobState)
                     .put("message", jobMessage)
                     // Seconds since it ended, by this clock -- the panel's may be set differently.
-                    .put("age_s", jobAtMs == 0 ? -1 : (System.currentTimeMillis() - jobAtMs) / 1000));
+                    .put("age_s", jobAt == 0 ? -1 : (now() - jobAt) / 1000));
             return o.toString();
         } catch (Exception e) {
             return error("Không đọc được trạng thái Wi-Fi: " + e.getMessage());
         }
     }
 
+    /**
+     * The networks in range as plain lines "security TAB bars TAB name", strongest first -- for
+     * the installer scripts, which have no JSON parser to hand.
+     */
+    public String listText() {
+        if (wifi == null) return "";
+        List<Heard> rows = apOn() ? new ArrayList<Heard>(heard) : listen();
+        Collections.sort(rows, new Comparator<Heard>() {
+            @Override public int compare(Heard a, Heard b) {
+                return b.level - a.level;
+            }
+        });
+        StringBuilder out = new StringBuilder();
+        int n = 0;
+        for (Heard r : rows) {
+            if (n++ >= MAX_NETWORKS) break;
+            if (r.ssid.indexOf('\n') >= 0 || r.ssid.indexOf('\t') >= 0) continue;
+            out.append(security(r.capabilities)).append('\t').append(bars(r.level)).append('\t')
+                    .append(r.ssid).append('\n');
+        }
+        return out.toString();
+    }
+
     public String scan() {
-        if (wifi == null || !wifi.isWifiEnabled()) return error("Wi-Fi đang tắt.");
+        if (wifi == null) return error("Máy này không có Wi-Fi.");
+        if (apOn()) {
+            // Listening means not broadcasting for a few seconds; whoever is on the hotspot is
+            // dropped and has to come back. The panel says so before asking.
+            return runJob("wifi-rescan", new Runnable() {
+                @Override public void run() {
+                    host.line("Wi-Fi: tạm ngừng phát để tìm các mạng xung quanh");
+                    stopAp();
+                    if (enableClient()) {
+                        wifi.startScan();
+                        pause(timing.scanWaitMs);
+                        remember();
+                    }
+                    restoreAp("");
+                }
+            }, "{\"ok\":true,\"interrupts\":true}");
+        }
+        if (!wifi.isWifiEnabled()) return error("Wi-Fi đang tắt.");
         try {
             boolean started = wifi.startScan();
-            scanAtMs = System.currentTimeMillis();
+            scanAt = now();
             return started ? ok() : error("Loa chưa quét được, hãy thử lại sau vài giây.");
         } catch (Exception e) {
             return error("Không quét được: " + e.getMessage());
@@ -181,100 +287,147 @@ public final class WifiSetup {
         } catch (Exception e) {
             return error("Yêu cầu không hợp lệ.");
         }
-        if (wifi == null || !wifi.isWifiEnabled()) return error("Wi-Fi đang tắt.");
+        if (wifi == null) return error("Máy này không có Wi-Fi.");
         String problem = validate(ssid, password, security);
         if (problem != null) return error(problem);
 
-        final WifiConfiguration known = savedBySsid().get(ssid);
-        if (ssid.equals(connectedSsid(wifi.getConnectionInfo()))) {
-            return error("Loa đang dùng mạng này rồi.");
+        final boolean fromHotspot = apOn();
+        final WifiConfiguration known;
+        if (fromHotspot) {
+            known = null;                       // remembered networks cannot be read in this mode
+            if (password.isEmpty() && !"open".equals(security) && !savedNames.contains(ssid)) {
+                return error("Hãy nhập mật khẩu của mạng này.");
+            }
+        } else {
+            if (!wifi.isWifiEnabled()) return error("Wi-Fi đang tắt.");
+            known = savedBySsid().get(ssid);
+            if (ssid.equals(connectedSsid(wifi.getConnectionInfo()))) {
+                return error("Loa đang dùng mạng này rồi.");
+            }
+            if (password.isEmpty() && !"open".equals(security) && known == null) {
+                return error("Hãy nhập mật khẩu của mạng này.");
+            }
         }
-        if (password.isEmpty() && !"open".equals(security) && known == null) {
-            return error("Hãy nhập mật khẩu của mạng này.");
-        }
-        synchronized (jobLock) {
-            if (jobRunning) return error("Loa đang đổi mạng, hãy chờ xong đã.");
-            jobRunning = true;
-        }
-        setJob(ssid, "connecting", "Đang kết nối…");
-        Thread t = new Thread(new Runnable() {
+        String refused = runJob("wifi-join", new Runnable() {
             @Override public void run() {
                 try {
-                    // The reply to the panel travels over the connection about to be dropped.
-                    Thread.sleep(REPLY_GRACE_MS);
-                    join(ssid, password, security, hidden, known);
+                    if (fromHotspot) joinFromHotspot(ssid, password, security, hidden);
+                    else join(ssid, password, security, hidden, known);
                 } catch (Exception e) {
                     setJob(ssid, "failed", "Lỗi khi đổi mạng: " + e.getMessage());
-                } finally {
-                    synchronized (jobLock) { jobRunning = false; }
                 }
             }
-        }, "wifi-join");
-        t.setDaemon(true);
-        t.start();
+        }, null);
+        if (refused != null) return refused;
+        setJob(ssid, "connecting", "Đang kết nối…");
         return ok();
     }
 
+    /** From one network to another: on failure, back to the first. */
     private void join(String ssid, String password, String security, boolean hidden,
-                      WifiConfiguration known) throws InterruptedException {
+                      WifiConfiguration known) {
         WifiInfo before = wifi.getConnectionInfo();
         final int oldId = before == null ? -1 : before.getNetworkId();
         final String oldSsid = connectedSsid(before);
-        log.line("Wi-Fi: chuyển sang mạng \"" + ssid + "\"" + (oldSsid.isEmpty() ? "" : " (đang ở \"" + oldSsid + "\")"));
+        host.line("Wi-Fi: chuyển sang mạng \"" + ssid + "\"" + (oldSsid.isEmpty() ? "" : " (đang ở \"" + oldSsid + "\")"));
 
-        final boolean added;
-        int id;
-        if (known != null && password.isEmpty()) {
-            id = known.networkId;          // remembered network, remembered key
-            added = false;
-        } else {
-            WifiConfiguration c = configuration(ssid, password, security, hidden);
-            c.priority = highestPriority() + 1;      // preferred from now on, also after a restart
-            if (known != null) {
-                c.networkId = known.networkId;
-                id = wifi.updateNetwork(c);
-                added = false;
-            } else {
-                id = wifi.addNetwork(c);
-                added = true;
-            }
-        }
+        boolean[] added = new boolean[1];
+        int id = prepare(ssid, password, security, hidden, known, added);
         if (id < 0) {
             setJob(ssid, "failed", "Loa không lưu được mạng này (tên hoặc mật khẩu không hợp lệ).");
             return;
         }
-
-        // enableNetwork(…, true) selects this network and switches every other one off; they are
-        // switched back on below, whichever way this ends.
-        wifi.disconnect();
-        boolean selected = wifi.enableNetwork(id, true);
-        wifi.reconnect();
-        boolean up = selected && waitFor(id, JOIN_TIMEOUT_MS);
-
-        if (up) {
-            enableAll();
-            wifi.saveConfiguration();
-            WifiInfo now = wifi.getConnectionInfo();
-            String ip = now == null ? "" : ipText(now.getIpAddress());
-            log.line("Wi-Fi: đã vào mạng \"" + ssid + "\", địa chỉ " + ip);
-            setJob(ssid, "connected", "Đã kết nối. Địa chỉ của loa: " + ip);
+        if (select(id)) {
+            arrived(ssid);
             return;
         }
 
-        log.line("Wi-Fi: không vào được mạng \"" + ssid + "\", quay lại mạng cũ");
-        if (added) wifi.removeNetwork(id);
+        host.line("Wi-Fi: không vào được mạng \"" + ssid + "\", quay lại mạng cũ");
+        if (added[0]) wifi.removeNetwork(id);
         boolean back = false;
         if (oldId >= 0) {
             wifi.disconnect();
             wifi.enableNetwork(oldId, true);
             wifi.reconnect();
-            back = waitFor(oldId, RETURN_TIMEOUT_MS);
+            back = waitFor(oldId, timing.returnMs);
         }
         enableAll();
         wifi.saveConfiguration();
         if (!back) wifi.reconnect();
         setJob(ssid, "failed", "Không kết nối được (sai mật khẩu hoặc sóng quá yếu)."
                 + (oldSsid.isEmpty() ? "" : " Loa đã quay lại mạng \"" + oldSsid + "\"."));
+    }
+
+    /** From setup mode (the speaker's hotspot) to a network: on failure, the same hotspot again. */
+    private void joinFromHotspot(String ssid, String password, String security, boolean hidden) {
+        String hotspot = apName();
+        host.line("Wi-Fi: ngừng phát" + (hotspot.isEmpty() ? "" : " \"" + hotspot + "\"") + " để vào mạng \"" + ssid + "\"");
+        stopAp();
+        if (!enableClient()) {
+            setJob(ssid, "failed", "Loa không bật lại được Wi-Fi.");
+            restoreAp("không bật được Wi-Fi");
+            return;
+        }
+        // Listen while the radio can: if this fails, the hotspot that comes back has a list to show.
+        wifi.startScan();
+        boolean[] added = new boolean[1];
+        int id = prepare(ssid, password, security, hidden, savedBySsid().get(ssid), added);
+        if (id < 0) {
+            setJob(ssid, "failed", password.isEmpty()
+                    ? "Loa không còn nhớ mật khẩu của mạng này, hãy nhập lại."
+                    : "Loa không lưu được mạng này (tên hoặc mật khẩu không hợp lệ).");
+            pause(timing.scanWaitMs);
+            remember();
+            restoreAp("không lưu được mạng");
+            return;
+        }
+        if (select(id)) {
+            arrived(ssid);
+            return;
+        }
+        host.line("Wi-Fi: không vào được mạng \"" + ssid + "\", phát lại Wi-Fi của loa");
+        if (added[0]) wifi.removeNetwork(id);
+        enableAll();
+        wifi.saveConfiguration();
+        remember();
+        boolean back = restoreAp("không vào được mạng \"" + ssid + "\"");
+        setJob(ssid, "failed", "Không kết nối được (sai mật khẩu hoặc sóng quá yếu). " + (back
+                ? "Loa phát lại mạng" + (hotspot.isEmpty() ? " của nó" : " \"" + hotspot + "\"") + " để bạn thử lại."
+                : "Hãy giữ nút trên đỉnh loa 5 giây để loa phát lại Wi-Fi rồi thử lại."));
+    }
+
+    /** Store the network; its id, or -1. {@code added[0]} says it was not known before. */
+    private int prepare(String ssid, String password, String security, boolean hidden,
+                        WifiConfiguration known, boolean[] added) {
+        added[0] = false;
+        if (known != null && password.isEmpty()) return known.networkId;   // remembered key
+        if (known == null && password.isEmpty() && !"open".equals(security)) return -1;
+        WifiConfiguration c = configuration(ssid, password, security, hidden);
+        c.priority = highestPriority() + 1;      // preferred from now on, also after a restart
+        if (known != null) {
+            c.networkId = known.networkId;
+            return wifi.updateNetwork(c);
+        }
+        added[0] = true;
+        return wifi.addNetwork(c);
+    }
+
+    /** Switch to network {@code id} and wait for it. Every other one is switched off meanwhile. */
+    private boolean select(int id) {
+        wifi.disconnect();
+        boolean selected = wifi.enableNetwork(id, true);
+        wifi.reconnect();
+        return selected && waitFor(id, timing.joinMs);
+    }
+
+    private void arrived(String ssid) {
+        enableAll();
+        wifi.saveConfiguration();
+        WifiInfo here = wifi.getConnectionInfo();
+        String ip = here == null ? "" : ipText(here.getIpAddress());
+        apNote = "";
+        host.line("Wi-Fi: đã vào mạng \"" + ssid + "\", địa chỉ " + ip);
+        setJob(ssid, "connected", "Đã kết nối. Địa chỉ của loa: " + ip);
     }
 
     /** Body: {@code {"ssid":…}}. Not the network in use: that would cut the speaker off. */
@@ -287,18 +440,136 @@ public final class WifiSetup {
         }
         if (wifi == null) return error("Máy này không có Wi-Fi.");
         if (ssid.isEmpty()) return error("Thiếu tên mạng.");
+        if (apOn()) return error("Chỉ xoá được mạng đã lưu khi loa đang ở trong một mạng Wi-Fi.");
         if (ssid.equals(connectedSsid(wifi.getConnectionInfo()))) {
             return error("Không xoá được mạng loa đang dùng.");
         }
-        synchronized (jobLock) {
-            if (jobRunning) return error("Loa đang đổi mạng, hãy chờ xong đã.");
-        }
+        if (isBusy()) return error("Loa đang đổi mạng, hãy chờ xong đã.");
         WifiConfiguration c = savedBySsid().get(ssid);
         if (c == null) return error("Loa không lưu mạng này.");
         boolean removed = wifi.removeNetwork(c.networkId);
         wifi.saveConfiguration();
-        if (removed) log.line("Wi-Fi: đã xoá mạng \"" + ssid + "\"");
+        if (removed) host.line("Wi-Fi: đã xoá mạng \"" + ssid + "\"");
         return removed ? ok() : error("Loa không xoá được mạng này.");
+    }
+
+    // ── Setup mode: the hotspot the speaker's firmware starts ────────────────────────────────
+
+    /** Switch the hotspot off, keeping what it was so that {@link #restoreAp} can bring it back. */
+    private void stopAp() {
+        WifiConfiguration was = apConfiguration();
+        if (was != null) lastAp = was;
+        setAp(null, false);
+        long deadline = now() + timing.radioMs;
+        while (apOn() && now() < deadline) pause(timing.pollMs);
+    }
+
+    /**
+     * Switch back on the hotspot {@link #stopAp} switched off. With no record of it the platform
+     * uses the one it has stored, which is the one that was on. If it will not start, the client
+     * radio is left on: never neither.
+     */
+    private boolean restoreAp(String why) {
+        if (wifi.isWifiEnabled()) {
+            wifi.setWifiEnabled(false);
+            waitRadio(false);
+        }
+        boolean asked = setAp(lastAp, true);
+        long deadline = now() + timing.radioMs;
+        while (asked && !apOn() && now() < deadline) pause(timing.pollMs);
+        if (asked && apOn()) {
+            apNote = why;
+            String name = apName();
+            host.line("Wi-Fi: đang phát lại mạng" + (name.isEmpty() ? " của loa" : " \"" + name + "\"")
+                    + (why.isEmpty() ? "" : " (" + why + ")") + ". Trang điều khiển: http://" + HOTSPOT_IP + ":8088");
+            return true;
+        }
+        host.line("Wi-Fi: không phát lại được Wi-Fi của loa, bật lại Wi-Fi thường");
+        setAp(null, false);
+        enableClient();
+        return false;
+    }
+
+    /** Turn the client radio on and wait for it; true once it is. */
+    private boolean enableClient() {
+        if (!wifi.isWifiEnabled()) wifi.setWifiEnabled(true);
+        return waitRadio(true);
+    }
+
+    private boolean waitRadio(boolean on) {
+        long deadline = now() + timing.radioMs;
+        while (wifi.isWifiEnabled() != on && now() < deadline) pause(timing.pollMs);
+        return wifi.isWifiEnabled() == on;
+    }
+
+    /** Keep what the radio can tell now, for when it can no longer listen. */
+    private void remember() {
+        try {
+            if (!wifi.isWifiEnabled()) return;
+            List<Heard> now = listen();
+            if (!now.isEmpty() || heardAt == 0) {
+                heard = now;
+                heardAt = now();
+            }
+            Set<String> names = new HashSet<String>(savedBySsid().keySet());
+            if (!names.isEmpty() || savedNames.isEmpty()) savedNames = names;
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** One row per name: the strongest access point of each network in range. */
+    private List<Heard> listen() {
+        Map<String, Heard> best = new HashMap<String, Heard>();
+        List<ScanResult> results = wifi.getScanResults();
+        if (results != null) {
+            for (ScanResult r : results) {
+                if (r == null || r.SSID == null || r.SSID.isEmpty()) continue;
+                Heard have = best.get(r.SSID);
+                if (have == null || r.level > have.level) {
+                    best.put(r.SSID, new Heard(r.SSID, r.level, r.frequency, r.capabilities));
+                }
+            }
+        }
+        return new ArrayList<Heard>(best.values());
+    }
+
+    // The access-point switch is not in the SDK. These are its names on API 22.
+
+    private boolean apOn() {
+        try {
+            Object on = wifi.getClass().getMethod("isWifiApEnabled").invoke(wifi);
+            return Boolean.TRUE.equals(on);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private WifiConfiguration apConfiguration() {
+        try {
+            Object c = wifi.getClass().getMethod("getWifiApConfiguration").invoke(wifi);
+            return c instanceof WifiConfiguration ? (WifiConfiguration) c : null;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** The hotspot's name; "" when the platform will not say. */
+    private String apName() {
+        WifiConfiguration c = apConfiguration();
+        return c == null || c.SSID == null ? "" : unquote(c.SSID);
+    }
+
+    private boolean setAp(WifiConfiguration config, boolean on) {
+        try {
+            Object done = wifi.getClass()
+                    .getMethod("setWifiApEnabled", WifiConfiguration.class, boolean.class)
+                    .invoke(wifi, config, on);
+            return Boolean.TRUE.equals(done);
+        } catch (Throwable t) {
+            Throwable cause = t.getCause() == null ? t : t.getCause();
+            host.line("Wi-Fi: máy không cho " + (on ? "bật" : "tắt") + " chế độ phát Wi-Fi (" + cause + ")");
+            return false;
+        }
     }
 
     // ── Pieces ───────────────────────────────────────────────────────────────────────────────
@@ -431,10 +702,10 @@ public final class WifiSetup {
     }
 
     /** True once the speaker is on network {@code id} with an address, within {@code timeoutMs}. */
-    private boolean waitFor(int id, long timeoutMs) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + timeoutMs;
-        while (System.currentTimeMillis() < deadline) {
-            Thread.sleep(POLL_MS);
+    private boolean waitFor(int id, long timeoutMs) {
+        long deadline = now() + timeoutMs;
+        while (now() < deadline) {
+            pause(timing.pollMs);
             WifiInfo info = wifi.getConnectionInfo();
             if (info != null && info.getNetworkId() == id
                     && info.getSupplicantState() == SupplicantState.COMPLETED
@@ -445,11 +716,55 @@ public final class WifiSetup {
         return false;
     }
 
+    private boolean isBusy() {
+        synchronized (jobLock) {
+            return jobRunning;
+        }
+    }
+
+    /**
+     * Run one radio operation in the background, unless another is running.
+     *
+     * @return {@code accepted} when it was started, otherwise the refusal as JSON
+     */
+    private String runJob(String name, final Runnable work, String accepted) {
+        synchronized (jobLock) {
+            if (jobRunning) return error("Loa đang đổi mạng, hãy chờ xong đã.");
+            jobRunning = true;
+        }
+        Thread t = new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    // The reply to whoever asked travels over the connection about to be dropped.
+                    pause(timing.replyGraceMs);
+                    work.run();
+                } catch (Throwable e) {
+                    host.line("Wi-Fi: lỗi (" + e + ")");
+                } finally {
+                    synchronized (jobLock) {
+                        jobRunning = false;
+                    }
+                }
+            }
+        }, name);
+        t.setDaemon(true);
+        t.start();
+        return accepted;
+    }
+
+    private static void pause(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     private void setJob(String ssid, String state, String message) {
         jobSsid = ssid;
         jobState = state;
         jobMessage = message;
-        jobAtMs = System.currentTimeMillis();
+        jobAt = now();
     }
 
     private static String ok() {

@@ -36,6 +36,8 @@ màn hình.
   phát / tạm dừng / bài kế. Nhạc tự tạm dừng khi bạn nói chuyện với loa và phát tiếp sau đó.
 - **Đổi mạng Wi-Fi từ trang điều khiển** — quét các mạng quanh loa và chuyển loa sang mạng khác;
   sai mật khẩu thì loa tự quay lại mạng cũ.
+- **Cài được cho loa mới chưa có Wi-Fi** — bộ cài cài qua mạng "Phicomm R1" do loa phát ra khi giữ
+  nút 5 giây, rồi đưa loa vào Wi-Fi nhà. Loa mất mạng cũng đổi Wi-Fi được theo cách đó.
 - **Chọn máy chủ bằng một nút bấm** — máy chủ DB-Robot hoặc Xiaozhi có sẵn, và ô nhập cho máy chủ
   riêng. Mã kích hoạt hiện ngay trên trang.
 - **Dùng model AI của riêng bạn** — nhập API key của OpenAI, Google Gemini, OpenRouter, DeepSeek,
@@ -75,8 +77,8 @@ màn hình.
 
 ## Cài đặt vào loa
 
-Cần loa R1 đã vào Wi-Fi nhà bạn và một máy tính hoặc điện thoại Android cùng mạng. Chỉ phải cài
-bằng cách này một lần; các bản sau cập nhật ngay trên trang điều khiển.
+Cần loa R1 và một máy tính hoặc điện thoại Android có Wi-Fi (cùng mạng với loa, nếu loa đã vào
+Wi-Fi nhà bạn). Chỉ phải cài bằng cách này một lần; các bản sau cập nhật ngay trên trang điều khiển.
 
 | Thiết bị | Cách cài |
 |---|---|
@@ -89,8 +91,13 @@ curl -fsSL https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/d
 ```
 
 Bộ cài tự tìm loa trong mạng và cài đặt (khoảng 2–3 phút). Tệp .exe chưa có chữ ký số nên Windows
-có thể hiện "Windows protected your PC": bấm *More info* → *Run anyway*. Hướng dẫn từng bước
-và cách xử lý trục trặc: [install/HUONG_DAN_CAI_DAT.md](install/HUONG_DAN_CAI_DAT.md).
+có thể hiện "Windows protected your PC": bấm *More info* → *Run anyway*.
+
+**Loa mới, chưa vào Wi-Fi nào?** Gõ `M` khi bộ cài hỏi địa chỉ loa. Bộ cài hướng dẫn giữ nút trên
+đỉnh loa 5 giây để loa phát mạng Wi-Fi "Phicomm R1", cài qua địa chỉ `192.168.43.1`, rồi hỏi
+tên và mật khẩu Wi-Fi nhà để chuyển loa sang.
+
+Hướng dẫn từng bước và cách xử lý trục trặc: [install/HUONG_DAN_CAI_DAT.md](install/HUONG_DAN_CAI_DAT.md).
 
 ## Bắt đầu sử dụng
 
@@ -223,6 +230,24 @@ Loa được điều khiển qua chính kết nối Wi-Fi đang đổi, nên vi�
 Khi đã sang mạng mới, loa có thể nhận địa chỉ IP khác: nối điện thoại vào cùng mạng đó rồi tìm địa
 chỉ của loa trong danh sách thiết bị của bộ phát Wi-Fi. Mạng doanh nghiệp (802.1X) chưa được hỗ trợ.
 
+### Khi loa không vào được mạng nào
+
+Đổi bộ phát, đổi mật khẩu Wi-Fi hay mang loa đi nơi khác thì loa không còn mạng để vào, và trang
+điều khiển ở địa chỉ cũ không mở được nữa. Đưa loa về chế độ cài đặt mạng:
+
+1. Giữ nút trên đỉnh loa (nút nguồn) khoảng 5 giây: loa phát mạng Wi-Fi **Phicomm R1**. Ở chế độ
+   này loa có địa chỉ `192.168.43.1`.
+2. Nối điện thoại hoặc máy tính vào mạng **Phicomm R1**, mở `http://192.168.43.1:8088` → tab
+   **System** → thẻ **Wi-Fi**.
+3. Bấm **Quét mạng** hoặc **Mạng ẩn…** để gõ tên mạng, nhập mật khẩu, bấm **Kết nối**. Loa ngừng
+   phát và vào mạng đó; sai mật khẩu thì sau khoảng một phút loa phát lại mạng **Phicomm R1** để
+   bạn thử lần nữa.
+4. Nối thiết bị trở lại Wi-Fi nhà. Trang điều khiển đang mở tự tìm loa trong mạng và hiện địa chỉ mới.
+
+Loa không vừa phát Wi-Fi vừa nghe được các mạng xung quanh, nên **Quét mạng** trong chế độ này làm
+mạng của loa tắt khoảng 15 giây rồi hiện lại. Việc phát mạng "Phicomm R1" là của phần mềm gốc trên
+loa (bật bằng nút bấm); DB-Robot không tự phát Wi-Fi, nó chỉ làm cho thẻ Wi-Fi dùng được ở chế độ đó.
+
 ## Máy chủ nhạc
 
 Tab Media phát nhạc từ một máy chủ nhạc qua HTTP. Mặc định là `https://ms.dbrobot.vn`; thẻ **Máy
@@ -281,7 +306,7 @@ Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `appl
 | `…/voicebot/media/RadioStations.java`, `HlsAudioStream.java`, `MusicService.kt` | Danh sách kênh radio, đọc luồng HLS của đài; phát nhạc/radio theo lệnh giọng nói |
 | `…/voicebot/domain/voice/VoiceGate.kt` | Tắt nghe từ đánh thức và gọi loa từ trang điều khiển |
 | `…/voicebot/net/Https.java` | Kết nối https với danh sách chứng chỉ gốc đi kèm ứng dụng |
-| `…/voicebot/net/WifiSetup.java` | Quét Wi-Fi và chuyển loa sang mạng khác, tự quay lại mạng cũ khi thất bại |
+| `…/voicebot/net/WifiSetup.java` | Quét Wi-Fi và chuyển loa sang mạng khác, kể cả từ chế độ cài đặt mạng "Phicomm R1"; thất bại thì quay lại trạng thái cũ |
 | `…/voicebot/control/ChatBackground.java` | Lưu ảnh nền của khung Chat trên loa |
 | `…/voicebot/update/` | Tự cập nhật: `Updater.java`, `AdbLoopback.java`, `UpdateManager.kt` |
 | `install/` | Bộ cài cho người dùng và script đóng gói bản phát hành |

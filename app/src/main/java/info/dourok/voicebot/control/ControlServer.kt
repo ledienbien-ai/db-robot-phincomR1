@@ -159,6 +159,9 @@ class ControlServer @Inject constructor(
             // sit in a URL) and are refused when another web site is the one asking.
             "/api/wifi/state" -> json(wifi.stateJson())
             "/api/wifi/scan" -> json(wifi.scan())
+            // The networks in range as plain text lines, for the installer scripts.
+            "/api/wifi/list" -> newFixedLengthResponse(Response.Status.OK, "text/plain; charset=utf-8", wifi.listText())
+            // The speaker's own Wi-Fi network, for when it is on none (see WifiSetup).
             "/api/wifi/connect" -> json(if (sameOrigin(session)) wifi.connect(bodyOf(session)) else FOREIGN_ORIGIN)
             "/api/wifi/forget" -> json(if (sameOrigin(session)) wifi.forget(bodyOf(session)) else FOREIGN_ORIGIN)
             // The picture behind the panel's chat, kept on the speaker so every device shows it.
@@ -449,6 +452,8 @@ class ControlServer @Inject constructor(
         o.put("voice_paused", info.dourok.voicebot.domain.voice.VoiceGate.paused)
         o.put("pause_on_music", Settings.pauseOnMusic)
         o.put("chat_bg", ChatBackground.stamp(context.filesDir))
+        // The speaker is broadcasting its own Wi-Fi: the panel points at the card that ends that.
+        o.put("wifi_hotspot", wifi.isHotspotOn())
         // True whenever the wake word is being ignored, whichever of the two reasons applies, so
         // the panel can say why the speaker is not answering to its name.
         o.put("wake_muted", !info.dourok.voicebot.domain.voice.VoiceGate.wakeWordAllowed)
@@ -548,7 +553,9 @@ class ControlServer @Inject constructor(
     }
 
     private val wifi by lazy {
-        info.dourok.voicebot.net.WifiSetup(context) { line -> AppLog.i(line) }
+        info.dourok.voicebot.net.WifiSetup(context, object : info.dourok.voicebot.net.WifiSetup.Host {
+            override fun line(message: String) { AppLog.i(message) }
+        })
     }
 
     private fun serveChatBackground(): Response {

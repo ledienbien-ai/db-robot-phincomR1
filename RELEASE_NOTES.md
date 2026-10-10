@@ -3,6 +3,12 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.7
+
+- **Cài được cho loa mới chưa có Wi-Fi**: gõ `M` khi bộ cài hỏi địa chỉ loa. Bộ cài hướng dẫn giữ nút trên đỉnh loa 5 giây để loa phát mạng "Phicomm R1", cài qua `192.168.43.1`, rồi hỏi tên và mật khẩu Wi-Fi nhà để đưa loa vào mạng.
+- **Đổi Wi-Fi khi loa mất mạng**: giữ nút trên đỉnh loa 5 giây, nối điện thoại vào mạng "Phicomm R1", mở `http://192.168.43.1:8088` → tab System → Wi-Fi và chọn mạng nhà. Sai mật khẩu thì loa phát lại mạng "Phicomm R1" để bạn nhập lại.
+- Sau khi loa vào mạng nhà, trang điều khiển tự tìm và hiện địa chỉ mới của loa.
+
 ## v1.5.6
 
 - Thẻ **Wi-Fi** mới: xem loa đang dùng mạng nào, quét và chuyển loa sang mạng khác. Nếu không vào được mạng mới, loa tự quay lại mạng cũ.

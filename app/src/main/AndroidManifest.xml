@@ -16,6 +16,11 @@
          another one (net/WifiSetup). Install-time permissions on API 22. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- Setup mode (the speaker broadcasting "Phicomm R1"): leaving it for the home network, and
+         putting it back when that fails, goes through the platform's access-point switch, which
+         on API 22 also asks for these two. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <application

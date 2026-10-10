@@ -8,6 +8,9 @@
 # Script tai ban DB-Robot moi nhat, ket noi toi loa Phicomm R1 qua adb tren Wi-Fi va cai vao loa.
 # Chi can lam mot lan: cac ban sau cap nhat ngay trong trang dieu khien cua loa (http://IP-loa:8088).
 #
+# Loa moi, chua vao Wi-Fi nao: bo cai huong dan noi may nay vao mang do chinh loa phat, cai qua
+# dia chi 192.168.43.1, roi hoi ten va mat khau Wi-Fi nha de chuyen loa sang.
+#
 # Chu thich va thong bao viet khong dau co chu y: Windows PowerShell 5.1 doc tep .ps1 khong co BOM
 # theo bang ma ANSI, nen chu co dau se thanh ky tu rac tren nhieu may.
 param([string]$Ip = "")
@@ -18,13 +21,19 @@ $ToolsUrl = "https://dl.google.com/android/repository/platform-tools-latest-wind
 $Pkg      = "vn.dbrobot.r1"
 $Activity = "$Pkg/info.dourok.voicebot.MainActivity"
 $Port     = 5555
+$PanelPort = 8088
+# Dia chi cua loa khi chinh no phat Wi-Fi (che do cai dat mang: giu nut tren dinh loa 5 giay,
+# loa phat mang "Phicomm R1"). Android 5.1 luon dung dia chi nay.
+$HotspotIp = "192.168.43.1"
+if ($env:LOA_AP_IP) { $HotspotIp = $env:LOA_AP_IP }
 $DevApk   = "/data/local/tmp/dbrobot.apk"
 $DevLog   = "/data/local/tmp/dbrobot-cmd.log"
 # Ung dung tro ly khac dung chung micro voi DB-Robot (AI Box Plus va ban xiaozhi goc).
 $Rivals   = @("info.dourok.voicebot", "info.dourok.voicebot.dev")
 
-$script:Adb    = "adb"
-$script:Serial = ""
+$script:Adb      = "adb"
+$script:Serial   = ""
+$script:HomeSsid = ""     # Wi-Fi may nay dang dung luc bat dau: goi y cho buoc chuyen loa sang mang nha
 
 function Say([string]$Text)  { Write-Host $Text }
 function Step([string]$Text) { Write-Host ""; Write-Host "==> $Text" -ForegroundColor Cyan }
@@ -68,6 +77,15 @@ function Invoke-Dev([string[]]$Arguments, [int]$TimeoutSec = 60) {
     return Invoke-Adb (@("-s", $script:Serial) + $Arguments) $TimeoutSec
 }
 
+# May dang noi vao mang cua loa thi khong co Internet: noi ro thay vi chi bao "tai that bai".
+function Get-OfflineHint {
+    $prefix = $HotspotIp.Substring(0, $HotspotIp.LastIndexOf("."))
+    if (@(Get-LocalPrefixes) -contains $prefix) {
+        return " May nay dang noi vao mang cua loa nen khong co Internet: hay noi lai Wi-Fi nha roi chay lai - bo cai se bao khi nao can chuyen sang mang cua loa."
+    }
+    return ""
+}
+
 function Get-File([string]$Url, [string]$Dest) {
     $old = $ProgressPreference
     $ProgressPreference = "SilentlyContinue"   # thanh tien trinh cua PS 5.1 lam tai cham gap nhieu lan
@@ -93,7 +111,7 @@ function Find-Adb([string]$Base) {
     if (Test-Path $local) { $script:Adb = $local; Say "Dung adb trong thu muc bo cai."; Start-AdbServer; return }
     Say "Chua co adb - dang tai Android platform-tools tu Google (khoang 7 MB)..."
     $zip = Join-Path $Base "platform-tools.zip"
-    try { Get-File $ToolsUrl $zip } catch { throw "Tai platform-tools that bai: $($_.Exception.Message)" }
+    try { Get-File $ToolsUrl $zip } catch { throw "Tai platform-tools that bai: $($_.Exception.Message)$(Get-OfflineHint)" }
     Expand-Archive -Path $zip -DestinationPath $Base -Force
     Remove-Item $zip -Force -ErrorAction SilentlyContinue
     if (-not (Test-Path $local)) { throw "Khong tim thay adb sau khi giai nen." }
@@ -109,7 +127,7 @@ function Find-Apk([string]$Base) {
     if ($have) { Say "Dung tep co san: $($have.FullName)"; return $have.FullName }
     $apk = Join-Path $Base "DB-Robot-R1.apk"
     Say "Dang tai ban moi nhat..."
-    try { Get-File $ApkUrl $apk } catch { throw "Tai tep cai dat that bai. Kiem tra Internet roi chay lai. ($($_.Exception.Message))" }
+    try { Get-File $ApkUrl $apk } catch { throw "Tai tep cai dat that bai. Kiem tra Internet roi chay lai. ($($_.Exception.Message))$(Get-OfflineHint)" }
     # Tep APK la tep zip: bat dau bang "PK" va nang nhieu MB. Trang bao loi thi khong.
     $ok = $false
     if ((Test-Path $apk) -and ((Get-Item $apk).Length -gt 1000000)) {
@@ -141,13 +159,13 @@ function Get-LocalPrefixes {
     return $list
 }
 
-# Thu noi toi cong adb cua ca 254 dia chi cung luc; tra ve nhung dia chi co mo cong.
-function Find-OpenAdb([string]$Prefix) {
+# Thu noi toi mot cong cua ca 254 dia chi cung luc; tra ve nhung dia chi co mo cong do.
+function Find-OpenPort([string]$Prefix, [int]$PortNum) {
     $tries = @()
     foreach ($i in 1..254) {
         $ip = "$Prefix.$i"
         $c = New-Object System.Net.Sockets.TcpClient
-        try { $ar = $c.BeginConnect($ip, $Port, $null, $null); $tries += ,@($ip, $c, $ar) } catch { $c.Close() }
+        try { $ar = $c.BeginConnect($ip, $PortNum, $null, $null); $tries += ,@($ip, $c, $ar) } catch { $c.Close() }
     }
     Start-Sleep -Milliseconds 1500
     $found = @()
@@ -158,21 +176,83 @@ function Find-OpenAdb([string]$Prefix) {
     return $found
 }
 
+function Test-Port([string]$Ip, [int]$PortNum, [int]$TimeoutMs = 1500) {
+    $c = New-Object System.Net.Sockets.TcpClient
+    try {
+        $ar = $c.BeginConnect($Ip, $PortNum, $null, $null)
+        if (-not $ar.AsyncWaitHandle.WaitOne($TimeoutMs)) { return $false }
+        return $c.Connected
+    } catch { return $false }
+    finally { try { $c.Close() } catch { } }
+}
+
+# Ten mang Wi-Fi may nay dang noi (chi Windows). Rong neu khong ro, hoac ten co ky tu ma cua so
+# lenh khong the hien dung - thay vi goi y mot cai ten sai.
+function Get-CurrentSsid {
+    if ($env:OS -ne "Windows_NT") { return "" }
+    try {
+        foreach ($l in @(& netsh wlan show interfaces 2>$null)) {
+            if ($l -match '^\s*SSID\s*:\s*(.+?)\s*$') {
+                $name = $Matches[1]
+                if ($name -match '^[\x20-\x7E]+$') { return $name }
+                return ""
+            }
+        }
+    } catch { }
+    return ""
+}
+
+# Mang do loa phat ra, khong phai Wi-Fi nha.
+function Test-SpeakerSsid([string]$Name) { return ($Name -match '^Phicomm[ _-]?R1') }
+
+# Loa moi chua vao Wi-Fi nao: dua may nay sang mang do chinh loa phat, roi cho toi khi thay loa.
+function Join-SpeakerHotspot {
+    Step "Loa moi, chua vao Wi-Fi: cai qua mang do chinh loa phat"
+    Say "  1. Cam dien loa va cho loa khoi dong xong (khoang 1 phut)."
+    Say "  2. Giu nut tren dinh loa (nut nguon) khoang 5 giay: loa phat mot mang Wi-Fi"
+    Say "     ten ""Phicomm R1""."
+    Say "  3. Tren may nay, mo danh sach Wi-Fi va noi vao mang ""Phicomm R1""."
+    Say "     May bao ""khong co Internet"" la binh thuong - cu giu ket noi do."
+    while ($true) {
+        $r = (Read-Host "Noi xong thi bam Enter (go K de thoat)").Trim()
+        if ($r -match '^[kK]') { throw "Da huy." }
+        Say "Dang tim loa o dia chi $HotspotIp ..."
+        foreach ($try in 1..6) {
+            if (Test-Port $HotspotIp $Port 2000) { Say "Da thay loa."; return }
+            Start-Sleep -Seconds 2
+        }
+        Say "Chua thay loa. Kiem tra may nay da noi dung vao mang ""Phicomm R1"" cua loa chua,"
+        Say "va tat VPN neu dang bat."
+    }
+}
+
 function Select-Speaker([string]$Given) {
     Step "Tim loa trong mang"
     $ip = $Given
     if (-not $ip -and $env:LOA_IP) { $ip = $env:LOA_IP }
-    if (-not $ip) { $ip = (Read-Host "Nhap dia chi IP cua loa (bam Enter de tu tim trong mang Wi-Fi)").Trim() }
+    if (-not $ip) {
+        Say "Loa da vao Wi-Fi nha: bam Enter de tu tim, hoac go dia chi IP cua loa."
+        Say "Loa moi, chua vao Wi-Fi nao: go M."
+        $ip = (Read-Host "IP cua loa / Enter / M").Trim()
+    }
+    if ($ip -match '^[mM]$') { Join-SpeakerHotspot; $ip = $HotspotIp }
     if (-not $ip) {
         $prefixes = @()
-        if ($env:LOA_PREFIX) { $prefixes = @($env:LOA_PREFIX) } else { $prefixes = @(Get-LocalPrefixes) }
-        if ($prefixes.Count -eq 0) { throw "Khong xac dinh duoc mang Wi-Fi cua may nay. Hay xem IP cua loa trong trang quan ly modem Wi-Fi roi nhap truc tiep." }
+        if ($env:LOA_PREFIX) { $prefixes = @($env:LOA_PREFIX -split ",") } else { $prefixes = @(Get-LocalPrefixes) }
         $found = @()
         foreach ($p in $prefixes) {
             Say "Dang quet mang $p.x ..."
-            $found += @(Find-OpenAdb $p)
+            $found += @(Find-OpenPort $p $Port)
         }
-        if ($found.Count -eq 0) { throw "Khong thay thiet bi nao mo cong adb ($Port). Kiem tra loa da bat va cung mang Wi-Fi voi may nay, hoac nhap IP truc tiep." }
+        if ($found.Count -eq 0) {
+            if ($prefixes.Count -eq 0) { Say "Khong xac dinh duoc mang cua may nay." }
+            else { Say "Khong thay thiet bi nao mo cong adb ($Port) trong mang nay." }
+            Say "Neu loa da vao Wi-Fi nha: kiem tra loa da bat va cung mang voi may nay, hoac xem IP"
+            Say "cua loa trong trang quan ly modem Wi-Fi roi chay lai va nhap truc tiep."
+            if (-not (Ask-YesNo "Hay day la loa moi, chua vao Wi-Fi nao? [C/k]" "c")) { throw "Khong tim thay loa." }
+            Join-SpeakerHotspot
+            $found = @($HotspotIp)
+        }
         $n = 0
         foreach ($f in $found) {
             $n++
@@ -185,7 +265,7 @@ function Select-Speaker([string]$Given) {
         }
         if ($found.Count -eq 1) {
             $ip = $found[0]
-            if (-not (Ask-YesNo "Cai DB-Robot vao thiet bi ${ip} ? [C/k]" "c")) { throw "Da huy." }
+            if ($ip -ne $HotspotIp -and -not (Ask-YesNo "Cai DB-Robot vao thiet bi ${ip} ? [C/k]" "c")) { throw "Da huy." }
         } else {
             $pick = 0
             [void][int]::TryParse((Read-Host "Chon so thu tu cua loa (1-$($found.Count))"), [ref]$pick)
@@ -280,6 +360,13 @@ function Resolve-Rivals {
     $list = Invoke-OnSpeaker "pm list packages" 45
     if ($null -eq $list) { return }
     $lines = $list -split "`n" | ForEach-Object { $_.Trim() }
+    # Phan mem goc cua Phicomm: chi ke ten, khong dong toi. Danh sach nay giup tim nguyen nhan neu
+    # tren loa nguyen ban DB-Robot khong nghe duoc lenh.
+    $stock = @($lines | Where-Object { $_ -like "package:com.phicomm*" } | ForEach-Object { $_.Substring(8) })
+    if ($stock.Count -gt 0) {
+        Say "Phan mem goc Phicomm tren loa (bo cai de nguyen): $($stock -join ', ')"
+        Say "Neu DB-Robot khong nghe duoc lenh, hay gui dong tren cho nhom ho tro (dbrobot.vn)."
+    }
     $found = @($Rivals | Where-Object { $lines -contains "package:$_" })
     if ($found.Count -eq 0) { return }
     Step "Ung dung tro ly khac tren loa"
@@ -311,6 +398,191 @@ function Start-App {
     Say "Chua khoi dong duoc ung dung - hay rut dien loa roi cam lai, DB-Robot se tu chay."
 }
 
+# -- 5. Loa moi: chuyen loa tu mang rieng sang Wi-Fi nha -------------------
+# Goi trang dieu khien cua loa. Tra ve noi dung tra loi, hoac $null neu khong goi duoc.
+# Dung HttpWebRequest thay cho Invoke-WebRequest: khong di qua proxy cua may (day la dia chi
+# trong nha) va gui duoc ten mang co dau duoi dang UTF-8.
+function Invoke-Panel([string]$Url, [string]$Body = "", [switch]$Post, [int]$TimeoutSec = 6) {
+    try {
+        $req = [System.Net.WebRequest]::Create($Url)
+        $req.Timeout = $TimeoutSec * 1000
+        $req.ReadWriteTimeout = $TimeoutSec * 1000
+        $req.Proxy = $null
+        $req.KeepAlive = $false
+        if ($Post) {
+            $bytes = [System.Text.Encoding]::UTF8.GetBytes($Body)
+            $req.Method = "POST"
+            # Phai ghi ro charset: thieu no may chu tren loa doc noi dung theo ASCII, mat dau.
+            $req.ContentType = "application/json; charset=utf-8"
+            $req.ContentLength = $bytes.Length
+            try { $req.ServicePoint.Expect100Continue = $false } catch { }
+            $out = $req.GetRequestStream()
+            try { $out.Write($bytes, 0, $bytes.Length) } finally { $out.Close() }
+        }
+        $resp = $req.GetResponse()
+        try {
+            $reader = New-Object System.IO.StreamReader($resp.GetResponseStream(), [System.Text.Encoding]::UTF8)
+            return $reader.ReadToEnd()
+        } finally { $resp.Close() }
+    } catch { return $null }
+}
+
+function Read-PanelJson([string]$Url, [int]$TimeoutSec = 6) {
+    $text = Invoke-Panel $Url -TimeoutSec $TimeoutSec
+    if (-not $text) { return $null }
+    try { return ($text | ConvertFrom-Json) } catch { return $null }
+}
+
+# Cac mang loa nghe thay, manh nhat truoc. Moi dong loa tra ve: "bao-mat TAB so-vach TAB ten".
+# Khi loa dang phat Wi-Fi bang phan mem goc thi danh sach rong (loa khong vua phat vua quet duoc).
+function Get-SpeakerNetworks([string]$Base) {
+    $rows = @()
+    $text = Invoke-Panel "$Base/api/wifi/list"
+    if (-not $text) { return $rows }
+    foreach ($line in ($text -split "`n")) {
+        $f = $line.TrimEnd("`r") -split "`t", 3
+        if ($f.Count -lt 3 -or -not $f[2]) { continue }
+        if (Test-SpeakerSsid $f[2]) { continue }           # mang cai dat cua mot loa R1 khac
+        $rows += ,@{ Security = $f[0]; Bars = $f[1]; Ssid = $f[2] }
+    }
+    return $rows
+}
+
+# Hoi ten va mat khau Wi-Fi nha. Tra ve @{ Ssid; Password; Security }, hoac $null neu nguoi dung bo qua.
+function Read-HomeWifi($Networks) {
+    $shown = @($Networks | Select-Object -First 12)
+    if ($shown.Count -gt 0) {
+        Say "Cac mang Wi-Fi loa nghe thay:"
+        $n = 0
+        foreach ($w in $shown) {
+            $n++
+            $lock = "co mat khau"
+            if ($w.Security -eq "open") { $lock = "khong mat khau" }
+            Say ("  {0,2}) {1}   [song {2}/4, {3}]" -f $n, $w.Ssid, $w.Bars, $lock)
+        }
+    }
+    $hint = "Ten Wi-Fi nha ban"
+    if ($shown.Count -gt 0) { $hint = "Chon so thu tu, hoac go ten Wi-Fi nha ban" }
+    if ($script:HomeSsid) { $hint += " (Enter = ""$($script:HomeSsid)"")" }
+    $hint += "; go K de bo qua"
+    $ssid = ""; $security = ""
+    while (-not $ssid) {
+        $r = (Read-Host $hint).Trim()
+        if ($r -match '^[kK]$') { return $null }
+        if (-not $r) { $r = $script:HomeSsid }
+        if (-not $r) { continue }
+        $pick = 0
+        if ([int]::TryParse($r, [ref]$pick) -and $pick -ge 1 -and $pick -le $shown.Count) {
+            $ssid = $shown[$pick - 1].Ssid; $security = $shown[$pick - 1].Security
+        } else {
+            $ssid = $r
+            foreach ($w in $Networks) { if ($w.Ssid -ceq $ssid) { $security = $w.Security } }
+        }
+    }
+    $password = ""
+    if ($security -ne "open") {
+        $password = Read-Host "Mat khau cua ""$ssid"" (de trong neu mang khong dat mat khau)"
+        if (-not $security) { if ($password) { $security = "psk" } else { $security = "open" } }
+    }
+    return @{ Ssid = $ssid; Password = $password; Security = $security }
+}
+
+# Sau khi loa roi mang rieng: tim no trong mang nha bang ma thiet bi doc duoc luc truoc.
+# Tra ve @{ Ip } khi thay, @{ Failed; Message } khi loa da quay lai phat Wi-Fi, $null khi het gio.
+function Wait-SpeakerAtHome([string]$DeviceId, [string]$Ssid, [int]$LimitSec) {
+    $apPrefix = $HotspotIp.Substring(0, $HotspotIp.LastIndexOf("."))
+    $waited = 0
+    while ($waited -lt $LimitSec) {
+        Start-Sleep -Seconds 4; $waited += 4
+        Write-Host "." -NoNewline
+        $prefixes = @(Get-LocalPrefixes)
+        if ($env:LOA_PREFIX) { $prefixes += @($env:LOA_PREFIX -split ",") }
+        foreach ($p in $prefixes) {
+            if ($p -eq $apPrefix) {
+                # May nay van (hoac lai) o mang cua loa: loa da thu xong va khong vao duoc?
+                $s = Read-PanelJson "http://${HotspotIp}:$PanelPort/api/wifi/state" 3
+                if ($s -and $s.ap -and $s.job -and $s.job.state -eq "failed" -and $s.job.ssid -ceq $Ssid) {
+                    Write-Host ""
+                    return @{ Failed = $true; Message = [string]$s.job.message }
+                }
+                continue
+            }
+            $waited += 2
+            foreach ($ip in @(Find-OpenPort $p $PanelPort)) {
+                $st = Read-PanelJson "http://${ip}:$PanelPort/api/state" 4
+                if (-not $st -or -not $st.device_id) { continue }
+                if ($DeviceId -and $st.device_id -ne $DeviceId) { continue }
+                Write-Host ""
+                return @{ Ip = $ip }
+            }
+        }
+    }
+    Write-Host ""
+    return $null
+}
+
+# Tra ve dia chi moi cua loa trong mang nha, hoac $null neu chua chuyen duoc.
+function Move-SpeakerToHome {
+    Step "Dua loa vao Wi-Fi nha ban"
+    $base = "http://${HotspotIp}:$PanelPort"
+    Say "Dang cho DB-Robot tren loa san sang..."
+    $state = $null
+    foreach ($try in 1..30) {
+        $state = Read-PanelJson "$base/api/wifi/state"
+        if ($state -and $state.ok) { break }
+        $state = $null
+        Start-Sleep -Seconds 3
+    }
+    if (-not $state) {
+        Say "Chua goi duoc trang dieu khien cua loa. Hay mo $base bang trinh duyet tren may nay,"
+        Say "vao tab System -> Wi-Fi de chon mang nha."
+        return $null
+    }
+    if (-not $state.ap) { return $HotspotIp }     # loa khong phat Wi-Fi: no da o trong mot mang roi
+    $id = ""
+    $st = Read-PanelJson "$base/api/state"
+    if ($st -and $st.device_id) { $id = [string]$st.device_id }
+
+    while ($true) {
+        $wifi = Read-HomeWifi @(Get-SpeakerNetworks $base)
+        if ($null -eq $wifi) { return $null }
+        $body = (@{ ssid = $wifi.Ssid; password = $wifi.Password; security = $wifi.Security } | ConvertTo-Json -Compress)
+        $reply = $null
+        $text = Invoke-Panel "$base/api/wifi/connect" -Body $body -Post -TimeoutSec 10
+        if ($text) { try { $reply = $text | ConvertFrom-Json } catch { } }
+        if ($reply -and -not $reply.ok) {
+            Say "Loa tu choi: $($reply.error)"
+            continue
+        }
+        if (-not $reply) {
+            Say "Loa khong tra loi. Kiem tra may nay con noi vao mang cua loa khong, roi thu lai."
+            continue
+        }
+        Say "Loa dang roi che do cai dat de vao ""$($wifi.Ssid)"" (mat khoang nua phut)."
+        Say "Bay gio hay noi may nay tro lai Wi-Fi ""$($wifi.Ssid)"" - Windows thuong tu noi lai."
+        $limit = 90
+        while ($true) {
+            $r = Wait-SpeakerAtHome $id $wifi.Ssid $limit
+            if ($r -and $r.Ip) { Say "Da thay loa trong mang nha: $($r.Ip)"; return $r.Ip }
+            if ($r -and $r.Failed) {
+                Say "Loa khong vao duoc mang ""$($wifi.Ssid)"": $($r.Message)"
+                break
+            }
+            Say "Chua thay loa trong mang cua may nay."
+            Say " - May nay da noi lai Wi-Fi nha chua? Noi xong bam Enter de tim tiep."
+            Say " - Neu mang ""Phicomm R1"" cua loa hien lai trong danh sach Wi-Fi: loa chua vao duoc"
+            Say "   mang nha (thuong do sai mat khau). Noi may nay vao mang do roi go M de nhap lai."
+            $a = (Read-Host "Enter = tim tiep, M = nhap lai Wi-Fi, K = ket thuc").Trim()
+            if ($a -match '^[kK]') { return $null }
+            if ($a -match '^[mM]') {
+                if (Test-Port $HotspotIp $PanelPort 3000) { break }
+                Say "May nay chua noi vao mang cua loa (khong goi duoc $HotspotIp)."
+            }
+            $limit = 40
+        }
+    }
+}
+
 function Install-DBRobot([string]$GivenIp) {
     Say "=============================================="
     Say "  DB-Robot R1 - cai dat vao loa Phicomm R1"
@@ -319,7 +591,11 @@ function Install-DBRobot([string]$GivenIp) {
     $base = $PSScriptRoot
     if (-not $base) { $base = Join-Path ([System.IO.Path]::GetTempPath()) "db-robot-r1" }
     if (-not (Test-Path $base)) { [void](New-Item -ItemType Directory -Path $base -Force) }
+    $ssid = Get-CurrentSsid
+    if ($ssid -and -not (Test-SpeakerSsid $ssid)) { $script:HomeSsid = $ssid }
 
+    # adb va tep cai dat truoc, tim loa sau: voi loa moi, den buoc tim loa may nay moi phai roi
+    # Wi-Fi nha (va mat Internet) de sang mang cua loa.
     Find-Adb $base
     $apk = Find-Apk $base
     Select-Speaker $GivenIp
@@ -330,10 +606,25 @@ function Install-DBRobot([string]$GivenIp) {
     Disconnect-Speaker
 
     $hostIp = $script:Serial.Substring(0, $script:Serial.LastIndexOf(":"))
+    if ($hostIp -eq $HotspotIp) {
+        $hostIp = Move-SpeakerToHome
+        if (-not $hostIp) {
+            Say ""
+            Say "=============================================="
+            Say "  DA CAI XONG DB-Robot, nhung chua thay loa trong Wi-Fi nha."
+            Say "  - Loa da vao mang: xem IP cua loa trong trang quan ly modem,"
+            Say "    roi mo http://IP-cua-loa:$PanelPort"
+            Say "  - Loa chua vao mang: noi dien thoai hoac may tinh vao mang"
+            Say "    ""Phicomm R1"" cua loa (chua thay mang do thi giu nut tren dinh"
+            Say "    loa 5 giay), mo http://${HotspotIp}:$PanelPort -> tab System -> Wi-Fi."
+            Say "=============================================="
+            return
+        }
+    }
     Say ""
     Say "=============================================="
     Say "  XONG. Mo trang dieu khien cua loa:"
-    Say "      http://${hostIp}:8088"
+    Say "      http://${hostIp}:$PanelPort"
     Say "  Tab System -> bam may chu DB-Robot de ket noi."
     Say "  Cac ban moi ve sau: cap nhat ngay trong tab System."
     Say "=============================================="
