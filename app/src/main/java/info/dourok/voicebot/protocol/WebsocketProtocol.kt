@@ -26,6 +26,14 @@ class WebsocketProtocol(private val deviceInfo: DeviceInfo,
     companion object {
         private const val TAG = "WS"
         private const val OPUS_FRAME_DURATION_MS = 60
+
+        /** Hosts of the public Xiaozhi service (the panel's "Xiaozhi" server preset). */
+        private val PUBLIC_XIAOZHI = listOf("tenclass.net", "xiaozhi.me")
+
+        internal fun isPublicXiaozhi(host: String): Boolean {
+            val h = host.lowercase()
+            return PUBLIC_XIAOZHI.any { h == it || h.endsWith(".$it") }
+        }
     }
 
     private var isOpen: Boolean = false
@@ -147,9 +155,13 @@ class WebsocketProtocol(private val deviceInfo: DeviceInfo,
                     })
                     // Per-session BYO LLM: send the client-configured provider so the server builds
                     // a session LLM from it. Only when a provider is actually configured.
+                    // The block carries the user's own API key, and only a server built to read it
+                    // does anything with it -- so it is withheld from the public Xiaozhi service,
+                    // which is not one and would merely be handed a stranger's key.
+                    val shareSecrets = !isPublicXiaozhi(request.url.host)
                     val base = info.dourok.voicebot.data.Settings.llmBaseUrl
                     val model = info.dourok.voicebot.data.Settings.llmModel
-                    if (base.isNotBlank() && model.isNotBlank()) {
+                    if (shareSecrets && base.isNotBlank() && model.isNotBlank()) {
                         put("llm_config", JSONObject().apply {
                             put("type", info.dourok.voicebot.data.Settings.llmTransport)
                             put("base_url", base)
@@ -161,7 +173,7 @@ class WebsocketProtocol(private val deviceInfo: DeviceInfo,
                     // the server injects it into the prompt + hass_* tools use it. Only when configured.
                     val haUrl = info.dourok.voicebot.data.Settings.haUrl
                     val haDevices = info.dourok.voicebot.data.Settings.haDevices
-                    if (haUrl.isNotBlank() && haDevices.isNotBlank()) {
+                    if (shareSecrets && haUrl.isNotBlank() && haDevices.isNotBlank()) {
                         put("ha_config", JSONObject().apply {
                             put("base_url", haUrl)
                             put("token", info.dourok.voicebot.data.Settings.haToken)
