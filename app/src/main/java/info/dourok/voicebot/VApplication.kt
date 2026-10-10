@@ -13,6 +13,7 @@ import info.dourok.voicebot.data.ServerProvisioner
 import info.dourok.voicebot.data.Settings
 import info.dourok.voicebot.data.model.DeviceInfo
 import info.dourok.voicebot.domain.bluetooth.BtController
+import info.dourok.voicebot.update.UpdateManager
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -45,6 +46,9 @@ class VApplication : Application() {
             entry.btController().start()
             ServerProvisioner.appVersion = entry.controlServer().appVersion
             checkOtaInBackground(entry.deviceInfo())
+            // Picks up the result of an install that replaced the previous process, then keeps
+            // looking for newer builds in the background.
+            UpdateManager.init(this)
         } catch (e: Exception) {
             Log.e("VApplication", "control server start failed: ${e.message}")
         }

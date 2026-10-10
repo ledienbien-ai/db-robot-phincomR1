@@ -23,6 +23,31 @@ Bản DB-Robot của [kuteo-git/xiaozhi-android](https://github.com/kuteo-git/xi
   Quang phổ là FFT thật của bài đang phát trên loa (`android.media.audiofx.Visualizer` gắn vào
   phiên âm thanh của trình phát, trang điều khiển đọc qua `/api/media/spectrum`).
 
+- **Tự cập nhật**: app đọc `update.json` của bản phát hành mới nhất trên GitHub
+  (`AppConfig.UPDATE_URL`) vài giờ một lần. Có bản mới thì trang điều khiển hiện thông báo; thẻ
+  **Cập nhật phần mềm** của tab Setup tải APK, đối chiếu SHA-256 rồi cài im lặng qua adbd của chính
+  loa (`update/Updater.java`, `update/AdbLoopback.java`). "Tự động cập nhật" (mặc định tắt) cho loa
+  tự cài khi đang rảnh.
+
+## Cài đặt vào loa
+
+Xem [install/HUONG_DAN_CAI_DAT.md](install/HUONG_DAN_CAI_DAT.md): bộ cài cho Windows
+(`DB-Robot-R1-Windows.zip`), điện thoại Android qua Termux, macOS và Linux (`install.sh`). Bộ cài tự
+tìm loa trong mạng Wi-Fi, tải bản mới nhất và cài qua adb.
+
+## Phát hành bản mới
+
+1. Tăng `versionCode` **và** `versionName` trong `app/build.gradle.kts`; thêm mục `## v<versionName>`
+   vào `RELEASE_NOTES.md`.
+2. Đẩy lên `main`. GitHub Actions build APK để thử (mục Artifacts).
+3. Khi đã thử xong: `git tag v<versionName>` rồi `git push origin v<versionName>` (hoặc bấm
+   *Run workflow* và tích *Phát hành*). Workflow gắn APK, `update.json` và bộ cài vào một GitHub
+   Release; mọi loa thấy bản mới trong vòng vài giờ.
+
+Khoá ký APK (`app/dbrobot.keystore`) nằm công khai trong repo để bản nào cũng cài đè được lên bản
+nào, nên chữ ký không chứng minh APK do ai làm ra. Thứ bảo vệ đường cập nhật là `update.json` chỉ
+được tải qua https từ repo này, kèm SHA-256 của APK — đừng đổi `UPDATE_URL` sang http.
+
 Các tính năng cần máy chủ riêng của bản gốc ([kuteo-git/robot-esp32](https://github.com/kuteo-git/robot-esp32))
 không hoạt động với máy chủ xiaozhi thông thường. Bốn thẻ của chúng — Giọng đọc, Bản tin,
 Assistant (persona), AI Model — được ẩn trên trang điều khiển (thuộc tính `hidden` trong

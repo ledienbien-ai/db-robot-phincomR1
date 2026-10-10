@@ -27,6 +27,7 @@ import info.dourok.voicebot.domain.voice.MicTest
 import info.dourok.voicebot.domain.voice.ServerAudioParams
 import info.dourok.voicebot.domain.voice.TextCommands
 import info.dourok.voicebot.media.LocalMusicPlayer
+import info.dourok.voicebot.update.UpdateManager
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -131,6 +132,11 @@ class ControlServer @Inject constructor(
             // The player's spectrum bars. Polled several times a second while a song plays and
             // the Media tab is open, so it is its own tiny reply rather than part of the state.
             "/api/media/spectrum" -> json(if (localMusic()) LocalMusicPlayer.spectrumJson() else """{"ok":false}""")
+            // Over-the-air update of the app itself. check/install only start the work and
+            // answer with the state as it is now; the panel polls /api/update/state for the rest.
+            "/api/update/state" -> json(UpdateManager.stateJson())
+            "/api/update/check" -> { UpdateManager.check(); json(UpdateManager.stateJson()) }
+            "/api/update/install" -> { UpdateManager.install(); json(UpdateManager.stateJson()) }
             "/api/logs" -> json(buildLogs(param(session, "since").toLongOrNull() ?: 0L))
             "/api/logs/clear" -> { AppLog.clear(); AppLog.i("Đã xoá log"); json("""{"ok":true}""") }
             // Bluetooth audio out. Its own endpoint, polled only while the card is open: a scan's
@@ -225,6 +231,7 @@ class ControlServer @Inject constructor(
             "wake_engine" -> Settings.wakeEngine = v
             "ota_url" -> Settings.otaUrl = v
             "music_url" -> Settings.musicUrl = v
+            "auto_update" -> Settings.autoUpdate = v == "true"
             "ha_url" -> Settings.haUrl = v
             "ha_token" -> Settings.haToken = v
             "ha_devices" -> Settings.haDevices = v
@@ -329,6 +336,9 @@ class ControlServer @Inject constructor(
         o.put("activation_code", ServerProvisioner.activationCode)
         o.put("activation_msg", ServerProvisioner.activationMessage)
         o.put("ota_checked_ms", ServerProvisioner.lastCheckMs)
+        // Enough for the panel to light its "bản mới" notice without a second poll.
+        o.put("update_available", UpdateManager.isUpdateAvailable)
+        o.put("update_version", UpdateManager.latestName)
         // TTS host derived from the configured WS host (de-hardcode); empty until a server is set.
         o.put("tts_host", ttsHostFromWs(Settings.wsUrl))
         // Home Assistant — token NEVER returned raw, masked only.

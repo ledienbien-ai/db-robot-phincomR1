@@ -24,6 +24,14 @@ object AppConfig {
      */
     const val MUSIC_URL = "https://ms.dbrobot.vn"
 
+    /**
+     * Manifest the app reads to learn that a newer build exists (see update/Updater). It is the
+     * `update.json` attached to the newest GitHub release of the DB-Robot repository, which the
+     * release workflow writes together with the APK it describes. Must be https.
+     */
+    const val UPDATE_URL =
+        "https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/update.json"
+
     /** Wake engine used until one is picked in the panel: "nabu" = microWakeWord "OK Nabu". */
     const val WAKE_ENGINE = "nabu"
 

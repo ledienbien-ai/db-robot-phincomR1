@@ -118,6 +118,14 @@ object Settings {
     var musicUrl: String
         get() = prefs.getString("music_url", AppConfig.MUSIC_URL)!!
         set(v) = prefs.edit().putString("music_url", v.trim()).apply()
+    /** Install a newer build by itself once the speaker is idle (off = only offer it in the panel). */
+    var autoUpdate: Boolean
+        get() = prefs.getBoolean("auto_update", false)
+        set(v) = prefs.edit().putBoolean("auto_update", v).apply()
+    /** "versionCode:attempts" of the automatic installs already tried; see UpdateManager. */
+    var autoUpdateTried: String
+        get() = prefs.getString("auto_update_tried", "")!!
+        set(v) = prefs.edit().putString("auto_update_tried", v).apply()
     var wsUrl: String
         get() = prefs.getString("ws_url", "")!!
         set(v) = prefs.edit().putString("ws_url", v).apply()

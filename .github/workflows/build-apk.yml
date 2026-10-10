@@ -1,10 +1,23 @@
 name: Build DB-Robot APK
 
+# Mỗi lần đẩy lên main: build APK để thử (tải ở mục Artifacts của lần chạy).
+# Phát hành cho mọi loa: đẩy tag v<versionName> (ví dụ v1.5.0), hoặc bấm "Run workflow" và tích
+# "Phát hành". Khi đó APK, update.json và bộ cài được gắn vào một GitHub Release; các loa đang chạy
+# DB-Robot đọc update.json của bản phát hành mới nhất để biết có bản mới.
+
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Phát hành bản này cho mọi loa (tạo GitHub Release)'
+        type: boolean
+        default: false
   push:
     branches: [main]
     tags: ['v*']
+
+permissions:
+  contents: write   # tạo Release và gắn tệp vào đó
 
 jobs:
   build:
@@ -51,12 +64,70 @@ jobs:
             echo "::error::Build did not start: no build.log was written"
           fi
 
-      - name: Rename APK
+      # Version numbers are read back out of the APK itself, not out of build.gradle.kts: update.json
+      # must describe the file that is actually shipped. A manifest that promised more than the APK
+      # carries would make every speaker "update" to the same build over and over.
+      - name: Read version from the APK
+        id: apk
         run: |
-          VERSION=$(grep 'versionName = ' app/build.gradle.kts | cut -d'"' -f2)
-          mv app/build/outputs/apk/release/app-release.apk "DB-Robot-R1-v${VERSION}.apk"
+          APK=app/build/outputs/apk/release/app-release.apk
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -n 1)
+          BADGE=$("$AAPT" dump badging "$APK" | head -n 1)
+          CODE=$(printf '%s\n' "$BADGE" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p")
+          NAME=$(printf '%s\n' "$BADGE" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")
+          if [ -z "$CODE" ] || [ -z "$NAME" ]; then
+            echo "::error::Không đọc được versionCode/versionName từ APK: $BADGE"; exit 1
+          fi
+          cp "$APK" "DB-Robot-R1-v${NAME}.apk"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "APK: v$NAME (versionCode $CODE)" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
           name: DB-Robot-R1-APK
           path: DB-Robot-R1-v*.apk
+
+      - name: Decide whether to publish
+        id: pub
+        env:
+          NAME: ${{ steps.apk.outputs.name }}
+          WANT: ${{ inputs.publish }}
+        run: |
+          PUBLISH=false
+          TAG="v$NAME"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            if [ "${GITHUB_REF#refs/tags/}" != "$TAG" ]; then
+              echo "::error::Tag ${GITHUB_REF#refs/tags/} không khớp versionName \"$NAME\" trong app/build.gradle.kts. Tag phải là $TAG."
+              exit 1
+            fi
+            PUBLISH=true
+          elif [ "$WANT" = "true" ]; then
+            PUBLISH=true
+          fi
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Package the release
+        if: steps.pub.outputs.publish == 'true'
+        env:
+          NAME: ${{ steps.apk.outputs.name }}
+          CODE: ${{ steps.apk.outputs.code }}
+          TAG: ${{ steps.pub.outputs.tag }}
+        run: bash install/package-release.sh
+
+      - name: Publish the release
+        if: steps.pub.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ steps.apk.outputs.name }}
+          TAG: ${{ steps.pub.outputs.tag }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::warning::Bản $TAG đã phát hành từ trước -- chỉ thay tệp. Loa nào đã lên $TAG sẽ không tải lại; muốn mọi loa nhận thay đổi thì tăng versionCode và versionName."
+            gh release upload "$TAG" release/* --clobber
+          else
+            gh release create "$TAG" release/* --target "$GITHUB_SHA" --latest \
+              --title "DB-Robot R1 v$NAME" --notes-file release-body.md
+          fi
+          echo "Đã phát hành: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"

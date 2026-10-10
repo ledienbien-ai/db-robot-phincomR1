@@ -372,6 +372,31 @@ select::-ms-expand{display:none;}
 .btn.rec{background:var(--grad-dim);color:var(--a1);border:1px solid rgba(219,18,20,.18);}
 .btn.rec:not(:disabled):active{background:rgba(219,18,20,.22);}
 .btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn.go{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(219,18,20,.28);}
+.btn.go:not(:disabled):active{filter:brightness(.92);}
+.btn[hidden]{display:none;}
+
+/* ── SOFTWARE UPDATE ─────────────────────────────── */
+/* The notice sits above every tab: a new build matters whichever one is open. */
+.upd-banner{display:flex;align-items:center;gap:9px;margin:8px 13px 0;padding:10px 12px;border-radius:10px;
+  background:var(--grad);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;
+  box-shadow:0 4px 14px rgba(219,18,20,.28);}
+.upd-banner[hidden]{display:none;}
+.upd-banner svg{width:16px;height:16px;flex-shrink:0;}
+.upd-banner span{flex:1;min-width:0;}
+.upd-banner em{font-style:normal;font-weight:600;opacity:.85;white-space:nowrap;}
+.upd-val{flex:1;font-size:13px;color:var(--fg);font-variant-numeric:tabular-nums;-webkit-user-select:text;user-select:text;}
+.upd-val.new{color:var(--a1);font-weight:700;}
+.upd-notes{white-space:pre-wrap;margin:-4px 0 8px;padding:8px 10px;border-radius:9px;background:var(--grad-dim);color:var(--fg);}
+.upd-notes[hidden]{display:none;}
+.upd-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:2px 0 10px;}
+.upd-bar[hidden]{display:none;}
+.upd-bar i{display:block;height:100%;width:0;background:var(--grad);border-radius:3px;transition:width .3s;}
+/* No percentage to show while pm installs, so the bar just keeps moving. */
+.upd-bar.busy i{width:35%;animation:updSlide 1.3s ease-in-out infinite;transition:none;}
+@keyframes updSlide{0%{margin-left:-35%}100%{margin-left:100%}}
+#updStat.err{color:var(--err);}
+#updStat.ok{color:var(--ok);}
 
 /* ── CHAT ────────────────────────────────────────── */
 #chat{flex:1;overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:8px;}
@@ -608,6 +633,11 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
   <button id="tmedia" onclick="tab('media')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 3v9.2a3 3 0 101.5 2.6V6.9l6-1.2v6.5a3 3 0 101.5 2.6V3l-9 1.8V3z"/></svg>Media<span class="seg-long">&nbsp;Player</span></button>
 </div>
 
+<div class="upd-banner" id="updBanner" hidden onclick="updOpen()" role="button" tabindex="0">
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 9l4 4 4-4M4 16.5h12"/></svg>
+  <span id="updBannerText">Có bản cập nhật mới</span><em>Xem ›</em>
+</div>
+
 <div class="panes">
 <!-- SETTINGS -->
 <div id="pset" class="page on">
@@ -775,6 +805,18 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
       </div>
     </div>
 
+    <div class="card" id="cardUpdate">
+      <div class="ch"><span class="icon-badge ib-sys"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3v10M6 9l4 4 4-4M4 16.5h12"/></svg></span><h2>Cập nhật phần mềm</h2></div>
+      <div class="row"><label>Đang dùng</label><span class="upd-val" id="updCur">—</span></div>
+      <div class="row"><label>Bản mới nhất</label><span class="upd-val" id="updNew">—</span></div>
+      <div class="hint upd-notes" id="updNotes" hidden></div>
+      <div class="upd-bar" id="updBar" hidden><i id="updFill"></i></div>
+      <div class="row" style="gap:8px"><button class="btn rec" id="updCheckBtn" style="flex:1;width:auto" onclick="updCheck()">Kiểm tra bản mới</button><button class="btn go" id="updGoBtn" style="flex:1;width:auto" onclick="updInstall()" hidden>Cập nhật ngay</button></div>
+      <div class="hint" id="updStat"></div>
+      <div class="row"><label class="wide">Tự động cập nhật</label><span style="flex:1"></span><label class="sw sw-sm"><input type="checkbox" id="updAuto" onchange="updAutoSet(this.checked)" aria-label="Tự động cài bản mới khi loa đang rảnh"><span></span></label></div>
+      <div class="hint">Loa tự kiểm tra bản mới vài giờ một lần. Bấm Cập nhật ngay để tải và cài; loa tự khởi động lại ứng dụng sau khoảng 2–3 phút, mọi cài đặt được giữ nguyên. Bật Tự động cập nhật thì loa tự cài khi đang rảnh (không trò chuyện, không phát nhạc).</div>
+    </div>
+
     <div class="card">
       <div class="ch"><span class="icon-badge ib-sys"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 6a7 7 0 10.8 6"/><path d="M16 2.5v4h-4"/></svg></span><h2>Ứng dụng</h2></div>
       <button class="btn warn" onclick="restart()"><span class="btn-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 11-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg></span>Restart app</button>
@@ -872,7 +914,8 @@ function tab(t){['set','setup','media'].forEach(x=>{$('p'+x).classList.toggle('o
   if(t==='media')mediaPollStart();else mediaPollStop();
   // Bluetooth state is polled only while its tab is on screen, for the reason media state is: a
   // scan's results change every second and nobody needs them when the card is not being looked at.
-  if(t==='setup')btPollStart();else btPollStop();}
+  if(t==='setup')btPollStart();else btPollStop();
+  updVisible=(t==='setup');if(updVisible)updPoll();}
 
 // ── Segmented-control helper ─────────────────────
 // Every segsel/tab group (wake engine, sample rate, log filter, ...) is "add .on to the matching
@@ -1243,6 +1286,7 @@ function render(s){
   $('headSub').textContent='Trợ lý thông minh · '+(WAKE_NAME[s.wake_engine]||'PHICOMM R1');
   $('devId').textContent=(s.device_id||'—')+(s.app_version?' · v'+s.app_version:'');
   renderActivation(s.activation_code,s.activation_msg);
+  updBanner(s.update_available,s.update_version);
   (function(){const k=presetOf(s.ota_url);activateSeg(SRV_PRESET_IDS,k?SRV_PRESET[k].id:null);})();
   $('msDb').classList.toggle('on',isMusicPreset(s.music_url));
   $('moT').value=parseFloat(s.mai_oi_threshold||'0.5');$('moTv').textContent=s.mai_oi_threshold||'0.5';
@@ -1302,6 +1346,79 @@ function stopRec(){
   });
 }
 recReset();
+
+// ── Software update ──────────────────────────────
+// The speaker downloads and installs the new build by itself (see update/Updater.java); this only
+// starts it and shows how far it has got. A successful install replaces the app, so for a minute
+// or two every request fails -- that is expected, and is why a failed fetch during an install is
+// shown as "restarting" rather than as an error. When the app answers again with a different
+// version the page reloads itself, because the page it is running is the old build's.
+let updVisible=false,updTimer=null,updState=null,updFrom=0,updGone=false,updMsg=null;
+const fmtMB=b=>b>0?(b/1048576).toFixed(1)+' MB':'';
+function updBanner(avail,ver){const b=$('updBanner');
+  // Hidden while an install is running: the card is already saying what is happening.
+  b.hidden=!avail||!!updFrom;
+  if(avail)$('updBannerText').textContent='Có bản cập nhật mới'+(ver?' v'+ver:'')+' cho loa';}
+function updOpen(){tab('setup');
+  setTimeout(()=>{const c=$('cardUpdate');if(c&&c.scrollIntoView)c.scrollIntoView({behavior:'smooth',block:'center'});},60);}
+function updSchedule(ms){clearTimeout(updTimer);updTimer=setTimeout(updPoll,ms);}
+async function updPoll(){
+  let u=null;
+  try{u=await(await fetch('/api/update/state')).json();}catch(e){}
+  if(u){updState=u;
+    if(updFrom&&u.current_code!==updFrom){   // came back as another build: this page is stale
+      updFrom=0;updMsg={t:'✓ Đã cập nhật lên v'+u.current_name+'. Đang tải lại trang…',c:'ok'};
+      updRender(u);setTimeout(()=>location.reload(),1500);return;}
+    // Not busy any more and still the same build: it failed (or never started). u.busy rather
+    // than u.state, because busy is raised before /api/update/install answers and state is not.
+    if(updFrom&&!u.busy){updFrom=0;updGone=false;}
+    updRender(u);
+  }else if(updFrom){updGone=true;updRenderRestarting();}
+  if(updFrom||(u&&u.busy))updSchedule(1000);else if(updVisible)updSchedule(8000);}
+function updRenderRestarting(){
+  $('updBar').hidden=false;$('updBar').classList.add('busy');
+  $('updCheckBtn').disabled=true;$('updGoBtn').disabled=true;
+  updStat('Đang cài đặt — ứng dụng trên loa đang khởi động lại, vui lòng chờ…','');}
+function updStat(text,cls){const e=$('updStat');e.textContent=text;e.className='hint'+(cls?' '+cls:'');}
+function updRender(u){
+  $('updCur').textContent=u.current_name?'v'+u.current_name:'—';
+  const n=$('updNew');
+  n.textContent=u.latest_code?('v'+u.latest_name+(u.available&&u.size?' · '+fmtMB(u.size):'')):'—';
+  n.classList.toggle('new',!!u.available);
+  const notes=$('updNotes');notes.hidden=!(u.available&&u.notes);notes.textContent=u.notes||'';
+  const busy=!!u.busy;
+  const bar=$('updBar');
+  bar.hidden=!(u.state==='downloading'||u.state==='installing');
+  bar.classList.toggle('busy',u.state==='installing');
+  $('updFill').style.width=u.state==='downloading'?(u.progress||0)+'%':'';
+  $('updCheckBtn').disabled=busy;
+  const go=$('updGoBtn');go.hidden=!u.available;go.disabled=busy;
+  if(document.activeElement!==$('updAuto'))$('updAuto').checked=!!u.auto;
+  if(updMsg){updStat(updMsg.t,updMsg.c);return;}
+  const when=u.checked_ms?' · kiểm tra lúc '+new Date(u.checked_ms).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}):'';
+  if(u.state==='checking')updStat('Đang kiểm tra bản mới…','');
+  else if(u.state==='downloading')updStat('Đang tải bản v'+u.latest_name+'… '+(u.progress||0)+'%','');
+  else if(u.state==='installing')updStat('Đang cài đặt — loa sẽ tự khởi động lại ứng dụng, mất khoảng 2–3 phút…','');
+  else if(u.state==='installed')updStat('Đã cài xong, đang chờ ứng dụng khởi động lại…','');
+  else if(u.state==='error')updStat('✗ '+u.error,'err');
+  else if(u.available&&u.last_result&&u.last_result!=='ok')updStat('✗ Lần cài trước thất bại: '+u.last_result+' — có thể thử lại.','err');
+  else if(u.available)updStat('Có bản mới v'+u.latest_name+when,'');
+  else if(u.state==='current')updStat('✓ Đang dùng bản mới nhất'+when,'ok');
+  else if(u.last_result==='ok')updStat('✓ Đã cập nhật lên v'+u.current_name,'ok');
+  else if(u.last_result)updStat('✗ Lần cập nhật trước thất bại: '+u.last_result,'err');
+  else updStat('Chưa kiểm tra.','');}
+async function updCheck(){updMsg=null;updStat('Đang kiểm tra bản mới…','');$('updCheckBtn').disabled=true;
+  try{await fetch('/api/update/check',{method:'POST'});}catch(e){}
+  updSchedule(600);}
+async function updInstall(){
+  const u=updState;if(!u||!u.available)return;
+  if(!confirm('Cập nhật loa lên v'+u.latest_name+'?\n\nLoa sẽ tạm ngưng khoảng 2–3 phút rồi tự chạy lại. Đừng rút điện trong lúc cài.'))return;
+  updMsg=null;updFrom=u.current_code;updGone=false;$('updBanner').hidden=true;
+  $('updGoBtn').disabled=true;$('updCheckBtn').disabled=true;updStat('Đang bắt đầu…','');
+  try{await fetch('/api/update/install',{method:'POST'});}catch(e){}
+  updSchedule(600);}
+async function updAutoSet(on){
+  try{await fetch('/api/set?key=auto_update&value='+(on?'true':'false'),{method:'POST'});}catch(e){}}
 
 // ── Poll ─────────────────────────────────────────
 async function poll(){
