@@ -32,6 +32,13 @@ object AppConfig {
     const val UPDATE_URL =
         "https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/update.json"
 
+    /**
+     * Time zone assumed until the owner picks a city in the panel's Setup tab (see
+     * weather/LocationManager). The R1's ROM is set to China and the server answers with its own
+     * clock; this product is used in Vietnam.
+     */
+    const val TIME_ZONE = "Asia/Ho_Chi_Minh"
+
     /** Wake engine used until one is picked in the panel: "nabu" = microWakeWord "OK Nabu". */
     const val WAKE_ENGINE = "nabu"
 

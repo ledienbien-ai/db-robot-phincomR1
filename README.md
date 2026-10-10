@@ -33,6 +33,9 @@ màn hình.
   riêng. Mã kích hoạt hiện ngay trên trang.
 - **Dùng model AI của riêng bạn** — nhập API key của OpenAI, Google Gemini, OpenRouter, DeepSeek,
   Groq… và chọn model (cần máy chủ hỗ trợ, xem [bên dưới](#model-ai-riêng)).
+- **Đúng giờ, đúng thời tiết nơi bạn ở** — nhập thành phố một lần; hỏi "mấy giờ rồi", "thời tiết
+  hôm nay thế nào" là trợ lý trả lời theo nơi đặt loa (cần máy chủ hỗ trợ, xem
+  [bên dưới](#vị-trí-và-thời-tiết)).
 - **Tự cập nhật qua mạng (OTA)** — loa tự kiểm tra bản mới; cập nhật bằng một nút bấm, hoặc bật
   tự động.
 - **Phát ra loa Bluetooth** — ghép đôi loa hoặc tai nghe ngoài và phát mọi âm thanh ra đó.
@@ -53,7 +56,12 @@ màn hình.
   <tr>
     <td align="center"><img src="docs/images/ai-model.png" width="260" alt="Thẻ AI Model"><br><b>AI Model</b> — dùng API key riêng</td>
     <td align="center"><img src="docs/images/update.png" width="260" alt="Cập nhật phần mềm"><br><b>Cập nhật</b> — thông báo và nút cập nhật</td>
+    <td align="center"><img src="docs/images/weather.png" width="260" alt="Vị trí và thời tiết"><br><b>Vị trí &amp; thời tiết</b></td>
+  </tr>
+  <tr>
     <td align="center"><img src="docs/images/media-dark.png" width="260" alt="Giao diện tối"><br><b>Giao diện tối</b></td>
+    <td align="center"><img src="docs/images/settings-dark.png" width="260" alt="Settings, giao diện tối"><br><b>Settings</b> — giao diện tối</td>
+    <td></td>
   </tr>
 </table>
 
@@ -81,14 +89,15 @@ và cách xử lý trục trặc: [install/HUONG_DAN_CAI_DAT.md](install/HUONG_D
 2. Vào tab **Setup** → thẻ **Server** → bấm **DB-Robot**.
 3. Nếu loa chưa được kích hoạt, mã kích hoạt hiện ngay bên dưới — nhập mã đó trên trang quản lý
    của máy chủ.
-4. Gọi **"OK Nabu"** và bắt đầu trò chuyện.
+4. Trong thẻ **Vị trí & thời tiết**, nhập thành phố của bạn và chọn trong danh sách.
+5. Gọi **"OK Nabu"** và bắt đầu trò chuyện.
 
 ### Trang điều khiển
 
 | Tab | Có gì |
 |---|---|
 | **Settings** | Âm lượng và độ to · Equalizer · Nguồn mic · Khuếch đại mic (AGC) · Kiểm tra mic · Đèn LED · Định dạng âm thanh |
-| **Setup** | Server · Máy chủ nhạc · Bluetooth · AI Model · Home Assistant · Wake word · Cập nhật phần mềm · Khởi động lại ứng dụng |
+| **Setup** | Server · Máy chủ nhạc · Vị trí & thời tiết · Bluetooth · AI Model · Home Assistant · Wake word · Cập nhật phần mềm · Khởi động lại ứng dụng |
 | **Media** | Trình phát nhạc, quang phổ, âm lượng, ô tìm bài hát |
 
 Hai nút nổi ở góc dưới mở khung **Chat** (gõ chữ thay cho nói, xem lại hội thoại) và **Log** (nhật
@@ -133,6 +142,24 @@ kiểm tra rồi **Save**.
 - **Dùng model của máy chủ** xoá cấu hình và key đã lưu trên loa.
 
 Thẻ **Home Assistant** hoạt động theo cùng cách (trường `ha_config`).
+
+## Vị trí và thời tiết
+
+Máy chủ không biết loa của bạn đặt ở đâu, nên khi được hỏi giờ nó trả lời theo đồng hồ của chính
+nó — có thể lệch múi giờ. Thẻ **Vị trí & thời tiết** trong tab Setup khắc phục việc đó: nhập tên
+thành phố, chọn đúng nơi trong danh sách, loa lưu toạ độ và múi giờ rồi tự lấy thời tiết (từ
+[Open-Meteo](https://open-meteo.com/), không cần API key).
+
+Loa đưa thông tin này cho trợ lý qua hai công cụ MCP trên thiết bị:
+
+| Công cụ | Trả về |
+|---|---|
+| `self.get_local_time` | Ngày giờ địa phương tại nơi đặt loa, kèm múi giờ |
+| `self.get_weather` | Thời tiết hiện tại và dự báo 3 ngày tại nơi đặt loa, hoặc tại thành phố được hỏi (tham số `city`) |
+
+Máy chủ phải hỗ trợ MCP trên thiết bị (loa khai báo `"features":{"mcp":true}` trong gói `hello`);
+các bản xiaozhi-esp32-server gần đây có sẵn tính năng này. Chưa chọn thành phố thì loa dùng múi
+giờ Việt Nam và chưa có thời tiết.
 
 ## Máy chủ nhạc
 
@@ -180,6 +207,8 @@ Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `appl
 | `…/voicebot/domain/voice/VoiceAssistant.kt` | Vòng đời đánh thức → nghe → trả lời |
 | `…/voicebot/data/voice/` | Từ đánh thức, thu âm, phát âm, đèn LED |
 | `…/voicebot/media/LocalMusicPlayer.kt` | Phát nhạc từ máy chủ nhạc, lấy quang phổ |
+| `…/voicebot/weather/` | Vị trí, múi giờ, thời tiết (`Weather.java`, `LocationManager.kt`) |
+| `…/voicebot/mcp/` | Công cụ MCP cho trợ lý (`DeviceMcp.java`, `DeviceTools.kt`) |
 | `…/voicebot/update/` | Tự cập nhật: `Updater.java`, `AdbLoopback.java`, `UpdateManager.kt` |
 | `install/` | Bộ cài cho người dùng và script đóng gói bản phát hành |
 | `.github/workflows/build-apk.yml` | Build và phát hành |
@@ -215,6 +244,8 @@ DB-Robot Phincom R1 được phát triển từ các dự án nguồn mở sau; 
   [microWakeWord](https://github.com/kahrendt/microWakeWord) (từ đánh thức "OK Nabu"). Thư viện
   `libmicro_wake_word_jni.so` của "OK Nabu" là bản dựng sẵn đi kèm mã nguồn kuteo-git, có nguồn gốc
   từ ứng dụng AI Box Plus.
+- [Open-Meteo](https://open-meteo.com/) — dữ liệu thời tiết và tìm địa danh (miễn phí cho mục đích
+  phi thương mại).
 - [Opus](https://opus-codec.org/), [OkHttp](https://square.github.io/okhttp/),
   [NanoHTTPD](https://github.com/NanoHttpd/nanohttpd), [TensorFlow Lite](https://www.tensorflow.org/lite).
 

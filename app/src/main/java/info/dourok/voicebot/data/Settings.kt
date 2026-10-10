@@ -126,6 +126,23 @@ object Settings {
     var autoUpdateTried: String
         get() = prefs.getString("auto_update_tried", "")!!
         set(v) = prefs.edit().putString("auto_update_tried", v).apply()
+    // ── Where the speaker is (Setup tab, "Vị trí & thời tiết") ───────────────
+    /** City as shown to the owner, e.g. "Đà Nẵng, Việt Nam". "" = none chosen yet. */
+    var locName: String
+        get() = prefs.getString("loc_name", "")!!
+        set(v) = prefs.edit().putString("loc_name", v).apply()
+    /** Coordinates of that city, as decimal strings (a float preference would lose precision). */
+    var locLat: String
+        get() = prefs.getString("loc_lat", "")!!
+        set(v) = prefs.edit().putString("loc_lat", v).apply()
+    var locLon: String
+        get() = prefs.getString("loc_lon", "")!!
+        set(v) = prefs.edit().putString("loc_lon", v).apply()
+    /** IANA time zone id of that city. */
+    var locTimeZone: String
+        get() = prefs.getString("loc_tz", AppConfig.TIME_ZONE)!!
+        set(v) = prefs.edit().putString("loc_tz", v).apply()
+
     var wsUrl: String
         get() = prefs.getString("ws_url", "")!!
         set(v) = prefs.edit().putString("ws_url", v).apply()

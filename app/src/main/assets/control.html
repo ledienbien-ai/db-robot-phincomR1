@@ -406,6 +406,28 @@ select::-ms-expand{display:none;}
 .btn.go:not(:disabled):active{filter:brightness(.92);}
 .btn[hidden]{display:none;}
 
+/* ── LOCATION & WEATHER ──────────────────────────── */
+.wx{display:flex;flex-direction:column;gap:10px;margin:4px 0 12px;padding:12px;border-radius:12px;background:var(--grad-dim);}
+.wx[hidden]{display:none;}
+.wx-now{display:flex;align-items:center;gap:12px;}
+.wx-temp{font-size:36px;font-weight:800;line-height:1;color:var(--a1);font-variant-numeric:tabular-nums;flex-shrink:0;}
+.wx-txt{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.wx-txt b{font-size:14px;color:var(--fg);}
+.wx-txt b::first-letter{text-transform:uppercase;}
+.wx-txt span{font-size:11.5px;color:var(--mut);}
+.wx-days{display:flex;gap:6px;}
+.wx-day{flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 5px;
+  text-align:center;font-size:10.5px;line-height:1.4;color:var(--mut);}
+.wx-day b{display:block;color:var(--fg);font-size:12px;font-variant-numeric:tabular-nums;}
+.wx-day i{display:block;font-style:normal;text-transform:capitalize;color:var(--a1);font-weight:700;}
+.loc-item{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--card2);color:var(--fg);
+  border-radius:9px;padding:9px 11px;margin:6px 0;font-size:13px;font-weight:600;cursor:pointer;}
+.loc-item:active{background:var(--grad-dim);}
+.loc-item small{display:block;color:var(--mut);font-size:11px;font-weight:400;margin-top:1px;}
+.loc-clear{border:0;background:none;color:var(--mut);font-size:11.5px;text-decoration:underline;cursor:pointer;padding:2px 0;}
+.loc-clear[hidden]{display:none;}
+#locStat.err{color:var(--err);}
+
 /* ── SOFTWARE UPDATE ─────────────────────────────── */
 /* The notice sits above every tab: a new build matters whichever one is open. */
 .upd-banner{display:flex;align-items:center;gap:9px;margin:8px 13px 0;padding:10px 12px;border-radius:10px;
@@ -773,6 +795,20 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
       <div class="hint">Tab Media tìm và phát nhạc từ máy chủ này, ngay trên loa. Bấm DB-Robot để dùng máy chủ nhạc mặc định; nếu có máy chủ nhạc riêng, nhập địa chỉ vào ô Tuỳ chỉnh rồi bấm Save.</div>
     </div>
 
+    <div class="card" id="cardLoc">
+      <div class="ch"><span class="icon-badge ib-srv"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="2.6"/><path d="M7 1.6v1.2M7 11.2v.6M1.6 7h1.2M3.2 3.2l.85.85M10.8 3.2l-.85.85"/><path d="M8.2 16.4h7a2.9 2.9 0 000-5.8 4.1 4.1 0 00-7.8 1.3 2.3 2.3 0 00.8 4.5z" fill="currentColor" stroke="none"/></svg></span><h2>Vị trí &amp; thời tiết</h2></div>
+      <div class="wx" id="wxBox" hidden>
+        <div class="wx-now"><span class="wx-temp" id="wxTemp">–°</span><div class="wx-txt"><b id="wxDesc">–</b><span id="wxMeta"></span></div></div>
+        <div class="wx-days" id="wxDays"></div>
+      </div>
+      <div class="row"><label>Vị trí</label><span class="upd-val" id="locName">Chưa chọn</span></div>
+      <div class="row"><label>Giờ địa phương</label><span class="upd-val" id="locTime">—</span></div>
+      <div class="row"><label>Thành phố</label><input class="codein" id="locQ" placeholder="Ví dụ: Đà Nẵng" autocomplete="off" onkeydown="if(event.key==='Enter')locSearch()"><button class="tbtn" onclick="locSearch()" aria-label="Tìm thành phố"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button></div>
+      <div id="locResults"></div>
+      <div class="hint" id="locStat"></div>
+      <div class="hint">Nhập tên thành phố nơi đặt loa, bấm tìm rồi chọn trong danh sách. Loa dùng vị trí này để trả lời đúng giờ địa phương và thời tiết khi bạn hỏi. <button class="loc-clear" id="locClearBtn" onclick="locClear()" hidden>Xoá vị trí</button><details><summary>Chi tiết</summary><p>Chưa chọn thành phố thì loa dùng múi giờ Việt Nam và chưa có thông tin thời tiết.</p><p>Khi bạn hỏi "mấy giờ rồi" hoặc "thời tiết hôm nay thế nào", trợ lý lấy câu trả lời từ loa. Hỏi thời tiết của một thành phố khác cũng được. Cần máy chủ hỗ trợ công cụ trên thiết bị (MCP).</p><p>Dữ liệu thời tiết lấy từ Open-Meteo, cập nhật 10 phút một lần.</p></details></div>
+    </div>
+
     <div class="card">
       <div class="ch"><span class="icon-badge ib-bt"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="5.4 5.4 14.6 14.6 10 19.2 10 0.8 14.6 5.4 5.4 14.6"/></svg></span><h2>Bluetooth</h2><label class="sw"><input type="checkbox" id="btOn" onchange="btEnable(this.checked)" aria-label="Bật/tắt Bluetooth"><span></span></label></div>
       <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" id="btScanBtn" onclick="btScan()">Quét</button><button class="btn rec" style="flex:1;width:auto" onclick="btSay()">Phát thử</button></div>
@@ -949,7 +985,10 @@ function tab(t){['set','setup','media'].forEach(x=>{$('p'+x).classList.toggle('o
   // Bluetooth state is polled only while its tab is on screen, for the reason media state is: a
   // scan's results change every second and nobody needs them when the card is not being looked at.
   if(t==='setup')btPollStart();else btPollStop();
-  updVisible=(t==='setup');if(updVisible)updPoll();}
+  updVisible=(t==='setup');if(updVisible)updPoll();
+  // Same rule for the weather card; while it is on screen it also keeps its clock current.
+  clearInterval(locTimer);locTimer=null;
+  if(t==='setup'){locPoll();locTimer=setInterval(locPoll,30000);}}
 
 // ── Segmented-control helper ─────────────────────
 // Every segsel/tab group (wake engine, sample rate, log filter, ...) is "add .on to the matching
@@ -1381,6 +1420,54 @@ function stopRec(){
   });
 }
 recReset();
+
+// ── Location & weather ───────────────────────────
+// The speaker keeps the owner's city (coordinates + time zone) and fetches the weather itself;
+// this card only searches, picks and displays. See weather/LocationManager.kt.
+let locTimer=null,locFound=[];
+function locStat(text,cls){const e=$('locStat');e.textContent=text;e.className='hint'+(cls?' '+cls:'');}
+async function locPoll(){
+  try{locRender(await(await fetch('/api/weather')).json());}catch(e){}}
+function locRender(s){
+  $('locName').textContent=s.configured?s.name:'Chưa chọn';
+  $('locTime').textContent=s.local_time?(s.local_time+' ('+s.utc_offset+')'):'—';
+  $('locClearBtn').hidden=!s.configured;
+  const w=s.weather,box=$('wxBox');
+  box.hidden=!w;
+  if(w){
+    $('wxTemp').textContent=(w.temp==null?'–':Math.round(w.temp))+'°';
+    $('wxDesc').textContent=w.desc;
+    const meta=[];
+    if(w.feels!=null)meta.push('Cảm giác '+Math.round(w.feels)+'°');
+    if(w.humidity>=0)meta.push('Độ ẩm '+w.humidity+'%');
+    if(w.wind!=null)meta.push('Gió '+Math.round(w.wind)+' km/h');
+    $('wxMeta').textContent=meta.join(' · ');
+    $('wxDays').innerHTML=(w.days||[]).map(d=>`<div class="wx-day"><i>${esc(d.label)}</i><b>${d.min==null?'–':Math.round(d.min)}° – ${d.max==null?'–':Math.round(d.max)}°</b>${esc(d.desc)}${d.rain>=0?'<br>mưa '+d.rain+'%':''}</div>`).join('');
+  }
+  if(s.weather_error)locStat('✗ Chưa lấy được thời tiết: '+s.weather_error,'err');
+  else if($('locStat').classList.contains('err'))locStat('','');}
+async function locSearch(){
+  const q=$('locQ').value.trim();
+  if(!q){locStat('Nhập tên thành phố trước khi tìm.','');return;}
+  locStat('Đang tìm…','');$('locResults').innerHTML='';
+  try{const j=await(await fetch('/api/location/search?q='+encodeURIComponent(q))).json();
+    if(!j.ok){locStat('✗ '+j.error,'err');return;}
+    locFound=j.results||[];
+    if(!locFound.length){locStat('Không tìm thấy "'+q+'". Thử viết tên khác hoặc tên thành phố lớn gần đó.','');return;}
+    locStat('Chọn đúng nơi của bạn:','');
+    $('locResults').innerHTML=locFound.map((r,i)=>`<button class="loc-item" onclick="locPick(${i})">${esc(r.label)}<small>${esc(r.tz||'')}</small></button>`).join('');}
+  catch(e){locStat('✗ '+e,'err');}}
+async function locPick(i){
+  const r=locFound[i];if(!r)return;
+  locStat('Đang lưu…','');
+  try{const j=await(await fetch('/api/location/set',{method:'POST',body:JSON.stringify(r)})).json();
+    if(!j.ok){locStat('✗ '+j.error,'err');return;}
+    $('locResults').innerHTML='';$('locQ').value='';locFound=[];
+    locStat('Đã lưu — áp dụng ngay.','');locRender(j);}
+  catch(e){locStat('✗ '+e,'err');}}
+async function locClear(){
+  if(!confirm('Xoá vị trí đã lưu?'))return;
+  try{locRender(await(await fetch('/api/location/clear',{method:'POST'})).json());locStat('Đã xoá vị trí.','');}catch(e){}}
 
 // ── Software update ──────────────────────────────
 // The speaker downloads and installs the new build by itself (see update/Updater.java); this only

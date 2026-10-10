@@ -36,6 +36,8 @@ class VApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Settings.init(this)
+        // Before anything formats a time: the owner's zone, not the ROM's.
+        info.dourok.voicebot.weather.LocationManager.applyTimeZone()
         // Start the on-device control panel web server (http://<r1-ip>:8088).
         try {
             val entry = EntryPointAccessors.fromApplication(this, ControlEntryPoint::class.java)

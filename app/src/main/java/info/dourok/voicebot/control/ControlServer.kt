@@ -28,6 +28,7 @@ import info.dourok.voicebot.domain.voice.ServerAudioParams
 import info.dourok.voicebot.domain.voice.TextCommands
 import info.dourok.voicebot.media.LocalMusicPlayer
 import info.dourok.voicebot.update.UpdateManager
+import info.dourok.voicebot.weather.LocationManager
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -132,6 +133,11 @@ class ControlServer @Inject constructor(
             // The player's spectrum bars. Polled several times a second while a song plays and
             // the Media tab is open, so it is its own tiny reply rather than part of the state.
             "/api/media/spectrum" -> json(if (localMusic()) LocalMusicPlayer.spectrumJson() else """{"ok":false}""")
+            // Where the speaker is: city search, the chosen place, local time and weather there.
+            "/api/location/search" -> json(LocationManager.search(param(session, "q")))
+            "/api/location/set" -> json(handleLocationSet(session))
+            "/api/location/clear" -> { LocationManager.clearPlace(); json(LocationManager.stateJson()) }
+            "/api/weather" -> json(LocationManager.stateJson())
             // Over-the-air update of the app itself. check/install only start the work and
             // answer with the state as it is now; the panel polls /api/update/state for the rest.
             "/api/update/state" -> json(UpdateManager.stateJson())
@@ -824,6 +830,30 @@ class ControlServer @Inject constructor(
             http.newCall(req).execute().use { resp ->
                 if (resp.isSuccessful) """{"ok":true}"""
                 else """{"ok":false,"error":${JSONObject.quote("HTTP ${resp.code}")}}"""
+            }
+        } catch (e: Exception) {
+            """{"ok":false,"error":${JSONObject.quote(e.message ?: "error")}}"""
+        }
+    }
+
+    /** Body: the place the owner picked from /api/location/search, as that call returned it. */
+    private fun handleLocationSet(session: IHTTPSession): String {
+        val body = HashMap<String, String>()
+        try {
+            session.parseBody(body)
+        } catch (e: Exception) {
+            return """{"ok":false,"error":"bad request"}"""
+        }
+        return try {
+            val j = JSONObject(body["postData"] ?: "")
+            val label = j.optString("label").trim()
+            val lat = j.optDouble("lat", Double.NaN)
+            val lon = j.optDouble("lon", Double.NaN)
+            if (label.isEmpty() || lat.isNaN() || lon.isNaN() || lat !in -90.0..90.0 || lon !in -180.0..180.0) {
+                """{"ok":false,"error":"thiếu tên hoặc toạ độ"}"""
+            } else {
+                LocationManager.setPlace(label, lat, lon, j.optString("tz").trim())
+                LocationManager.stateJson()
             }
         } catch (e: Exception) {
             """{"ok":false,"error":${JSONObject.quote(e.message ?: "error")}}"""

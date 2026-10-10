@@ -3,6 +3,11 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.2
+
+- Thẻ Vị trí & thời tiết: nhập thành phố của bạn, loa biết múi giờ và thời tiết tại đó.
+- Hỏi "mấy giờ rồi" hay "thời tiết hôm nay thế nào", trợ lý lấy câu trả lời từ loa (cần máy chủ hỗ trợ MCP).
+
 ## v1.5.1
 
 - Giao diện sáng màu xanh, đồng bộ với trang dbrobot.vn.

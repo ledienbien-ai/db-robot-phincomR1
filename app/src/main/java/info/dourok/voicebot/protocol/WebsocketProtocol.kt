@@ -36,6 +36,28 @@ class WebsocketProtocol(private val deviceInfo: DeviceInfo,
         }
     }
 
+    /** The tools offered to the assistant; built once, they read live settings when called. */
+    private val mcp by lazy {
+        info.dourok.voicebot.mcp.DeviceTools.build(info.dourok.voicebot.data.ServerProvisioner.appVersion)
+    }
+
+    /**
+     * Answer one MCP request from the server. Runs on the IO scope like every incoming message, so
+     * a tool that goes to the network (the weather) holds up nothing else.
+     */
+    private fun answerMcp(webSocket: WebSocket, message: JSONObject) {
+        val request = message.optJSONObject("payload") ?: return
+        val method = request.optString("method")
+        val reply = mcp.handle(request) ?: return
+        if (method == "tools/call") {
+            val tool = request.optJSONObject("params")?.optString("name") ?: ""
+            AppLog.i("Trợ lý gọi công cụ $tool")
+        }
+        webSocket.send(
+            JSONObject().put("session_id", sessionId).put("type", "mcp").put("payload", reply).toString()
+        )
+    }
+
     private var isOpen: Boolean = false
     private var websocket: WebSocket? = null
     private val client = OkHttpClient.Builder()
@@ -155,6 +177,10 @@ class WebsocketProtocol(private val deviceInfo: DeviceInfo,
                     })
                     // Per-session BYO LLM: send the client-configured provider so the server builds
                     // a session LLM from it. Only when a provider is actually configured.
+                    // This device offers tools over MCP (local time, weather -- see DeviceTools).
+                    // A server that knows the feature then asks for the list; one that does not
+                    // ignores the field.
+                    put("features", JSONObject().put("mcp", true))
                     // The block carries the user's own API key, and only a server built to read it
                     // does anything with it -- so it is withheld from the public Xiaozhi service,
                     // which is not one and would merely be handed a stranger's key.
@@ -198,6 +224,7 @@ class WebsocketProtocol(private val deviceInfo: DeviceInfo,
                     val type = json.optString("type")
                     when (type) {
                         "hello" -> parseServerHello(json)
+                        "mcp" -> answerMcp(webSocket, json)
                         else -> incomingJsonFlow.emit(json)
                     }
                 }
