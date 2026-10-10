@@ -2,10 +2,10 @@
   <img src="docs/images/logo.png" width="140" alt="DB-Robot">
 </p>
 
-<h1 align="center">DB-Robot Phincom R1</h1>
+<h1 align="center">DB-Robot Phicomm R1</h1>
 
 <p align="center">
-  Trợ lý giọng nói thông minh dành riêng cho loa Harman Phincom R1 (Phicomm R1).<br>
+  Trợ lý giọng nói thông minh dành riêng cho loa Harman Phicomm R1.<br>
   <a href="https://dbrobot.vn/">dbrobot.vn</a> ·
   <a href="https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest">Tải bản mới nhất</a> ·
   <a href="install/HUONG_DAN_CAI_DAT.md">Hướng dẫn cài đặt</a>
@@ -13,7 +13,7 @@
 
 ---
 
-DB-Robot biến chiếc loa Phincom R1 thành trợ lý ảo nói tiếng Việt: gọi **"OK Nabu"**, hỏi bất cứ
+DB-Robot biến chiếc loa Phicomm R1 thành trợ lý ảo nói tiếng Việt: gọi **"OK Nabu"**, hỏi bất cứ
 điều gì, nghe nhạc, điều khiển nhà thông minh. Loa chỉ thu âm, nhận từ đánh thức và phát tiếng;
 việc nhận dạng giọng nói, suy nghĩ và tổng hợp giọng đọc do máy chủ đảm nhiệm, nên loa đời cũ
 (Android 5.1) vẫn chạy mượt.
@@ -27,6 +27,9 @@ màn hình.
   đỉnh loa cũng đánh thức được; bấm lần nữa để ngắt lời hoặc cho loa nghỉ.
 - **Trang điều khiển ngay trên loa** — mở `http://<IP-của-loa>:8088` từ bất kỳ thiết bị nào cùng
   mạng Wi-Fi. Có giao diện sáng (xanh, đồng bộ với dbrobot.vn) và tối.
+- **Ra lệnh bằng giọng nói** — "mở bài Nơi này có anh", "tăng âm lượng lên 70", "mở VOV giao
+  thông Hà Nội", "dừng nhạc" (xem [Lệnh giọng nói](#lệnh-giọng-nói)).
+- **Radio** — 14 kênh VOV, mở bằng giọng nói hoặc bấm trong tab Media.
 - **Nghe nhạc** — tìm bài hát và phát ngay trên loa, có quang phổ theo nhạc, thanh âm lượng, nút
   phát / tạm dừng / bài kế. Nhạc tự tạm dừng khi bạn nói chuyện với loa và phát tiếp sau đó.
 - **Chọn máy chủ bằng một nút bấm** — máy chủ DB-Robot hoặc Xiaozhi có sẵn, và ô nhập cho máy chủ
@@ -98,7 +101,7 @@ và cách xử lý trục trặc: [install/HUONG_DAN_CAI_DAT.md](install/HUONG_D
 |---|---|
 | **Settings** | Âm lượng và độ to · Equalizer · Nguồn mic · Khuếch đại mic (AGC) · Kiểm tra mic · Đèn LED · Định dạng âm thanh |
 | **Setup** | Server · Máy chủ nhạc · Vị trí & thời tiết · Bluetooth · AI Model · Home Assistant · Wake word · Cập nhật phần mềm · Khởi động lại ứng dụng |
-| **Media** | Trình phát nhạc, quang phổ, âm lượng, ô tìm bài hát |
+| **Media** | Trình phát nhạc, quang phổ, âm lượng, ô tìm bài hát, hàng nút kênh radio |
 
 Hai nút nổi ở góc dưới mở khung **Chat** (gõ chữ thay cho nói, xem lại hội thoại) và **Log** (nhật
 ký hoạt động của loa). Mỗi thẻ có dòng mô tả ngắn và mục **Chi tiết** giải thích cách chỉnh.
@@ -143,6 +146,32 @@ kiểm tra rồi **Save**.
 
 Thẻ **Home Assistant** hoạt động theo cùng cách (trường `ha_config`).
 
+## Lệnh giọng nói
+
+Loa khai báo với máy chủ một bộ công cụ theo chuẩn MCP của xiaozhi (`"features":{"mcp":true}` trong
+gói `hello`). Tên và tham số giống các thiết bị xiaozhi ESP32, nên máy chủ và lời nhắc viết cho
+những thiết bị đó dùng được ngay với loa.
+
+| Bạn nói | Công cụ | Tham số |
+|---|---|---|
+| "Mở bài …", "phát nhạc …" | `self.music.play_song` | `song_name`, `artist_name` (tuỳ chọn) |
+| "Dừng nhạc", "tắt radio" | `self.music.stop` | — |
+| "Tăng/giảm âm lượng", "âm lượng 50" | `self.audio_speaker.set_volume` | `volume` 0–100 |
+| "Âm lượng đang bao nhiêu?" | `self.get_device_status` | — |
+| "Mở VOV1", "mở kênh giao thông" | `self.radio.play_station` | `station_name` |
+| "Có những kênh radio nào?" | `self.radio.get_stations` | — |
+| "Mấy giờ rồi?" | `self.get_local_time` | — |
+| "Thời tiết hôm nay?" | `self.get_weather` | `city` (tuỳ chọn) |
+
+`self.music.set_display_mode` cũng được khai báo cho tương thích, nhưng loa không có màn hình nên
+nó chỉ trả lời rằng không có gì để đổi.
+
+Nhạc và radio bắt đầu ngay sau khi trợ lý nói xong câu trả lời. Máy chủ phải hỗ trợ MCP trên thiết
+bị; các bản xiaozhi-esp32-server gần đây có sẵn.
+
+Radio gồm các kênh VOV1, VOV2, VOV3, VOV5, VOV Giao thông Hà Nội và TP.HCM, VOV Mekong, các kênh
+VOV4 khu vực và VOV5 tiếng Anh.
+
 ## Vị trí và thời tiết
 
 Máy chủ không biết loa của bạn đặt ở đâu, nên khi được hỏi giờ nó trả lời theo đồng hồ của chính
@@ -150,15 +179,8 @@ nó — có thể lệch múi giờ. Thẻ **Vị trí & thời tiết** trong t
 thành phố, chọn đúng nơi trong danh sách, loa lưu toạ độ và múi giờ rồi tự lấy thời tiết (từ
 [Open-Meteo](https://open-meteo.com/), không cần API key).
 
-Loa đưa thông tin này cho trợ lý qua hai công cụ MCP trên thiết bị:
-
-| Công cụ | Trả về |
-|---|---|
-| `self.get_local_time` | Ngày giờ địa phương tại nơi đặt loa, kèm múi giờ |
-| `self.get_weather` | Thời tiết hiện tại và dự báo 3 ngày tại nơi đặt loa, hoặc tại thành phố được hỏi (tham số `city`) |
-
-Máy chủ phải hỗ trợ MCP trên thiết bị (loa khai báo `"features":{"mcp":true}` trong gói `hello`);
-các bản xiaozhi-esp32-server gần đây có sẵn tính năng này. Chưa chọn thành phố thì loa dùng múi
+Loa đưa thông tin này cho trợ lý qua hai công cụ `self.get_local_time` và `self.get_weather` (xem
+[Lệnh giọng nói](#lệnh-giọng-nói)); hỏi thời tiết của một thành phố khác cũng được. Chưa chọn thành phố thì loa dùng múi
 giờ Việt Nam và chưa có thời tiết.
 
 ## Máy chủ nhạc
@@ -175,7 +197,9 @@ Loa tự giải mã và phát MP3, nên nhạc không đi qua đường thoại 
 
 ## Cập nhật phần mềm
 
-Loa đọc tệp `update.json` của bản phát hành mới nhất trên GitHub vài giờ một lần. Khi có bản mới,
+Loa đọc tệp `update.json` của bản phát hành mới nhất trên GitHub vài giờ một lần. (Android 5.1 của
+loa không còn tin được chứng chỉ của nhiều trang web ngày nay, nên ứng dụng mang theo danh sách
+chứng chỉ gốc hiện hành trong `assets/cacert.pem` — xem `net/Https.java`.) Khi có bản mới,
 trang điều khiển hiện thông báo ở đầu trang; vào tab Setup → **Cập nhật phần mềm** → **Cập nhật
 ngay**. Loa tải bản mới, đối chiếu mã SHA-256, cài đặt rồi tự chạy lại sau 2–3 phút; mọi cài đặt
 được giữ nguyên. Bật **Tự động cập nhật** thì loa tự cài khi đang rảnh (không trò chuyện, không
@@ -209,6 +233,8 @@ Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `appl
 | `…/voicebot/media/LocalMusicPlayer.kt` | Phát nhạc từ máy chủ nhạc, lấy quang phổ |
 | `…/voicebot/weather/` | Vị trí, múi giờ, thời tiết (`Weather.java`, `LocationManager.kt`) |
 | `…/voicebot/mcp/` | Công cụ MCP cho trợ lý (`DeviceMcp.java`, `DeviceTools.kt`) |
+| `…/voicebot/media/RadioStations.java`, `MusicService.kt` | Danh sách kênh radio; phát nhạc/radio theo lệnh giọng nói |
+| `…/voicebot/net/Https.java` | Kết nối https với danh sách chứng chỉ gốc đi kèm ứng dụng |
 | `…/voicebot/update/` | Tự cập nhật: `Updater.java`, `AdbLoopback.java`, `UpdateManager.kt` |
 | `install/` | Bộ cài cho người dùng và script đóng gói bản phát hành |
 | `.github/workflows/build-apk.yml` | Build và phát hành |
@@ -230,7 +256,7 @@ nào, nên chữ ký không chứng minh APK do ai làm ra. Thứ bảo vệ đ�
 
 ## Ghi công và nguồn
 
-DB-Robot Phincom R1 được phát triển từ các dự án nguồn mở sau; xin cảm ơn các tác giả.
+DB-Robot Phicomm R1 được phát triển từ các dự án nguồn mở sau; xin cảm ơn các tác giả.
 
 - [kuteo-git/xiaozhi-android](https://github.com/kuteo-git/xiaozhi-android) — bản xiaozhi cho loa
   R1 mà dự án này kế thừa trực tiếp: kiến trúc ứng dụng, trang điều khiển, ba engine từ đánh thức,
@@ -244,6 +270,10 @@ DB-Robot Phincom R1 được phát triển từ các dự án nguồn mở sau; 
   [microWakeWord](https://github.com/kahrendt/microWakeWord) (từ đánh thức "OK Nabu"). Thư viện
   `libmicro_wake_word_jni.so` của "OK Nabu" là bản dựng sẵn đi kèm mã nguồn kuteo-git, có nguồn gốc
   từ ứng dụng AI Box Plus.
+- [TienHuyIoT/xiaozhi-esp32_vietnam](https://github.com/TienHuyIoT/xiaozhi-esp32_vietnam) (MIT) —
+  danh sách kênh radio VOV và mô tả các công cụ nhạc, radio.
+- [certifi](https://github.com/certifi/python-certifi) — danh sách chứng chỉ gốc của Mozilla
+  (`assets/cacert.pem`).
 - [Open-Meteo](https://open-meteo.com/) — dữ liệu thời tiết và tìm địa danh (miễn phí cho mục đích
   phi thương mại).
 - [Opus](https://opus-codec.org/), [OkHttp](https://square.github.io/okhttp/),

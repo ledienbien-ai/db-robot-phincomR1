@@ -86,6 +86,7 @@ Web control on-device (NanoHTTPD) như control center của aiboxplus. Mở `htt
   | Mic test | `/api/mic/start[?agc=1]`, `/api/mic/stop`, `/api/mic/rec.wav` |
   | Cập nhật | `/api/update/state`, `/api/update/check`, `/api/update/install` (xem `update/Updater.java`; `auto_update` đặt qua `/api/set`) |
   | Vị trí & thời tiết | `/api/weather`, `/api/location/search?q=`, `/api/location/set` (POST body JSON), `/api/location/clear` (xem `weather/LocationManager.kt`; công cụ MCP cho trợ lý ở `mcp/DeviceTools.kt`) |
+  | Radio | `/api/radio/stations`, `/api/radio/play?id=`, `/radio/stream?id=` (chuyển tiếp luồng radio cho trình phát trên máy; danh sách kênh ở `media/RadioStations.java`) |
   | Log | `/api/logs?since=<seq>` (chỉ trả entry mới hơn `seq`), `/api/logs/clear` |
   | Bản tin | `/api/news/save` (POST body JSON), `/api/news/test` |
   | Media | `/api/media/search?q=`, `/api/media/play` (POST body), `/api/media/{pause,resume,next,stop}`, `/api/media/seek?position_s=`, `/api/media/state` |

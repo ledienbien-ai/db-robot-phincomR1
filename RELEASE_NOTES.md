@@ -3,6 +3,13 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.3
+
+- Sửa lỗi không thấy bản cập nhật: loa nay tự mang danh sách chứng chỉ mới nên kết nối được tới GitHub.
+- Điều khiển bằng giọng nói: "mở bài …", "tăng/giảm âm lượng", "mở VOV1", "dừng nhạc".
+- Radio: 14 kênh VOV, chọn bằng giọng nói hoặc ngay trong tab Media.
+- Sửa tên loa thành Phicomm R1.
+
 ## v1.5.2
 
 - Thẻ Vị trí & thời tiết: nhập thành phố của bạn, loa biết múi giờ và thời tiết tại đó.
@@ -12,7 +19,7 @@ và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết
 
 - Giao diện sáng màu xanh, đồng bộ với trang dbrobot.vn.
 - Mở lại thẻ AI Model: dùng model và API key của riêng bạn (OpenAI, Gemini, OpenRouter, DeepSeek, Groq…).
-- Tiêu đề mới "DB-Robot Phincom R1"; phần Chi tiết của từng mục viết lại ngắn gọn, dễ hiểu.
+- Tiêu đề mới "DB-Robot Phicomm R1"; phần Chi tiết của từng mục viết lại ngắn gọn, dễ hiểu.
 
 ## v1.5.0
 

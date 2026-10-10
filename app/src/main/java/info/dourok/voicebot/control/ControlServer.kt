@@ -63,6 +63,9 @@ class ControlServer @Inject constructor(
     }
 
     fun startServer() {
+        // Lend the volume control to the assistant's tools (see DeviceActions for why).
+        info.dourok.voicebot.mcp.DeviceActions.setVolume = { setVolume(it) }
+        info.dourok.voicebot.mcp.DeviceActions.getVolume = { currentVolumePercent() }
         try {
             start(SOCKET_READ_TIMEOUT, false)
             Log.i(TAG, "control panel running on :$PORT")
@@ -133,6 +136,11 @@ class ControlServer @Inject constructor(
             // The player's spectrum bars. Polled several times a second while a song plays and
             // the Media tab is open, so it is its own tiny reply rather than part of the state.
             "/api/media/spectrum" -> json(if (localMusic()) LocalMusicPlayer.spectrumJson() else """{"ok":false}""")
+            // Internet radio: the station list for the panel, play by key, and the relay the
+            // on-device player reads the stream through (see MusicService.radioTrack).
+            "/api/radio/stations" -> json(buildRadioStations())
+            "/api/radio/play" -> json(handleRadioPlay(param(session, "id")))
+            "/radio/stream" -> serveRadioStream(param(session, "id"))
             // Where the speaker is: city search, the chosen place, local time and weather there.
             "/api/location/search" -> json(LocationManager.search(param(session, "q")))
             "/api/location/set" -> json(handleLocationSet(session))
@@ -271,6 +279,16 @@ class ControlServer @Inject constructor(
         // BtController.applyOutputVolume. Harmless when nothing is connected: it refuses.
         bt.applyOutputVolume(step)
         Settings.volume = percent
+    }
+
+    /** Volume as the listener hears it, 0..100. */
+    private fun currentVolumePercent(): Int {
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        // While a speaker is connected the index that decides loudness is the Bluetooth one.
+        val btIndex = bt.outputVolumeIndex()
+        val cur = if (btIndex >= 0) btIndex else am.getStreamVolume(AudioManager.STREAM_MUSIC)
+        return if (max > 0) Math.round(cur * 100f / max) else 0
     }
 
     private fun buildState(): String {
@@ -695,6 +713,12 @@ class ControlServer @Inject constructor(
                 val it = items.optJSONObject(i) ?: continue
                 val id = it.optString("video_id", "")
                 if (id.isEmpty()) continue
+                // A radio station in the queue is replayed as a station, not looked up as a song.
+                val station = info.dourok.voicebot.media.MusicService.stationOf(id)
+                if (station != null) {
+                    tracks.add(info.dourok.voicebot.media.MusicService.radioTrack(station))
+                    continue
+                }
                 tracks.add(
                     LocalMusicPlayer.Track(
                         id = id,
@@ -833,6 +857,52 @@ class ControlServer @Inject constructor(
             }
         } catch (e: Exception) {
             """{"ok":false,"error":${JSONObject.quote(e.message ?: "error")}}"""
+        }
+    }
+
+    private fun buildRadioStations(): String {
+        val arr = JSONArray()
+        info.dourok.voicebot.media.RadioStations.all().forEach {
+            arr.put(JSONObject().put("id", it.key).put("name", it.name).put("short", it.shortName))
+        }
+        return JSONObject().put("ok", true).put("stations", arr).toString()
+    }
+
+    private fun handleRadioPlay(id: String): String {
+        val station = info.dourok.voicebot.media.RadioStations.byKey(id)
+            ?: return """{"ok":false,"error":"unknown station"}"""
+        LocalMusicPlayer.play(listOf(info.dourok.voicebot.media.MusicService.radioTrack(station)), 0)
+        return """{"ok":true}"""
+    }
+
+    /**
+     * Relay one radio station's stream. The on-device player reads it from here (127.0.0.1) instead
+     * of from the station, because the fetching is then done with the app's own, current list of
+     * root certificates (net/Https) -- the platform player of this Android 5.1 has only the ROM's.
+     * Only stations from the built-in list can be asked for, so this is not an open proxy.
+     */
+    private fun serveRadioStream(id: String): Response {
+        val station = info.dourok.voicebot.media.RadioStations.byKey(id)
+            ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "unknown station")
+        return try {
+            val conn = info.dourok.voicebot.net.Https.get(station.url, mapOf("User-Agent" to "db-robot-r1/$appVersion"))
+            if (conn.responseCode != 200) {
+                val code = conn.responseCode
+                conn.disconnect()
+                AppLog.e("Radio ${station.name}: máy chủ trả về HTTP $code")
+                newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "upstream $code")
+            } else {
+                // Closing the stream (the player went away) must also drop the upstream connection.
+                val stream = object : java.io.FilterInputStream(conn.inputStream) {
+                    override fun close() {
+                        try { super.close() } finally { conn.disconnect() }
+                    }
+                }
+                NanoHTTPD.newChunkedResponse(Response.Status.OK, conn.contentType ?: "audio/aac", stream)
+            }
+        } catch (e: Exception) {
+            AppLog.e("Radio ${station.name}: ${e.message}")
+            newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "stream error")
         }
     }
 

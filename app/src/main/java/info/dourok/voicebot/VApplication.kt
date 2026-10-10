@@ -36,6 +36,9 @@ class VApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Settings.init(this)
+        // Current root certificates for the app's own https calls; this ROM's are from 2015 and do
+        // not cover github.com (the update check) -- see net/Https. Read lazily, on first use.
+        info.dourok.voicebot.net.Https.setBundle(java.util.concurrent.Callable { assets.open("cacert.pem") })
         // Before anything formats a time: the owner's zone, not the ROM's.
         info.dourok.voicebot.weather.LocationManager.applyTimeZone()
         // Start the on-device control panel web server (http://<r1-ip>:8088).

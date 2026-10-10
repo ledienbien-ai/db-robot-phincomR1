@@ -372,7 +372,14 @@ class VoiceAssistant @Inject constructor(
                         Log.i(TAG, "tts stop ignored: state=${state.value} paused=$paused")
                     } else {
                         playback.awaitCompletion()
-                        if (++autoTurns > MAX_AUTO_TURNS) {
+                        if (LocalMusicPlayer.pendingForVoice) {
+                            // "Mở bài ..." / "mở VOV1": the song is queued and the reply has been
+                            // spoken. Listening on would only make the music wait for a silence
+                            // timeout, so the session ends here and the music starts.
+                            Log.i(TAG, "music queued by voice -> end session")
+                            backToWake()
+                            protocol.closeAudioChannel()
+                        } else if (++autoTurns > MAX_AUTO_TURNS) {
                             // Many replies with no real user speech in between (STT resets this) ->
                             // almost certainly a false wake feeding on ambient. Sleep, don't re-listen.
                             Log.i(TAG, "auto-listen turn cap ($MAX_AUTO_TURNS) reached -> sleep")

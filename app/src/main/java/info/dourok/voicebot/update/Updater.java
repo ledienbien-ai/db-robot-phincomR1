@@ -1,5 +1,7 @@
 package info.dourok.voicebot.update;
 
+import info.dourok.voicebot.net.Https;
+
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -10,11 +12,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Over-the-air update of the app itself: ask a small JSON manifest whether a newer build exists,
@@ -465,16 +468,16 @@ public final class Updater {
         }
     }
 
+    /**
+     * Through {@link Https}, not the platform's defaults: Android 5.1 does not trust the authority
+     * behind github.com, and the release download redirects to a second host besides.
+     */
     private HttpURLConnection open(String url) throws IOException {
-        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-        c.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        c.setReadTimeout(READ_TIMEOUT_MS);
-        c.setInstanceFollowRedirects(true);   // release downloads redirect to a storage host
-        c.setUseCaches(false);
-        c.setRequestProperty("User-Agent", cfg.userAgent);
-        c.setRequestProperty("Cache-Control", "no-cache");
-        c.setRequestProperty("Accept", "*/*");
-        return c;
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("User-Agent", cfg.userAgent);
+        headers.put("Cache-Control", "no-cache");
+        headers.put("Accept", "*/*");
+        return Https.get(url, headers);
     }
 
     private void requireHttps(String url) throws IOException {

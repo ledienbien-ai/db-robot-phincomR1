@@ -75,6 +75,13 @@ object LocalMusicPlayer {
     private var visualizer: Visualizer? = null
     private var fftBuf: ByteArray? = null
 
+    /**
+     * A song was asked for by voice and is waiting for the conversation to end (see
+     * [playWhenVoiceEnds]). VoiceAssistant reads it to end the session once the reply is spoken.
+     */
+    @Volatile var pendingForVoice = false
+        private set
+
     /** A song is coming out of the speaker, or is about to. */
     val isActive: Boolean
         get() = state == PLAYING || state == LOADING
@@ -85,6 +92,25 @@ object LocalMusicPlayer {
             queue = tracks
             heldForVoice = false
             startAt(startIndex.coerceIn(0, tracks.size - 1))
+        }
+    }
+
+    /**
+     * Queue [tracks] without starting them: the assistant is in the middle of a conversation and
+     * its reply has to be heard first. [releaseAfterVoice] starts them when the session is over.
+     */
+    fun playWhenVoiceEnds(tracks: List<Track>, startIndex: Int) {
+        if (tracks.isEmpty()) return
+        pendingForVoice = true
+        main.post {
+            releasePlayer()
+            queue = tracks
+            index = startIndex.coerceIn(0, tracks.size - 1)
+            positionMs = 0
+            durationMs = 0
+            wantPlaying = false
+            state = PAUSED
+            heldForVoice = true   // resumeNow() finds no player and starts the queued track
         }
     }
 
@@ -104,6 +130,7 @@ object LocalMusicPlayer {
     }
 
     fun stop() {
+        pendingForVoice = false
         main.post { heldForVoice = false; stopNow(STOPPED) }
     }
 
@@ -134,6 +161,7 @@ object LocalMusicPlayer {
 
     /** The voice session is over: carry on with the song it interrupted, if there was one. */
     fun releaseAfterVoice() {
+        pendingForVoice = false
         main.post {
             if (heldForVoice) {
                 heldForVoice = false

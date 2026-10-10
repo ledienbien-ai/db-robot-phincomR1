@@ -1,5 +1,7 @@
 package info.dourok.voicebot.weather;
 
+import info.dourok.voicebot.net.Https;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -8,15 +10,16 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 /**
@@ -60,8 +63,6 @@ public final class Weather {
     static String forecastHost = "api.open-meteo.com";
     static boolean httpsFirst = true;
 
-    private static final int CONNECT_TIMEOUT_MS = 8_000;
-    private static final int READ_TIMEOUT_MS = 10_000;
     private static final int BODY_LIMIT = 256 * 1024;
     private static final String[] WEEKDAYS = {
         "Chủ nhật", "thứ Hai", "thứ Ba", "thứ Tư", "thứ Năm", "thứ Sáu", "thứ Bảy"
@@ -280,10 +281,10 @@ public final class Weather {
     }
 
     /**
-     * GET over https, and over plain http if the TLS handshake itself fails. The R1 runs Android
-     * 5.1, whose certificate store predates some of today's authorities; the request carries no
-     * key and no personal data beyond a pair of coordinates, so reading a public forecast in the
-     * clear is the better trade than having no forecast.
+     * GET over https (see {@link Https} for how an old device comes to trust a modern server), and
+     * over plain http if the TLS handshake still fails. The request carries no key and no personal
+     * data beyond a pair of coordinates, so reading a public forecast in the clear is the better
+     * trade than having no forecast.
      */
     private static String get(String host, String path) throws IOException {
         if (!httpsFirst) {
@@ -297,13 +298,11 @@ public final class Weather {
     }
 
     private static String getOnce(String url) throws IOException {
-        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("User-Agent", "db-robot-r1");
+        headers.put("Accept", "application/json");
+        HttpURLConnection c = Https.get(url, headers);
         try {
-            c.setConnectTimeout(CONNECT_TIMEOUT_MS);
-            c.setReadTimeout(READ_TIMEOUT_MS);
-            c.setUseCaches(false);
-            c.setRequestProperty("User-Agent", "db-robot-r1");
-            c.setRequestProperty("Accept", "application/json");
             int code = c.getResponseCode();
             if (code != 200) {
                 throw new IOException("máy chủ thời tiết trả về HTTP " + code);
