@@ -1,0 +1,6 @@
+# Tệp nhị phân: git không được đổi kiểu xuống dòng hay so sánh như văn bản.
+*.exe binary
+*.ico binary
+*.keystore binary
+*.png binary
+*.so binary

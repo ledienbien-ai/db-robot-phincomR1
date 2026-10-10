@@ -322,8 +322,8 @@ main() {
   say "=============================================="
   say "  XONG. Mở trang điều khiển của loa:"
   say "      http://$host:8088"
-  say "  Tab Setup -> bấm máy chủ DB-Robot để kết nối."
-  say "  Các bản mới về sau: cập nhật ngay trong tab Setup."
+  say "  Tab System -> bấm máy chủ DB-Robot để kết nối."
+  say "  Các bản mới về sau: cập nhật ngay trong tab System."
   say "=============================================="
 }
 

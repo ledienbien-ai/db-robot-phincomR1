@@ -12,6 +12,10 @@
     <!-- A2DP source: pair with a speaker/headphones and play out through them. On API 22 both are
          install-time permissions, so nothing asks at runtime; the newer BLUETOOTH_SCAN/CONNECT pair
          is only enforced by platforms this app does not run on. -->
+    <!-- Wi-Fi card of the control panel: list the networks in range and move the speaker to
+         another one (net/WifiSetup). Install-time permissions on API 22. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <application

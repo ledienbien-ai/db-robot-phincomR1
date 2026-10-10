@@ -34,6 +34,8 @@ màn hình.
   không muốn loa xen vào (lúc nghe nhạc, xem tivi) và gọi loa khi cần.
 - **Nghe nhạc** — tìm bài hát và phát ngay trên loa, có quang phổ theo nhạc, thanh âm lượng, nút
   phát / tạm dừng / bài kế. Nhạc tự tạm dừng khi bạn nói chuyện với loa và phát tiếp sau đó.
+- **Đổi mạng Wi-Fi từ trang điều khiển** — quét các mạng quanh loa và chuyển loa sang mạng khác;
+  sai mật khẩu thì loa tự quay lại mạng cũ.
 - **Chọn máy chủ bằng một nút bấm** — máy chủ DB-Robot hoặc Xiaozhi có sẵn, và ô nhập cho máy chủ
   riêng. Mã kích hoạt hiện ngay trên trang.
 - **Dùng model AI của riêng bạn** — nhập API key của OpenAI, Google Gemini, OpenRouter, DeepSeek,
@@ -56,7 +58,7 @@ màn hình.
 <table>
   <tr>
     <td align="center"><img src="docs/images/settings.png" width="260" alt="Tab Settings"><br><b>Settings</b> — âm thanh, micro, đèn</td>
-    <td align="center"><img src="docs/images/setup.png" width="260" alt="Tab Setup"><br><b>Setup</b> — máy chủ, máy chủ nhạc</td>
+    <td align="center"><img src="docs/images/setup.png" width="260" alt="Tab System"><br><b>System</b> — máy chủ, máy chủ nhạc</td>
     <td align="center"><img src="docs/images/media.png" width="260" alt="Tab Media"><br><b>Media</b> — nhạc, radio, nút Tắt nghe / Gọi loa</td>
   </tr>
   <tr>
@@ -65,9 +67,9 @@ màn hình.
     <td align="center"><img src="docs/images/weather.png" width="260" alt="Vị trí và thời tiết"><br><b>Vị trí &amp; thời tiết</b></td>
   </tr>
   <tr>
+    <td align="center"><img src="docs/images/wifi.png" width="260" alt="Thẻ Wi-Fi"><br><b>Wi-Fi</b> — quét và đổi mạng cho loa</td>
+    <td align="center"><img src="docs/images/chat.png" width="260" alt="Khung Chat có ảnh nền"><br><b>Chat</b> — ảnh nền tuỳ chọn</td>
     <td align="center"><img src="docs/images/media-dark.png" width="260" alt="Giao diện tối"><br><b>Giao diện tối</b></td>
-    <td align="center"><img src="docs/images/settings-dark.png" width="260" alt="Settings, giao diện tối"><br><b>Settings</b> — giao diện tối</td>
-    <td></td>
   </tr>
 </table>
 
@@ -78,7 +80,7 @@ bằng cách này một lần; các bản sau cập nhật ngay trên trang đi�
 
 | Thiết bị | Cách cài |
 |---|---|
-| **Windows** | Tải [DB-Robot-R1-Windows.zip](https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/DB-Robot-R1-Windows.zip), giải nén, bấm đúp `Cai-dat-DB-Robot.bat` |
+| **Windows** | Tải [DB-Robot-R1-Setup.exe](https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/DB-Robot-R1-Setup.exe) rồi bấm đúp. Nếu tệp .exe bị chặn, dùng [bản zip](https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/DB-Robot-R1-Windows.zip): giải nén, bấm đúp `Cai-dat-DB-Robot.bat` |
 | **Điện thoại Android** | Cài [Termux](https://f-droid.org/packages/com.termux/), dán lệnh bên dưới |
 | **macOS, Linux** | Mở Terminal, dán lệnh bên dưới |
 
@@ -86,13 +88,14 @@ bằng cách này một lần; các bản sau cập nhật ngay trên trang đi�
 curl -fsSL https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/install.sh | bash
 ```
 
-Bộ cài tự tìm loa trong mạng, tải bản mới nhất và cài đặt (khoảng 2–3 phút). Hướng dẫn từng bước
+Bộ cài tự tìm loa trong mạng và cài đặt (khoảng 2–3 phút). Tệp .exe chưa có chữ ký số nên Windows
+có thể hiện "Windows protected your PC": bấm *More info* → *Run anyway*. Hướng dẫn từng bước
 và cách xử lý trục trặc: [install/HUONG_DAN_CAI_DAT.md](install/HUONG_DAN_CAI_DAT.md).
 
 ## Bắt đầu sử dụng
 
 1. Mở `http://<IP-của-loa>:8088` trên trình duyệt.
-2. Vào tab **Setup** → thẻ **Server** → bấm **DB-Robot**.
+2. Vào tab **System** → thẻ **Server** → bấm **DB-Robot**.
 3. Nếu loa chưa được kích hoạt, mã kích hoạt hiện ngay bên dưới — nhập mã đó trên trang quản lý
    của máy chủ.
 4. Trong thẻ **Vị trí & thời tiết**, nhập thành phố của bạn và chọn trong danh sách.
@@ -103,12 +106,13 @@ và cách xử lý trục trặc: [install/HUONG_DAN_CAI_DAT.md](install/HUONG_D
 | Tab | Có gì |
 |---|---|
 | **Settings** | Âm lượng và độ to · Equalizer · Nguồn mic · Khuếch đại mic (AGC) · Kiểm tra mic · Đèn LED · Định dạng âm thanh |
-| **Setup** | Server · Máy chủ nhạc · Vị trí & thời tiết · Bluetooth · AI Model · Home Assistant · Wake word · Cập nhật phần mềm · Khởi động lại ứng dụng |
+| **System** | Server · Máy chủ nhạc · Vị trí & thời tiết · Wi-Fi · Bluetooth · AI Model · Home Assistant · Wake word · Cập nhật phần mềm · Khởi động lại ứng dụng |
 | **Media** | Trình phát nhạc, quang phổ, âm lượng, ô tìm bài hát, hàng nút kênh radio |
 
 Hai nút nổi ở góc dưới bên phải mở khung **Chat** (gõ chữ thay cho nói, xem lại hội thoại) và
 **Log** (nhật ký hoạt động của loa). Hai nút ở góc dưới bên trái là **Tắt nghe** và **Gọi loa**
-(xem [Tắt nghe và gọi loa](#tắt-nghe-và-gọi-loa)). Mỗi thẻ có dòng mô tả ngắn và mục **Chi tiết** giải thích cách chỉnh.
+(xem [Tắt nghe và gọi loa](#tắt-nghe-và-gọi-loa)). Trong khung Chat, nút hình ảnh ở góc trên cho
+phép chọn một **ảnh nền**; ảnh được lưu trên loa nên thiết bị nào mở trang cũng thấy. Mỗi thẻ có dòng mô tả ngắn và mục **Chi tiết** giải thích cách chỉnh.
 
 ### Từ đánh thức
 
@@ -118,7 +122,7 @@ Hai nút nổi ở góc dưới bên phải mở khung **Chat** (gõ chữ thay 
 | **Alexa** | Chỉnh được độ nhạy, riêng cho lúc yên lặng và lúc loa đang phát tiếng |
 | **Nabi ơi** (thử nghiệm) | Chỉnh được ngưỡng |
 
-Đổi từ đánh thức trong tab Setup → **Wake word**, rồi khởi động lại ứng dụng.
+Đổi từ đánh thức trong tab System → **Wake word**, rồi khởi động lại ứng dụng.
 
 ### Tắt nghe và gọi loa
 
@@ -131,7 +135,7 @@ thành từ đánh thức. Hai nút ở góc dưới bên trái trang điều kh
 | **Gọi loa** | Loa bắt đầu nghe ngay, giống như vừa được gọi tên — dùng được cả khi đang tắt nghe. |
 
 Nút trên đỉnh loa vẫn đánh thức được trong mọi trường hợp. Muốn loa tự làm việc này mỗi khi phát
-nhạc, bật **Tắt khi phát nhạc** trong tab Setup → **Wake word**: trong lúc có nhạc hoặc radio, loa
+nhạc, bật **Tắt khi phát nhạc** trong tab System → **Wake word**: trong lúc có nhạc hoặc radio, loa
 bỏ qua từ đánh thức, và nghe lại khi nhạc dừng.
 
 ## Máy chủ
@@ -194,7 +198,7 @@ trình phát trên máy (`media/HlsAudioStream.java`), mỗi kênh có địa ch
 ## Vị trí và thời tiết
 
 Máy chủ không biết loa của bạn đặt ở đâu, nên khi được hỏi giờ nó trả lời theo đồng hồ của chính
-nó — có thể lệch múi giờ. Thẻ **Vị trí & thời tiết** trong tab Setup khắc phục việc đó: nhập tên
+nó — có thể lệch múi giờ. Thẻ **Vị trí & thời tiết** trong tab System khắc phục việc đó: nhập tên
 thành phố, chọn đúng nơi trong danh sách, loa lưu toạ độ và múi giờ rồi tự lấy thời tiết (từ
 [Open-Meteo](https://open-meteo.com/), không cần API key).
 
@@ -202,10 +206,27 @@ Loa đưa thông tin này cho trợ lý qua hai công cụ `self.get_local_time`
 [Lệnh giọng nói](#lệnh-giọng-nói)); hỏi thời tiết của một thành phố khác cũng được. Chưa chọn thành phố thì loa dùng múi
 giờ Việt Nam và chưa có thời tiết.
 
+## Đổi mạng Wi-Fi
+
+Thẻ **Wi-Fi** trong tab System cho biết loa đang dùng mạng nào (tên mạng, địa chỉ IP, băng tần) và
+liệt kê các mạng trong vùng sóng. Bấm **Quét mạng**, chọn mạng, nhập mật khẩu rồi bấm **Kết nối**;
+**Mạng ẩn…** dành cho mạng không phát tên.
+
+Loa được điều khiển qua chính kết nối Wi-Fi đang đổi, nên việc đổi mạng được làm theo cách luôn có
+đường lui:
+
+- Nếu sau khoảng 30 giây loa chưa vào được mạng mới (sai mật khẩu, sóng yếu), nó quay lại mạng cũ
+  và trang điều khiển báo lỗi.
+- Mạng loa đang dùng không đổi mật khẩu hay xoá được từ trang này.
+- Các mạng đã lưu khác vẫn được giữ, loa có thể tự vào lại khi mạng mới biến mất.
+
+Khi đã sang mạng mới, loa có thể nhận địa chỉ IP khác: nối điện thoại vào cùng mạng đó rồi tìm địa
+chỉ của loa trong danh sách thiết bị của bộ phát Wi-Fi. Mạng doanh nghiệp (802.1X) chưa được hỗ trợ.
+
 ## Máy chủ nhạc
 
 Tab Media phát nhạc từ một máy chủ nhạc qua HTTP. Mặc định là `https://ms.dbrobot.vn`; thẻ **Máy
-chủ nhạc** trong tab Setup có ô nhập cho máy chủ riêng. Máy chủ cần hai địa chỉ:
+chủ nhạc** trong tab System có ô nhập cho máy chủ riêng. Máy chủ cần hai địa chỉ:
 
 | Địa chỉ | Trả về |
 |---|---|
@@ -219,7 +240,7 @@ Loa tự giải mã và phát MP3, nên nhạc không đi qua đường thoại 
 Loa đọc tệp `update.json` của bản phát hành mới nhất trên GitHub vài giờ một lần. (Android 5.1 của
 loa không còn tin được chứng chỉ của nhiều trang web ngày nay, nên ứng dụng mang theo danh sách
 chứng chỉ gốc hiện hành trong `assets/cacert.pem` — xem `net/Https.java`.) Khi có bản mới,
-trang điều khiển hiện thông báo ở đầu trang; vào tab Setup → **Cập nhật phần mềm** → **Cập nhật
+trang điều khiển hiện thông báo ở đầu trang; vào tab System → **Cập nhật phần mềm** → **Cập nhật
 ngay**. Loa tải bản mới, đối chiếu mã SHA-256, cài đặt rồi tự chạy lại sau 2–3 phút; mọi cài đặt
 được giữ nguyên. Bật **Tự động cập nhật** thì loa tự cài khi đang rảnh (không trò chuyện, không
 phát nhạc).
@@ -260,8 +281,11 @@ Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `appl
 | `…/voicebot/media/RadioStations.java`, `HlsAudioStream.java`, `MusicService.kt` | Danh sách kênh radio, đọc luồng HLS của đài; phát nhạc/radio theo lệnh giọng nói |
 | `…/voicebot/domain/voice/VoiceGate.kt` | Tắt nghe từ đánh thức và gọi loa từ trang điều khiển |
 | `…/voicebot/net/Https.java` | Kết nối https với danh sách chứng chỉ gốc đi kèm ứng dụng |
+| `…/voicebot/net/WifiSetup.java` | Quét Wi-Fi và chuyển loa sang mạng khác, tự quay lại mạng cũ khi thất bại |
+| `…/voicebot/control/ChatBackground.java` | Lưu ảnh nền của khung Chat trên loa |
 | `…/voicebot/update/` | Tự cập nhật: `Updater.java`, `AdbLoopback.java`, `UpdateManager.kt` |
 | `install/` | Bộ cài cho người dùng và script đóng gói bản phát hành |
+| `install/win/`, `install/make-setup-exe.py` | Chương trình khởi chạy của bộ cài Windows một tệp và công cụ ghép tệp vào nó |
 | `.github/workflows/build-apk.yml` | Build và phát hành |
 
 (`…/voicebot` là `app/src/main/java/info/dourok/voicebot`.)
@@ -275,9 +299,29 @@ Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `appl
    *Phát hành*). Workflow gắn APK, `update.json` và bộ cài vào một GitHub Release; các loa thấy bản
    mới trong vòng vài giờ.
 
+Bộ cài Windows một tệp (`DB-Robot-R1-Setup.exe`) là chương trình khởi chạy dựng sẵn
+`install/win/setup-stub.exe` với `install.ps1`, APK và tệp hướng dẫn dán vào cuối
+(`install/make-setup-exe.py`). Khi chạy, nó chép các tệp đó ra `%LOCALAPPDATA%\DB-Robot-R1` rồi
+chạy `install.ps1`; không ghi registry, không cần quyền quản trị. Mã nguồn của chương trình khởi
+chạy là `install/win/setup-stub.c`; chỉ khi sửa nó mới phải dựng lại bằng `install/win/build-stub.sh`
+(cần trình biên dịch Zig) rồi commit tệp `.exe` mới.
+
 Khoá ký APK (`app/dbrobot.keystore`) nằm công khai trong repo để bản nào cũng cài đè được lên bản
 nào, nên chữ ký không chứng minh APK do ai làm ra. Thứ bảo vệ đường cập nhật là `update.json` chỉ
 được tải qua https từ repo này, kèm SHA-256 của APK — đừng đổi `AppConfig.UPDATE_URL` sang http.
+
+## Liên hệ
+
+**DB-ROBOT** — cộng đồng phát triển chatbot AI Xiaozhi tại Việt Nam. Theo dõi và liên hệ để nhận
+hỗ trợ và bản cập nhật mới nhất:
+
+- Trang chủ: [dbrobot.vn](https://dbrobot.vn) · [Hướng dẫn](https://dbrobot.vn/huongdan.html) · [Liên hệ](https://dbrobot.vn/lienhe.html)
+- Facebook: [hoanganhsell](https://www.facebook.com/hoanganhsell)
+- Zalo: [nhóm DB-ROBOT](https://zalo.me/g/pn14qw8qjp7iveodvyny)
+- YouTube: [@hoanganhsell](https://www.youtube.com/@hoanganhsell)
+- TikTok: [@hoanganhsell0612](https://www.tiktok.com/@hoanganhsell0612)
+
+Thiết kế và phát triển: DB_ROBOT — Copyright © 2026 - by @hoanganhsell.
 
 ## Ghi công và nguồn
 

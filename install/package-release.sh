@@ -6,7 +6,8 @@
 #         release/DB-Robot-R1.apk           cùng tệp, tên cố định để bộ cài tải "bản mới nhất"
 #         release/update.json               loa đọc tệp này để biết có bản mới (xem update/Updater.java)
 #         release/install.sh, install.ps1   bộ cài cho Termux/macOS/Linux và Windows
-#         release/DB-Robot-R1-Windows.zip   bộ cài Windows chỉ cần giải nén rồi bấm đúp
+#         release/DB-Robot-R1-Setup.exe     bộ cài Windows một tệp: bấm đúp là chạy
+#         release/DB-Robot-R1-Windows.zip   cùng bộ cài ở dạng zip (dự phòng khi tệp .exe bị chặn)
 #         release-body.md                   nội dung trang Release
 set -euo pipefail
 
@@ -79,6 +80,13 @@ sed -e 's/\r$//' -e 's/$/\r/' install/Cai-dat-DB-Robot.bat > win/Cai-dat-DB-Robo
 # BOM ở đầu để Notepad cũ hiển thị đúng tiếng Việt có dấu.
 { printf '\xEF\xBB\xBF'; sed -e 's/\r$//' -e 's/$/\r/' install/HUONG_DAN_CAI_DAT.md; } > win/HUONG-DAN.txt
 ( cd win && zip -q -9 ../release/DB-Robot-R1-Windows.zip ./* )
+
+# Bộ cài một tệp: chương trình khởi chạy dựng sẵn (install/win/setup-stub.exe, mã nguồn nằm cạnh
+# nó) với các tệp của bản này dán vào cuối. Khi chạy, nó chép các tệp đó ra
+# %LOCALAPPDATA%\DB-Robot-R1 rồi chạy install.ps1 -- đúng script mà tệp .bat trong bản zip chạy.
+# APK mang tên cố định để mỗi lần chạy ghi đè bản cũ trong thư mục đó.
+python3 install/make-setup-exe.py install/win/setup-stub.exe release/DB-Robot-R1-Setup.exe \
+  "install.ps1=release/install.ps1" "DB-Robot-R1.apk=$APK" "HUONG-DAN.txt=win/HUONG-DAN.txt"
 
 {
   echo "## Có gì mới"

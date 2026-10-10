@@ -154,6 +154,17 @@ class ControlServer @Inject constructor(
                 )
                 json("""{"ok":true}""")
             }
+            // The speaker's own Wi-Fi: what is in range, and moving it to another network. The
+            // two calls that change something carry their values in the body (a password must not
+            // sit in a URL) and are refused when another web site is the one asking.
+            "/api/wifi/state" -> json(wifi.stateJson())
+            "/api/wifi/scan" -> json(wifi.scan())
+            "/api/wifi/connect" -> json(if (sameOrigin(session)) wifi.connect(bodyOf(session)) else FOREIGN_ORIGIN)
+            "/api/wifi/forget" -> json(if (sameOrigin(session)) wifi.forget(bodyOf(session)) else FOREIGN_ORIGIN)
+            // The picture behind the panel's chat, kept on the speaker so every device shows it.
+            "/api/chat/bg" -> serveChatBackground()
+            "/api/chat/bg/set" -> json(if (sameOrigin(session)) ChatBackground.save(context.filesDir, bodyOf(session)) else FOREIGN_ORIGIN)
+            "/api/chat/bg/clear" -> json(ChatBackground.clear(context.filesDir))
             // Internet radio: the station list for the panel, play by key, and the relay the
             // on-device player reads the stream through (see MusicService.radioTrack).
             "/api/radio/stations" -> json(buildRadioStations())
@@ -437,6 +448,7 @@ class ControlServer @Inject constructor(
         o.put("voice_awake", info.dourok.voicebot.domain.voice.VoiceDebugState.awake)
         o.put("voice_paused", info.dourok.voicebot.domain.voice.VoiceGate.paused)
         o.put("pause_on_music", Settings.pauseOnMusic)
+        o.put("chat_bg", ChatBackground.stamp(context.filesDir))
         // True whenever the wake word is being ignored, whichever of the two reasons applies, so
         // the panel can say why the speaker is not answering to its name.
         o.put("wake_muted", !info.dourok.voicebot.domain.voice.VoiceGate.wakeWordAllowed)
@@ -512,6 +524,42 @@ class ControlServer @Inject constructor(
 
     private fun param(session: IHTTPSession, name: String): String =
         session.parameters[name]?.firstOrNull().orEmpty()
+
+    /** The request body as text; empty when there is none or it cannot be read. */
+    private fun bodyOf(session: IHTTPSession): String {
+        val files = HashMap<String, String>()
+        return try {
+            session.parseBody(files)
+            files["postData"] ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    /**
+     * False when a browser says the request was made by a page from somewhere else. Every reply
+     * here allows cross-origin reading, which is harmless for a volume slider; it must not also
+     * let a web page the owner happens to have open move the speaker onto another network.
+     */
+    private fun sameOrigin(session: IHTTPSession): Boolean {
+        val origin = session.headers["origin"] ?: return true
+        val host = session.headers["host"] ?: return true
+        return origin.substringAfter("://") == host
+    }
+
+    private val wifi by lazy {
+        info.dourok.voicebot.net.WifiSetup(context) { line -> AppLog.i(line) }
+    }
+
+    private fun serveChatBackground(): Response {
+        val file = ChatBackground.file(context.filesDir)
+        val mime = if (file.isFile) ChatBackground.mime(file) else ""
+        if (mime.isEmpty()) return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "no picture")
+        // The panel asks for it as /api/chat/bg?v=<stamp>, so each picture can be cached for good.
+        return newFixedLengthResponse(Response.Status.OK, mime, java.io.FileInputStream(file), file.length()).apply {
+            addHeader("Cache-Control", "max-age=31536000, immutable")
+        }
+    }
 
     private fun deviceMac(): String =
         android.provider.Settings.Secure.getString(context.contentResolver, "android_id") ?: "r1-client"
@@ -1053,6 +1101,7 @@ class ControlServer @Inject constructor(
 
     companion object {
         private const val TAG = "ControlServer"
+        private const val FOREIGN_ORIGIN = """{"ok":false,"error":"Yêu cầu đến từ một trang web khác nên bị từ chối."}"""
         private const val PYTUBE_PORT = 114   // services/pytube_api.py binds this
         const val PORT = 8088
         /** How long an effect chosen in the panel stays on the ring before the real state returns. */

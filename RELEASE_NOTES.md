@@ -3,6 +3,14 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.6
+
+- Thẻ **Wi-Fi** mới: xem loa đang dùng mạng nào, quét và chuyển loa sang mạng khác. Nếu không vào được mạng mới, loa tự quay lại mạng cũ.
+- Khung Chat có **ảnh nền**: chọn một ảnh của bạn, ảnh được lưu trên loa nên thiết bị nào mở trang cũng thấy.
+- Tab "Setup" đổi tên thành **System**.
+- Bộ cài cho Windows nay là một tệp `DB-Robot-R1-Setup.exe`: tải về, bấm đúp là cài. Bản zip vẫn có để dự phòng.
+- Thông tin liên hệ và các kênh của DB-ROBOT ở cuối trang điều khiển.
+
 ## v1.5.5
 
 - Radio phát được trở lại: 8 kênh VOV lấy từ nguồn phát mới của đài.

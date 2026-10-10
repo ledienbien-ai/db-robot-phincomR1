@@ -1,6 +1,7 @@
 # DB-Robot R1 - bo cai cho Windows.
 #
-#   Cach dung:  bam dup vao "Cai-dat-DB-Robot.bat" (cung thu muc voi tep nay)
+#   Cach dung:  bam dup DB-Robot-R1-Setup.exe (tep nay nam san ben trong), hoac
+#               bam dup vao "Cai-dat-DB-Robot.bat" trong ban zip (cung thu muc voi tep nay)
 #   Hoac dan dong sau vao PowerShell:
 #     irm https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/install.ps1 | iex
 #
@@ -333,8 +334,8 @@ function Install-DBRobot([string]$GivenIp) {
     Say "=============================================="
     Say "  XONG. Mo trang dieu khien cua loa:"
     Say "      http://${hostIp}:8088"
-    Say "  Tab Setup -> bam may chu DB-Robot de ket noi."
-    Say "  Cac ban moi ve sau: cap nhat ngay trong tab Setup."
+    Say "  Tab System -> bam may chu DB-Robot de ket noi."
+    Say "  Cac ban moi ve sau: cap nhat ngay trong tab System."
     Say "=============================================="
 }
 

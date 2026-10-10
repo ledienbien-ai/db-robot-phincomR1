@@ -4,11 +4,13 @@
 
 ### Máy tính Windows
 
-1. Tải [DB-Robot-R1-Windows.zip](https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/DB-Robot-R1-Windows.zip) rồi giải nén ra một thư mục.
-2. Bấm đúp **Cai-dat-DB-Robot.bat**. Nếu Windows hiện "Windows protected your PC", bấm *More info* → *Run anyway*.
+1. Tải [DB-Robot-R1-Setup.exe](https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/DB-Robot-R1-Setup.exe).
+2. Bấm đúp tệp vừa tải. Nếu Windows hiện "Windows protected your PC", bấm *More info* → *Run anyway*.
 3. Bấm Enter để bộ cài tự tìm loa trong mạng (hoặc gõ địa chỉ IP của loa), rồi làm theo các câu hỏi trên màn hình. Cài mất khoảng 2–3 phút.
 
-Không muốn tải tệp zip thì mở **PowerShell** và dán dòng này:
+Lần chạy đầu, bộ cài tải thêm công cụ adb của Google (khoảng 7 MB), nên máy tính cần có Internet.
+
+**Tệp .exe bị trình duyệt hoặc phần mềm diệt virus chặn?** Tải [DB-Robot-R1-Windows.zip](https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/DB-Robot-R1-Windows.zip), giải nén ra một thư mục rồi bấm đúp **Cai-dat-DB-Robot.bat** — đây là cùng một bộ cài. Hoặc mở **PowerShell** và dán dòng này:
 
 ```
 irm https://github.com/ledienbien-ai/db-robot-phincomR1/releases/latest/download/install.ps1 | iex
@@ -36,17 +38,18 @@ Chưa cài trực tiếp từ iPhone được. Hãy mượn một máy tính ho�
 ### Sau khi cài
 
 - Mở trình duyệt, vào `http://<IP-của-loa>:8088` (bộ cài in sẵn địa chỉ này ở dòng cuối).
-- Tab **Setup** → mục **Server** → bấm **DB-Robot**. Nếu loa chưa được kích hoạt, mã kích hoạt hiện ngay bên dưới — nhập mã đó trên trang quản lý của máy chủ.
+- Tab **System** → mục **Server** → bấm **DB-Robot**. Nếu loa chưa được kích hoạt, mã kích hoạt hiện ngay bên dưới — nhập mã đó trên trang quản lý của máy chủ.
 - Gọi **"OK Nabu"** để nói chuyện với loa.
 
 ### Cập nhật bản mới
 
-Loa tự kiểm tra bản mới. Khi có, trang điều khiển hiện thông báo màu đỏ ở đầu trang: vào tab **Setup** → **Cập nhật phần mềm** → **Cập nhật ngay**, chờ 2–3 phút. Mọi cài đặt được giữ nguyên. Muốn loa tự cài khi đang rảnh thì bật **Tự động cập nhật**.
+Loa tự kiểm tra bản mới. Khi có, trang điều khiển hiện thông báo màu đỏ ở đầu trang: vào tab **System** → **Cập nhật phần mềm** → **Cập nhật ngay**, chờ 2–3 phút. Mọi cài đặt được giữ nguyên. Muốn loa tự cài khi đang rảnh thì bật **Tự động cập nhật**.
 
 ### Gặp trục trặc
 
 | Hiện tượng | Cách xử lý |
 |---|---|
+| Tệp `DB-Robot-R1-Setup.exe` bị chặn hoặc bị xoá ngay sau khi tải | Tệp chưa có chữ ký số nên một số máy cảnh báo. Dùng bản zip: tải `DB-Robot-R1-Windows.zip`, giải nén, bấm đúp **Cai-dat-DB-Robot.bat**. |
 | Bộ cài không tìm thấy loa | Kiểm tra loa và máy cùng một mạng Wi-Fi. Xem IP của loa trong trang quản lý modem/router rồi gõ trực tiếp. |
 | "Không kết nối được" hoặc cài mãi không xong | Rút điện loa 10 giây, cắm lại, chờ 1 phút rồi chạy lại bộ cài. |
 | Loa không nghe "OK Nabu" | Trên loa còn ứng dụng trợ lý khác (ví dụ AI Box) đang giữ micro. Chạy lại bộ cài và trả lời **C** khi được hỏi tắt ứng dụng đó. |

@@ -474,6 +474,44 @@ select::-ms-expand{display:none;}
 #updStat.err{color:var(--err);}
 #updStat.ok{color:var(--ok);}
 
+/* ── WI-FI CARD ─────────────────────────────────── */
+.ib-wifi{background:linear-gradient(135deg,#10b981,#34d399);}
+.wifi-now{display:flex;align-items:center;gap:10px;padding:9px 11px;margin-bottom:9px;border-radius:10px;
+  background:var(--card2);border:1px solid var(--line);}
+.wifi-row{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:9px;cursor:pointer;
+  border-bottom:1px solid var(--line);}
+.wifi-row:last-child{border-bottom:0;}
+.wifi-row:active{background:var(--grad-dim);}
+.wifi-row.cur{cursor:default;}
+.wifi-row.sel{background:var(--grad-dim);}
+.wifi-row .lock{width:13px;height:13px;color:var(--mut);flex-shrink:0;}
+.wifi-tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:9px;background:var(--grad-dim);color:var(--a1);flex-shrink:0;}
+.wifi-tag.on{background:rgba(34,197,94,.14);color:var(--ok);}
+/* Four bars, lit from the left according to data-b (0..4). */
+.wifi-bars{display:flex;align-items:flex-end;gap:2px;width:18px;height:14px;flex-shrink:0;}
+.wifi-bars i{flex:1;border-radius:1px;background:var(--line);}
+.wifi-bars i:nth-child(1){height:30%;}.wifi-bars i:nth-child(2){height:53%;}
+.wifi-bars i:nth-child(3){height:76%;}.wifi-bars i:nth-child(4){height:100%;}
+.wifi-bars[data-b="1"] i:nth-child(-n+1),.wifi-bars[data-b="2"] i:nth-child(-n+2),
+.wifi-bars[data-b="3"] i:nth-child(-n+3),.wifi-bars[data-b="4"] i{background:var(--a1);}
+.wifi-form{margin:9px 0 6px;padding:10px 11px 4px;border-radius:10px;background:var(--card2);border:1px solid var(--line);}
+.wifi-form[hidden]{display:none;}
+.wifi-sub{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin:11px 0 3px;}
+#wifiStat.err{color:var(--err);}
+#wifiStat.good{color:var(--ok);}
+
+/* ── ABOUT / CONTACT (end of the Settings and System tabs) ── */
+.about{margin:14px 0 2px;padding:16px 12px 13px;border:1px solid var(--line);border-radius:12px;
+  background:var(--card);text-align:center;}
+.about-brand{display:flex;align-items:center;justify-content:center;gap:10px;font-size:15px;font-weight:800;letter-spacing:.4px;}
+.about p{font-size:11.5px;color:var(--mut);line-height:1.55;margin:7px auto 11px;max-width:330px;}
+.about-links{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;}
+.about-links a{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:18px;
+  border:1px solid var(--line);background:var(--card2);color:var(--fg);font-size:12px;font-weight:600;text-decoration:none;}
+.about-links a:active{background:var(--grad-dim);}
+.about-links a svg{width:14px;height:14px;color:var(--a1);flex-shrink:0;}
+.about small{display:block;margin-top:12px;font-size:10.5px;color:var(--mut);line-height:1.6;}
+
 /* ── CHAT ────────────────────────────────────────── */
 #chat{flex:1;overflow-y:auto;padding:13px;display:flex;flex-direction:column;gap:8px;}
 .bubble-wrap{display:flex;flex-direction:column;gap:2px;max-width:82%;}
@@ -486,6 +524,18 @@ select::-ms-expand{display:none;}
 .btime{font-size:10px;color:var(--mut);padding:0 4px;}
 @keyframes pop{from{opacity:0;transform:translateY(5px) scale(.97);}to{opacity:1;transform:none;}}
 .empty{margin:auto;color:var(--mut);text-align:center;font-size:13px;line-height:1.9;}
+/* A picture of the owner's behind the conversation. It stays put while the messages scroll (a
+   background does not move with its box's content), under a veil that keeps both themes legible. */
+#chat{--chat-veil:rgba(8,11,22,.38);}
+[data-theme=light] #chat{--chat-veil:rgba(255,255,255,.22);}
+#chat.has-bg{background-image:linear-gradient(var(--chat-veil),var(--chat-veil)),var(--chat-bg);
+  background-size:cover;background-position:center;}
+#chat.has-bg .b{box-shadow:0 2px 10px rgba(0,0,0,.24);}
+#chat.has-bg .btime{color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);}
+#chat.has-bg .empty{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 20px;color:var(--fg);}
+.chat-close[hidden]{display:none;}
+.chat-note{font-size:11.5px;padding:7px 14px;color:var(--err);border-bottom:1px solid var(--line);}
+.chat-note[hidden]{display:none;}
 
 /* ── INPUT BAR ──────────────────────────────────── */
 .inbar{display:flex;gap:8px;padding:10px 12px;
@@ -707,7 +757,7 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
 
 <div class="seg">
   <button id="tset" class="on" onclick="tab('set')"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.6" y1="4.6" x2="6.1" y2="6.1"/><line x1="13.9" y1="13.9" x2="15.4" y2="15.4"/><line x1="15.4" y1="4.6" x2="13.9" y2="6.1"/><line x1="6.1" y1="13.9" x2="4.6" y2="15.4"/></svg>Settings</button>
-  <button id="tsetup" onclick="tab('setup')"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 3v4M10 13v4M3 10h4M13 10h4"/><circle cx="10" cy="10" r="2.2"/></svg>Setup</button>
+  <button id="tsetup" onclick="tab('setup')"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M10 3v4M10 13v4M3 10h4M13 10h4"/><circle cx="10" cy="10" r="2.2"/></svg>System</button>
   <button id="tmedia" onclick="tab('media')"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 3v9.2a3 3 0 101.5 2.6V6.9l6-1.2v6.5a3 3 0 101.5 2.6V3l-9 1.8V3z"/></svg>Media<span class="seg-long">&nbsp;Player</span></button>
 </div>
 
@@ -835,6 +885,21 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
       <div id="locResults"></div>
       <div class="hint" id="locStat"></div>
       <div class="hint">Nhập tên thành phố nơi đặt loa, bấm tìm rồi chọn trong danh sách. Loa dùng vị trí này để trả lời đúng giờ địa phương và thời tiết khi bạn hỏi. <button class="loc-clear" id="locClearBtn" onclick="locClear()" hidden>Xoá vị trí</button><details><summary>Chi tiết</summary><p>Chưa chọn thành phố thì loa dùng múi giờ Việt Nam và chưa có thông tin thời tiết.</p><p>Khi bạn hỏi "mấy giờ rồi" hoặc "thời tiết hôm nay thế nào", trợ lý lấy câu trả lời từ loa. Hỏi thời tiết của một thành phố khác cũng được. Cần máy chủ hỗ trợ công cụ trên thiết bị (MCP).</p><p>Dữ liệu thời tiết lấy từ Open-Meteo, cập nhật 10 phút một lần.</p></details></div>
+    </div>
+
+    <div class="card" id="cardWifi">
+      <div class="ch"><span class="icon-badge ib-wifi"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M2.5 8a11 11 0 0115 0"/><path d="M5.2 10.9a7 7 0 019.6 0"/><path d="M7.8 13.7a3.3 3.3 0 014.4 0"/><circle cx="10" cy="16.3" r="1.1" fill="currentColor" stroke="none"/></svg></span><h2>Wi-Fi</h2></div>
+      <div class="wifi-now" id="wifiNow"><div class="li-info"><div class="li-title">Đang đọc…</div></div></div>
+      <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" id="wifiScanBtn" onclick="wifiScan()">Quét mạng</button><button class="btn rec" style="flex:1;width:auto" onclick="wifiOther()">Mạng ẩn…</button></div>
+      <div class="wifi-form" id="wifiForm" hidden>
+        <div class="row"><label>Mạng</label><input class="codein" id="wifiSsid" placeholder="Tên mạng (SSID)" maxlength="32" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+        <div class="row" id="wifiSecRow"><label>Bảo mật</label><select id="wifiSec" style="flex:1" onchange="wifiSecChanged()"><option value="psk">WPA / WPA2</option><option value="wep">WEP</option><option value="open">Không mật khẩu</option></select></div>
+        <div class="row" id="wifiPassRow"><label>Mật khẩu</label><input class="codein" id="wifiPass" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown="if(event.key==='Enter')wifiConnect()"><button class="tbtn" onclick="wifiTogPass()" aria-label="Hiện/ẩn mật khẩu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/></svg></button></div>
+        <div class="row" style="gap:8px;margin-top:4px"><button class="btn rec" style="flex:1;width:auto" id="wifiGo" onclick="wifiConnect()">Kết nối</button><button class="btn rec" style="flex:1;width:auto" onclick="wifiCancel()">Huỷ</button></div>
+      </div>
+      <div id="wifiList"></div>
+      <div class="hint" id="wifiStat"></div>
+      <div class="hint">Xem loa đang dùng mạng nào và chuyển loa sang mạng Wi-Fi khác. Bấm <b>Quét mạng</b>, chọn mạng, nhập mật khẩu rồi bấm <b>Kết nối</b>.<details><summary>Chi tiết</summary><p>Trong lúc loa đổi mạng, trang này có thể mất kết nối. Nếu loa không vào được mạng mới (sai mật khẩu, sóng yếu), nó tự quay lại mạng cũ sau khoảng một phút.</p><p>Khi đã sang mạng mới, loa có thể nhận địa chỉ IP khác. Hãy nối điện thoại hoặc máy tính vào cùng mạng đó, rồi tìm địa chỉ của loa trong danh sách thiết bị của bộ phát Wi-Fi.</p><p>Mạng loa đang dùng không đổi mật khẩu hay xoá được từ đây, để loa luôn còn một mạng quay về.</p><p><b>Mạng ẩn…</b> dùng cho mạng không phát tên: nhập đúng tên mạng, kiểu bảo mật và mật khẩu.</p></details></div>
     </div>
 
     <div class="card">
@@ -994,7 +1059,8 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
 </div>
 <div id="chatBackdrop" onclick="closeChat()"></div>
 <div id="chatDrawer" class="drawer">
-  <div class="chat-head"><div class="logo brand" role="img" aria-label="DB-Robot"></div><h3>Chat với robot</h3><button class="chat-close" onclick="closeChat()" aria-label="Đóng chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="chat-head"><div class="logo brand" role="img" aria-label="DB-Robot"></div><h3>Chat với robot</h3><input type="file" id="chatBgFile" accept="image/*" hidden onchange="chatBgPicked(this)"><button class="chat-close" id="chatBgBtn" onclick="$('chatBgFile').click()" aria-label="Đổi ảnh nền khung chat" title="Đổi ảnh nền"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l5-4.5 3.5 3 2.5-2 4 3.5"/></svg></button><button class="chat-close" id="chatBgDel" onclick="chatBgClear()" hidden aria-label="Xoá ảnh nền khung chat" title="Xoá ảnh nền"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M8 8.5l8 7M16 8.5l-8 7"/></svg></button><button class="chat-close" onclick="closeChat()" aria-label="Đóng chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="chat-note" id="chatNote" hidden></div>
   <div id="chat"><div class="empty">Chưa có tin nhắn.<br>Nhắn cho robot bên dưới 👇</div></div>
   <div class="inbar">
     <input id="msg" placeholder="Nhắn cho robot…" onkeydown="if(event.key==='Enter')send()">
@@ -1017,7 +1083,7 @@ function tab(t){['set','setup','media'].forEach(x=>{$('p'+x).classList.toggle('o
   if(t==='media'){mediaPollStart();radioLoad();}else mediaPollStop();
   // Bluetooth state is polled only while its tab is on screen, for the reason media state is: a
   // scan's results change every second and nobody needs them when the card is not being looked at.
-  if(t==='setup')btPollStart();else btPollStop();
+  if(t==='setup'){btPollStart();wifiPollStart();}else{btPollStop();wifiPollStop();}
   updVisible=(t==='setup');if(updVisible)updPoll();
   // Same rule for the weather card; while it is on screen it also keeps its clock current.
   clearInterval(locTimer);locTimer=null;
@@ -1363,7 +1429,7 @@ function updateVoiceOrb(s){
   const vstate=!s.voice_awake?((s.voice_paused||s.wake_muted)?'paused':'idle'):(s.voice_state==='SPEAKING'?'speaking':'listening');
   // "paused" has no bar animation of its own: the orb goes flat and grey, as when offline.
   $('vorb').dataset.state=vstate==='paused'?'offline':vstate;
-  voiceRender(s);
+  voiceRender(s);chatBgRender(s.chat_bg);aboutVersion(s.app_version);
   $('st').textContent=VOICE_ORB_TEXT[vstate];
 }
 function render(s){
@@ -1516,6 +1582,151 @@ async function voiceWake(){
   setTimeout(poll,400);}
 bindFab('pauseFab',voicePauseToggle);
 bindFab('wakeFab',voiceWake);
+
+// ── Chat background ──────────────────────────────
+// The picture lives on the speaker (so every device shows the same one); /api/state carries a
+// stamp that changes with it and doubles as the cache key.
+let chatBgStamp=-1,chatNoteTimer=null;
+function chatNote(text){const n=$('chatNote');n.textContent=text;n.hidden=!text;
+  clearTimeout(chatNoteTimer);if(text)chatNoteTimer=setTimeout(()=>{n.hidden=true;},6000);}
+function chatBgRender(stamp){
+  stamp=+stamp||0;if(stamp===chatBgStamp)return;chatBgStamp=stamp;
+  const c=$('chat');c.classList.toggle('has-bg',stamp>0);
+  c.style.setProperty('--chat-bg',stamp>0?'url("/api/chat/bg?v='+stamp+'")':'none');
+  $('chatBgDel').hidden=!(stamp>0);}
+// Phone photos are several megabytes; the drawer is 460 px wide. Shrink before sending.
+function chatBgShrink(file){return new Promise((resolve,reject)=>{
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{try{
+    const max=1440,k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    const cv=document.createElement('canvas');
+    cv.width=Math.max(1,Math.round(img.naturalWidth*k));cv.height=Math.max(1,Math.round(img.naturalHeight*k));
+    cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+    URL.revokeObjectURL(url);resolve(cv.toDataURL('image/jpeg',0.84));
+  }catch(e){reject(e);}};
+  img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('not an image'));};
+  img.src=url;});}
+async function chatBgPicked(input){
+  const f=input.files&&input.files[0];input.value='';if(!f)return;
+  let data;
+  try{data=await chatBgShrink(f);}catch(e){chatNote('Không đọc được ảnh này — hãy chọn ảnh JPG hoặc PNG.');return;}
+  try{const j=await(await fetch('/api/chat/bg/set',{method:'POST',body:data})).json();
+    if(!j.ok){chatNote(j.error||'Loa không lưu được ảnh.');return;}
+    chatNote('');chatBgRender(j.stamp);}
+  catch(e){chatNote('Không gửi được ảnh tới loa.');}}
+async function chatBgClear(){
+  if(!confirm('Xoá ảnh nền của khung chat?'))return;
+  try{const j=await(await fetch('/api/chat/bg/clear',{method:'POST'})).json();
+    if(j.ok)chatBgRender(0);else chatNote(j.error||'Loa không xoá được ảnh.');}
+  catch(e){chatNote('Không gọi được loa.');}}
+
+// ── Wi-Fi ────────────────────────────────────────
+// Polled only while the System tab is on screen, like Bluetooth. A scan or a move in progress is
+// polled faster. The move itself can take this page's connection away with it (the speaker is
+// reached over the very Wi-Fi being changed), so a failed poll during one is reported as that.
+let wifiState=null,wifiNets=[],wifiTimer=null,wifiSel=null,wifiMoving='',wifiLost=0,wifiErr='';
+const WIFI_SEC={psk:'WPA/WPA2',wep:'WEP',open:'Mở',eap:'Doanh nghiệp'};
+const WIFI_LOCK='<svg class="lock" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4.5" y="9" width="11" height="8" rx="1.8"/><path d="M7 9V6.5a3 3 0 016 0V9"/></svg>';
+function wifiBars(n){return '<span class="wifi-bars" data-b="'+(n|0)+'"><i></i><i></i><i></i><i></i></span>';}
+function wifiPollStart(){if(wifiTimer)return;wifiTick();}
+function wifiPollStop(){clearTimeout(wifiTimer);wifiTimer=null;}
+async function wifiTick(){
+  clearTimeout(wifiTimer);
+  try{wifiState=await(await fetch('/api/wifi/state')).json();wifiLost=0;}catch(e){wifiLost++;}
+  wifiRender();
+  const busy=wifiState&&(wifiState.scanning||(wifiState.job&&wifiState.job.state==='connecting'));
+  wifiTimer=setTimeout(wifiTick,(busy||wifiMoving)?1000:4000);}
+function wifiSay(text,cls){const e=$('wifiStat');e.textContent=text;e.className='hint'+(cls?' '+cls:'');}
+function wifiRender(){
+  const s=wifiState;
+  if(wifiMoving&&wifiLost>=3){
+    wifiSay('Mất kết nối với loa — có thể loa đã sang mạng “'+wifiMoving+'”. Hãy nối thiết bị này vào mạng đó rồi mở trang điều khiển theo địa chỉ mới của loa. Nếu loa không vào được mạng mới, nó sẽ quay lại và trang này tự hoạt động tiếp.','');
+    return;}
+  if(!s)return;
+  if(!s.ok){$('wifiNow').innerHTML='<div class="li-info"><div class="li-title">'+esc(s.error||'Không đọc được Wi-Fi')+'</div></div>';return;}
+  $('wifiNow').innerHTML=s.connected
+    ? wifiBars(s.bars)+'<div class="li-info"><div class="li-title">'+esc(s.ssid)+'</div><div class="li-sub">'
+      +esc([s.ip,s.band?s.band+' GHz':'',s.link_mbps>0?s.link_mbps+' Mbps':''].filter(Boolean).join(' · '))+'</div></div><span class="wifi-tag on">Đang dùng</span>'
+    : '<div class="li-info"><div class="li-title">Chưa vào mạng nào</div></div>';
+  $('wifiScanBtn').textContent=s.scanning?'Đang quét…':'Quét mạng';
+  $('wifiScanBtn').disabled=!!s.scanning;
+  wifiNets=(s.networks||[]).filter(n=>!n.current);
+  let html=wifiNets.map((n,i)=>{
+    const sub=[n.band?n.band+' GHz':'',WIFI_SEC[n.security]||'',n.saved?'đã lưu':''].filter(Boolean).join(' · ');
+    return '<div class="wifi-row'+(wifiSel===n.ssid?' sel':'')+'" role="button" tabindex="0" onclick="wifiPick('+i+')">'+wifiBars(n.bars)
+      +'<div class="li-info"><div class="li-title">'+esc(n.ssid)+'</div><div class="li-sub">'+esc(sub)+'</div></div>'
+      +(n.security!=='open'?WIFI_LOCK:'')
+      +(n.saved?'<button class="tbtn" style="flex:0 0 auto;width:auto;padding:0 10px" onclick="event.stopPropagation();wifiForget('+i+',false)" aria-label="Xoá mạng đã lưu">Xoá</button>':'')
+      +'</div>';}).join('');
+  if(!html)html='<div class="hint">'+(s.scanning?'(đang tìm…)':'(chưa thấy mạng nào khác — bấm Quét mạng)')+'</div>';
+  const away=s.saved_away||[];
+  if(away.length)html+='<div class="wifi-sub">Đã lưu, ngoài vùng sóng</div>'+away.map((ssid,i)=>
+    '<div class="wifi-row cur"><div class="li-info"><div class="li-title">'+esc(ssid)+'</div></div>'
+    +'<button class="tbtn" style="flex:0 0 auto;width:auto;padding:0 10px" onclick="wifiForget('+i+',true)" aria-label="Xoá mạng đã lưu">Xoá</button></div>').join('');
+  $('wifiList').innerHTML=html;
+  // How the last move went. `age_s` is the speaker's own count, so the two clocks need not agree.
+  const j=s.job||{};
+  if(wifiErr){wifiSay('✗ '+wifiErr,'err');}
+  else if(j.state==='connecting'){wifiSay('Đang chuyển loa sang mạng “'+j.ssid+'”…','');}
+  else if(j.state==='connected'&&j.age_s>=0&&j.age_s<600){wifiMoving='';wifiSay('✓ Đã vào mạng “'+j.ssid+'”. '+j.message,'good');}
+  else if(j.state==='failed'&&j.age_s>=0&&j.age_s<600){wifiMoving='';wifiSay('✗ Mạng “'+j.ssid+'”: '+j.message,'err');}
+  else if(!wifiMoving){wifiSay('','');}}
+async function wifiPost(url,obj){
+  try{return await(await fetch(url,{method:'POST',body:obj?JSON.stringify(obj):undefined})).json();}
+  catch(e){return {ok:false,error:'Không gọi được loa.'};}}
+async function wifiScan(){wifiErr='';const j=await wifiPost('/api/wifi/scan');if(!j.ok)wifiErr=j.error||'Không quét được';wifiTick();}
+function wifiSecChanged(){$('wifiPassRow').hidden=$('wifiSec').value==='open';}
+function wifiOpenForm(ssid,security,saved,manual){
+  wifiErr='';wifiSel=manual?null:ssid;
+  $('wifiForm').hidden=false;$('wifiForm').dataset.manual=manual?'1':'';
+  $('wifiSsid').value=ssid;$('wifiSsid').readOnly=!manual;
+  $('wifiSec').value=security;$('wifiSecRow').hidden=!manual;
+  $('wifiPass').value='';$('wifiPass').type='password';
+  $('wifiPass').placeholder=saved?'Để trống để dùng mật khẩu đã lưu':'Mật khẩu Wi-Fi';
+  wifiSecChanged();wifiRender();
+  setTimeout(()=>{const f=manual?$('wifiSsid'):($('wifiPassRow').hidden?$('wifiGo'):$('wifiPass'));f.focus();
+    $('wifiForm').scrollIntoView({block:'nearest',behavior:'smooth'});},50);}
+function wifiPick(i){
+  const n=wifiNets[i];if(!n)return;
+  if(n.security==='eap'){wifiCancel();wifiErr='Loa chưa hỗ trợ mạng doanh nghiệp (802.1X).';wifiRender();return;}
+  wifiOpenForm(n.ssid,n.security,n.saved,false);}
+function wifiOther(){wifiOpenForm('','psk',false,true);}
+function wifiCancel(){wifiSel=null;$('wifiForm').hidden=true;$('wifiPass').value='';wifiRender();}
+function wifiTogPass(){const p=$('wifiPass');p.type=p.type==='password'?'text':'password';}
+async function wifiConnect(){
+  const ssid=$('wifiSsid').value,manual=$('wifiForm').dataset.manual==='1';
+  const security=$('wifiSec').value,password=security==='open'?'':$('wifiPass').value;
+  if(!ssid.trim()){wifiErr='Hãy nhập tên mạng.';wifiRender();return;}
+  if(!confirm('Chuyển loa sang mạng “'+ssid+'”?\n\nTrang này có thể mất kết nối trong lúc loa đổi mạng. Nếu không vào được mạng mới, loa tự quay lại mạng cũ sau khoảng một phút.'))return;
+  wifiErr='';
+  const j=await wifiPost('/api/wifi/connect',{ssid:ssid,password:password,security:security,hidden:manual});
+  if(!j.ok){wifiErr=j.error||'Loa từ chối yêu cầu.';wifiRender();return;}
+  wifiMoving=ssid;wifiLost=0;wifiCancel();
+  wifiSay('Đang chuyển loa sang mạng “'+ssid+'”…','');wifiTick();}
+async function wifiForget(i,away){
+  const ssid=away?((wifiState&&wifiState.saved_away)||[])[i]:(wifiNets[i]||{}).ssid;if(!ssid)return;
+  if(!confirm('Xoá mạng “'+ssid+'” khỏi loa? Loa sẽ không tự vào mạng này nữa.'))return;
+  wifiErr='';const j=await wifiPost('/api/wifi/forget',{ssid:ssid});
+  if(!j.ok)wifiErr=j.error||'Không xoá được';wifiTick();}
+
+// ── About / contact ──────────────────────────────
+// One block, shown at the end of both scrolling tabs.
+const ABOUT_LINKS=[
+  ['https://dbrobot.vn','dbrobot.vn','<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="7.2"/><path d="M2.8 10h14.4M10 2.8c2.4 2.2 2.4 12.2 0 14.4M10 2.8c-2.4 2.2-2.4 12.2 0 14.4"/></svg>'],
+  ['https://www.facebook.com/hoanganhsell','Facebook','<svg viewBox="0 0 20 20" fill="currentColor"><path d="M11.4 18v-7h2.3l.4-2.8h-2.7V6.5c0-.8.3-1.3 1.4-1.3h1.4V2.7C13.9 2.6 13.2 2.5 12.3 2.500c-2 0-3.3 1.2-3.3 3.500v2.200H6.700V11H9v7z"/></svg>'],
+  ['https://zalo.me/g/pn14qw8qjp7iveodvyny','Zalo','<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.2A2.2 2.2 0 015.2 3h9.600A2.2 2.2 0 0117 5.200v6.600a2.2 2.2 0 01-2.2 2.200H9l-4 3v-3.200A2.2 2.2 0 013 11.800z"/><path d="M7.5 6.500h5l-5 4.300h5"/></svg>'],
+  ['https://www.youtube.com/@hoanganhsell','YouTube','<svg viewBox="0 0 20 20" fill="currentColor"><path d="M17.6 6.300a2 2 0 00-1.4-1.400C15 4.5 10 4.5 10 4.500s-5 0-6.2.4A2 2 0 002.4 6.300C2 7.5 2 10 2 10s0 2.5.4 3.700a2 2 0 001.4 1.400c1.2.4 6.2.4 6.2.4s5 0 6.2-.4a2 2 0 001.4-1.400c.4-1.2.4-3.7.4-3.700s0-2.5-.4-3.700zM8.3 12.500v-5l4.4 2.500z"/></svg>'],
+  ['https://www.tiktok.com/@hoanganhsell0612','TikTok','<svg viewBox="0 0 20 20" fill="currentColor"><path d="M11 2.500h2.400c.2 1.7 1.2 2.9 3.1 3.100v2.500c-1.1 0-2.1-.3-3-.900v5.500a4.7 4.7 0 11-4.7-4.700c.3 0 .5 0 .8.100v2.600a2.2 2.2 0 101.4 2z"/></svg>'],
+  ['https://dbrobot.vn/huongdan.html','Hướng dẫn','<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5.200C8.3 4 6 3.7 3 4v11c3-.3 5.3 0 7 1.2 1.7-1.2 4-1.5 7-1.200V4c-3-.3-5.3 0-7 1.200zM10 5.200v11"/></svg>'],
+];
+(function aboutMount(){
+  const html='<div class="about"><div class="about-brand"><span class="logo brand" role="img" aria-label="DB-Robot"></span>DB-ROBOT</div>'
+    +'<p>Cộng đồng phát triển chatbot AI Xiaozhi tại Việt Nam. Theo dõi và liên hệ để nhận hỗ trợ, cập nhật phần mềm mới nhất cho DB-ROBOT.</p>'
+    +'<div class="about-links">'+ABOUT_LINKS.map(l=>'<a href="'+l[0]+'" target="_blank" rel="noopener">'+l[2]+l[1]+'</a>').join('')+'</div>'
+    +'<small><span class="about-ver">DB-Robot Phicomm R1</span><br>Thiết kế và phát triển: DB_ROBOT — Copyright © 2026 - by @hoanganhsell. All rights reserved.</small></div>';
+  document.querySelectorAll('#pset .settings,#psetup .settings').forEach(el=>el.insertAdjacentHTML('beforeend',html));
+})();
+function aboutVersion(v){if(!v)return;document.querySelectorAll('.about-ver').forEach(e=>{e.textContent='DB-Robot Phicomm R1 · v'+v;});}
 
 // ── Radio stations ───────────────────────────────
 // The list never changes while the page is open, so it is fetched once, the first time the Media

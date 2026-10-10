@@ -88,6 +88,8 @@ Web control on-device (NanoHTTPD) như control center của aiboxplus. Mở `htt
   | Vị trí & thời tiết | `/api/weather`, `/api/location/search?q=`, `/api/location/set` (POST body JSON), `/api/location/clear` (xem `weather/LocationManager.kt`; công cụ MCP cho trợ lý ở `mcp/DeviceTools.kt`) |
   | Radio | `/api/radio/stations`, `/api/radio/play?id=`, `/radio/stream?id=` (đọc luồng HLS của đài bằng `media/HlsAudioStream.java` rồi chuyển cho trình phát trên máy dưới dạng AAC/MP3 liên tục; danh sách kênh và địa chỉ dự phòng ở `media/RadioStations.java`) |
   | Giọng nói | `/api/voice/pause?on=1\|0` (tắt/bật từ đánh thức, không lưu qua lần khởi động lại), `/api/voice/wake` (gọi loa bằng tay) — xem `domain/voice/VoiceGate.kt`; `pause_on_music` đặt qua `/api/set` |
+  | Wi-Fi | `/api/wifi/state`, `/api/wifi/scan`, `/api/wifi/connect` (POST body JSON `{ssid,password,security,hidden}`), `/api/wifi/forget` (POST body JSON) — xem `net/WifiSetup.java`: đổi mạng có đường lui (không vào được mạng mới sau 30 giây thì quay lại mạng cũ; mạng đang dùng không sửa/xoá được). Hai lệnh ghi bị từ chối nếu `Origin` khác `Host`. |
+  | Ảnh nền chat | `GET /api/chat/bg?v=<stamp>`, `POST /api/chat/bg/set` (body = data URL base64), `/api/chat/bg/clear`; `chat_bg` trong `/api/state` là mốc thời gian của ảnh (0 = không có) — xem `control/ChatBackground.java` |
   | Log | `/api/logs?since=<seq>` (chỉ trả entry mới hơn `seq`), `/api/logs/clear` |
   | Bản tin | `/api/news/save` (POST body JSON), `/api/news/test` |
   | Media | `/api/media/search?q=`, `/api/media/play` (POST body), `/api/media/{pause,resume,next,stop}`, `/api/media/seek?position_s=`, `/api/media/state` |
