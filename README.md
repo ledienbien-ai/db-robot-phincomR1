@@ -45,6 +45,7 @@ màn hình.
 - **Chỉnh âm thanh** — âm lượng, độ to, equalizer 5 dải, khuếch đại micro cho người nói từ xa,
   thu thử micro để nghe lại.
 - **Đèn LED** — vòng đèn của loa đổi hiệu ứng theo trạng thái: đang nghe, đang trả lời, phát nhạc.
+  Chọn hiệu ứng cho từng trạng thái trong danh sách có sẵn.
 - **Home Assistant** — chọn thiết bị nhà thông minh để trợ lý điều khiển (cần máy chủ hỗ trợ).
 - **Tự chạy khi cắm điện**, kèm khung chat và nhật ký hoạt động ngay trên trang điều khiển.
 

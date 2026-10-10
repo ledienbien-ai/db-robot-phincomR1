@@ -3,6 +3,10 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.4
+
+- Đèn LED: chọn hiệu ứng theo tên cho từng trạng thái thay vì nhập mã; đèn đổi ngay để xem thử.
+
 ## v1.5.3
 
 - Sửa lỗi không thấy bản cập nhật: loa nay tự mang danh sách chứng chỉ mới nên kết nối được tới GitHub.

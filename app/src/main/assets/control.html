@@ -265,6 +265,9 @@ body.fab-hide .fab{opacity:0;pointer-events:none;transform:translateY(12px);}
 .row{display:flex;align-items:center;gap:10px;margin:11px 0;}
 /* display:flex above beats the hidden attribute, so a row hidden from script stayed on screen. */
 .row[hidden]{display:none;}
+/* The code field of a custom LED effect belongs to the row above it. */
+.row.led-custom{margin-top:-4px;}
+#ledHint.err{color:var(--err);}
 /* 90px was sized against English labels and wrapped the longer Vietnamese ones ("Khuếch đại tối
    đa") onto a second line, which pushed that row taller and broke the column alignment with the
    rows above it. Widened to fit the longest label on one line; the controls beside it still have
@@ -761,11 +764,15 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
     </div>
     <div class="card">
       <div class="ch"><span class="icon-badge ib-led"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2a5 5 0 00-3 9c.6.5 1 1.2 1 2h4c0-.8.4-1.5 1-2a5 5 0 00-3-9z"/><line x1="8.3" y1="16" x2="11.7" y2="16"/><line x1="8.6" y1="18" x2="11.4" y2="18"/></svg></span><h2>Đèn LED</h2></div>
-      <div class="row"><label class="wide"><span class="icon-mini ib-wake"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="4" cy="16" r="1.3" fill="currentColor" stroke="none"/><path d="M7 13a6 6 0 018 0"/><path d="M9.3 15.3a3 3 0 014 0"/></svg></span>Đang nghe</label><input class="codein" id="ledL" onchange="set('led_listening',this.value)"><button class="tbtn" onclick="testLed('led_listening','ledL','listening')" aria-label="Xem thử đèn Đang nghe"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button></div>
-      <div class="row"><label class="wide"><span class="icon-mini ib-voice"><svg viewBox="0 0 20 20" fill="currentColor"><rect x="2" y="7" width="2.2" height="6" rx="1.1"/><rect x="6.3" y="4" width="2.2" height="12" rx="1.1"/><rect x="10.6" y="1" width="2.2" height="18" rx="1.1"/><rect x="14.9" y="4" width="2.2" height="12" rx="1.1"/></svg></span>Đang trả lời</label><input class="codein" id="ledS" onchange="set('led_speaking',this.value)"><button class="tbtn" onclick="testLed('led_speaking','ledS','speaking')" aria-label="Xem thử đèn Đang trả lời"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button></div>
-      <div class="row"><label class="wide"><span class="icon-mini ib-eq"><svg viewBox="0 0 20 20" fill="currentColor"><circle cx="5" cy="15" r="2.2"/><rect x="6.8" y="3" width="1.4" height="12" rx="0.7"/><path d="M8.2 3c2 .2 3.3 1.4 3.3 3.4" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></span>Phát nhạc</label><input class="codein" id="ledM" onchange="set('led_music',this.value)"><button class="tbtn" onclick="testLed('led_music','ledM','music')" aria-label="Xem thử đèn Phát nhạc"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button></div>
-      <div class="row"><label class="wide"><span class="icon-mini ib-sys"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M14 10.5A5.5 5.5 0 018.8 4 6 6 0 1014 10.5z"/></svg></span>Chờ</label><input class="codein" id="ledI" onchange="set('led_idle',this.value)"><button class="tbtn" onclick="testLed('led_idle','ledI','idle')" aria-label="Xem thử đèn Chờ"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button></div>
-      <div class="hint">Mã hiệu ứng đèn cho từng trạng thái. Nhiều mã cách nhau bằng dấu phẩy (vd "505,309,503" = nhịp thở). Nhấn <span class="btn-ico" style="margin:0"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></span> để xem ngay trên đèn thật.</div>
+      <div class="row"><label class="wide"><span class="icon-mini ib-wake"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="4" cy="16" r="1.3" fill="currentColor" stroke="none"/><path d="M7 13a6 6 0 018 0"/><path d="M9.3 15.3a3 3 0 014 0"/></svg></span>Đang nghe</label><select id="ledSelL" style="flex:1" onchange="ledPick('L')" aria-label="Hiệu ứng đèn khi đang nghe"></select><button class="tbtn" onclick="ledApply('L')" aria-label="Xem thử đèn Đang nghe"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button></div>
+      <div class="row led-custom" id="ledRowL" hidden><label class="wide">Mã tuỳ chỉnh</label><input class="codein" id="ledL" placeholder="ví dụ 505,309,503" onchange="ledApply('L')"></div>
+      <div class="row"><label class="wide"><span class="icon-mini ib-voice"><svg viewBox="0 0 20 20" fill="currentColor"><rect x="2" y="7" width="2.2" height="6" rx="1.1"/><rect x="6.3" y="4" width="2.2" height="12" rx="1.1"/><rect x="10.6" y="1" width="2.2" height="18" rx="1.1"/><rect x="14.9" y="4" width="2.2" height="12" rx="1.1"/></svg></span>Đang trả lời</label><select id="ledSelS" style="flex:1" onchange="ledPick('S')" aria-label="Hiệu ứng đèn khi đang trả lời"></select><button class="tbtn" onclick="ledApply('S')" aria-label="Xem thử đèn Đang trả lời"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button></div>
+      <div class="row led-custom" id="ledRowS" hidden><label class="wide">Mã tuỳ chỉnh</label><input class="codein" id="ledS" placeholder="ví dụ 505,309,503" onchange="ledApply('S')"></div>
+      <div class="row"><label class="wide"><span class="icon-mini ib-eq"><svg viewBox="0 0 20 20" fill="currentColor"><circle cx="5" cy="15" r="2.2"/><rect x="6.8" y="3" width="1.4" height="12" rx="0.7"/><path d="M8.2 3c2 .2 3.3 1.4 3.3 3.4" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></span>Phát nhạc</label><select id="ledSelM" style="flex:1" onchange="ledPick('M')" aria-label="Hiệu ứng đèn khi phát nhạc"></select><button class="tbtn" onclick="ledApply('M')" aria-label="Xem thử đèn Phát nhạc"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button></div>
+      <div class="row led-custom" id="ledRowM" hidden><label class="wide">Mã tuỳ chỉnh</label><input class="codein" id="ledM" placeholder="ví dụ 505,309,503" onchange="ledApply('M')"></div>
+      <div class="row"><label class="wide"><span class="icon-mini ib-sys"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M14 10.5A5.5 5.5 0 018.8 4 6 6 0 1014 10.5z"/></svg></span>Chờ</label><select id="ledSelI" style="flex:1" onchange="ledPick('I')" aria-label="Hiệu ứng đèn khi chờ"></select><button class="tbtn" onclick="ledApply('I')" aria-label="Xem thử đèn Chờ"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></button></div>
+      <div class="row led-custom" id="ledRowI" hidden><label class="wide">Mã tuỳ chỉnh</label><input class="codein" id="ledI" placeholder="ví dụ 505,309,503" onchange="ledApply('I')"></div>
+      <div class="hint" id="ledHint">Chọn hiệu ứng đèn cho từng trạng thái của loa. Đèn đổi ngay để bạn xem thử, rồi tự trở lại sau vài giây.<details><summary>Chi tiết</summary><p>Mỗi dòng là một trạng thái: loa đang nghe bạn nói, đang trả lời, đang phát nhạc, hoặc đang chờ. Bấm nút ▶ để xem lại hiệu ứng đang chọn.</p><p><b>Tuỳ chỉnh (nhập mã)</b> dành cho người biết mã hiệu ứng của loa: nhập một mã, hoặc nhiều mã cách nhau bằng dấu phẩy để chạy nối tiếp.</p></details></div>
     </div>
     <div class="card">
       <div class="ch"><span class="icon-badge ib-sys"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/><line x1="10" y1="2" x2="10" y2="4.2"/><line x1="10" y1="15.8" x2="10" y2="18"/><line x1="2" y1="10" x2="4.2" y2="10"/><line x1="15.8" y1="10" x2="18" y2="10"/><line x1="4.6" y1="4.6" x2="6.1" y2="6.1"/><line x1="13.9" y1="13.9" x2="15.4" y2="15.4"/><line x1="15.4" y1="4.6" x2="13.9" y2="6.1"/><line x1="6.1" y1="13.9" x2="4.6" y2="15.4"/></svg></span><h2>Hệ thống</h2></div>
@@ -1075,7 +1082,50 @@ const SR_IDS=['sr16','sr24','sr48'];
 const srId=v=>+v===16000?'sr16':(+v===24000?'sr24':'sr48');
 function setSr(v){activateSeg(SR_IDS,srId(v));set('playback_sr',v);}
 function setCh(v){activateSeg(['ch1','ch2'],v===2?'ch2':'ch1');set('playback_ch',v);}
-function testLed(key,id,state){fetch(`/api/set?key=${key}&value=${encodeURIComponent($(id).value)}`,{method:'POST'}).then(()=>fetch('/api/led?state='+state,{method:'POST'}));}
+// ── LED effects ──────────────────────────────────
+// The speaker's light ring is driven by numeric effect codes. People pick an effect by name; the
+// codes stay out of sight unless "custom" is chosen. The names say what the firmware uses each
+// effect FOR (they are its own defaults for these four states, plus two built-in sequences) --
+// that is all that is known about them, so none of them claims a colour.
+const LED_PRESETS=[
+  {n:'Kiểu nghe lệnh',c:'501'},
+  {n:'Kiểu trả lời',c:'204'},
+  {n:'Kiểu phát nhạc',c:'309'},
+  {n:'Kiểu chờ',c:'504'},
+  {n:'Nhịp thở',c:'505,309,503'},
+  {n:'Báo lỗi',c:'309,210'}];
+const LED_ROWS={
+  L:{key:'led_listening',state:'listening',def:'501'},
+  S:{key:'led_speaking',state:'speaking',def:'204'},
+  M:{key:'led_music',state:'music',def:'309'},
+  I:{key:'led_idle',state:'idle',def:'504'}};
+const ledCustom={};   // rows where the owner asked for the code field, whatever the saved value is
+const ledNorm=v=>(v||'').replace(/\s+/g,'');
+function ledBuild(){
+  for(const k in LED_ROWS){
+    $('ledSel'+k).innerHTML=LED_PRESETS.map(p=>`<option value="${p.c}">${p.n}${p.c===LED_ROWS[k].def?' (mặc định)':''}</option>`).join('')
+      +'<option value="custom">Tuỳ chỉnh (nhập mã)…</option>';}}
+// Show what is saved: a known effect by its name, anything else as a custom code.
+function ledSync(k,saved){
+  const sel=$('ledSel'+k),inp=$('led'+k);
+  if(document.activeElement===sel||document.activeElement===inp)return;
+  const v=ledNorm(saved),known=LED_PRESETS.some(p=>p.c===v);
+  const custom=!!ledCustom[k]||(!known&&v!=='');
+  sel.value=custom?'custom':(known?v:LED_ROWS[k].def);
+  $('ledRow'+k).hidden=!custom;
+  inp.value=v;}
+function ledPick(k){
+  const sel=$('ledSel'+k);
+  if(sel.value==='custom'){ledCustom[k]=true;$('ledRow'+k).hidden=false;$('led'+k).focus();return;}
+  ledCustom[k]=false;$('ledRow'+k).hidden=true;$('led'+k).value=sel.value;ledApply(k);}
+// Save the row's effect and show it on the real ring.
+function ledApply(k){
+  const r=LED_ROWS[k],v=ledNorm($('led'+k).value),h=$('ledHint');
+  if(!/^\d+(,\d+)*$/.test(v)){h.classList.add('err');h.firstChild.textContent='Mã hiệu ứng chỉ gồm số, nhiều mã cách nhau bằng dấu phẩy (ví dụ 505,309,503).';return;}
+  if(h.classList.contains('err')){h.classList.remove('err');h.firstChild.textContent=LED_HINT;}
+  fetch(`/api/set?key=${r.key}&value=${encodeURIComponent(v)}`,{method:'POST'}).then(()=>fetch('/api/led?state='+r.state,{method:'POST'}));}
+const LED_HINT=$('ledHint').firstChild.textContent;
+ledBuild();
 
 // ── Theme toggle ──────────────────────────────────
 function toggleTheme(){
@@ -1315,10 +1365,7 @@ function render(s){
   $('agc').checked=s.agc_enabled;
   $('agct').value=s.agc_target;$('agctv').textContent=(+s.agc_target).toFixed(2);
   $('agcm').value=s.agc_max_gain;$('agcmv').textContent=(+s.agc_max_gain).toFixed(0)+'x';
-  if(document.activeElement!==$('ledL'))$('ledL').value=s.led_listening||'';
-  if(document.activeElement!==$('ledS'))$('ledS').value=s.led_speaking||'';
-  if(document.activeElement!==$('ledM'))$('ledM').value=s.led_music||'';
-  if(document.activeElement!==$('ledI'))$('ledI').value=s.led_idle||'';
+  ledSync('L',s.led_listening);ledSync('S',s.led_speaking);ledSync('M',s.led_music);ledSync('I',s.led_idle);
   activateSeg(SR_IDS,srId(s.playback_sr));
   activateSeg(['ch1','ch2'],s.playback_ch==2?'ch2':'ch1');
   // The two ends cannot negotiate the format, so a mismatch is not a quality loss -- it is noise.

@@ -254,13 +254,39 @@ class ControlServer @Inject constructor(
         return true
     }
 
+    /** Counts previews, so that only the latest one puts the ring back afterwards. */
+    private val ledPreviews = java.util.concurrent.atomic.AtomicInteger()
+
+    /**
+     * Show one state's effect on the ring because somebody is choosing it in the panel -- and put
+     * the ring back a few seconds later, or it would go on showing "listening" over a speaker that
+     * is doing nothing until the next real change of state.
+     */
     private fun previewLed(name: String) {
-        led.preview(when (name) {
+        val shown = when (name) {
             "listening" -> LedState.LISTENING
             "speaking" -> LedState.SPEAKING
             "music" -> LedState.MUSIC
             else -> LedState.IDLE
-        })
+        }
+        led.preview(shown)
+        val ticket = ledPreviews.incrementAndGet()
+        Thread {
+            try {
+                Thread.sleep(LED_PREVIEW_MS)
+            } catch (e: InterruptedException) {
+                return@Thread
+            }
+            if (ticket != ledPreviews.get()) return@Thread   // a newer preview owns the ring now
+            val voice = info.dourok.voicebot.domain.voice.VoiceDebugState
+            val real = when {
+                !voice.awake -> LedState.IDLE
+                voice.voiceState == "LISTENING" -> LedState.LISTENING
+                voice.voiceState == "SPEAKING" -> LedState.SPEAKING
+                else -> LedState.IDLE
+            }
+            if (real != shown) led.preview(real)
+        }.start()
     }
 
     /**
@@ -1018,6 +1044,8 @@ class ControlServer @Inject constructor(
         private const val TAG = "ControlServer"
         private const val PYTUBE_PORT = 114   // services/pytube_api.py binds this
         const val PORT = 8088
+        /** How long an effect chosen in the panel stays on the ring before the real state returns. */
+        private const val LED_PREVIEW_MS = 6_000L
         /** Phrase that makes the server's get_news_bulletin tool fire. Shared with
          * NewsAlarmReceiver so the button and the daily alarm cannot drift apart. */
         const val NEWS_PHRASE = "đọc bản tin"
