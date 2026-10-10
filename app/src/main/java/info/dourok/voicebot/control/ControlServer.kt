@@ -128,6 +128,9 @@ class ControlServer @Inject constructor(
                 json("""{"ok":true}""")
             }
             "/api/media/state" -> json(buildMediaState())
+            // The player's spectrum bars. Polled several times a second while a song plays and
+            // the Media tab is open, so it is its own tiny reply rather than part of the state.
+            "/api/media/spectrum" -> json(if (localMusic()) LocalMusicPlayer.spectrumJson() else """{"ok":false}""")
             "/api/logs" -> json(buildLogs(param(session, "since").toLongOrNull() ?: 0L))
             "/api/logs/clear" -> { AppLog.clear(); AppLog.i("Đã xoá log"); json("""{"ok":true}""") }
             // Bluetooth audio out. Its own endpoint, polled only while the card is open: a scan's

@@ -19,6 +19,9 @@ Bản DB-Robot của [kuteo-git/xiaozhi-android](https://github.com/kuteo-git/xi
   có máy chủ cố định `https://ms.dbrobot.vn` (mặc định, `AppConfig.MUSIC_URL`) và ô Tuỳ chỉnh cho
   máy chủ nhạc riêng. Nhạc tự tạm dừng khi trợ lý nghe/nói và
   phát tiếp khi phiên thoại kết thúc; bấm nút trên loa lúc đang phát nhạc là dừng nhạc.
+  Tab Media là một trình phát đầy đủ: đĩa xoay, quang phổ, thanh âm lượng, nút phát/dừng/bài kế.
+  Quang phổ là FFT thật của bài đang phát trên loa (`android.media.audiofx.Visualizer` gắn vào
+  phiên âm thanh của trình phát, trang điều khiển đọc qua `/api/media/spectrum`).
 
 Các tính năng cần máy chủ riêng của bản gốc ([kuteo-git/robot-esp32](https://github.com/kuteo-git/robot-esp32))
 không hoạt động với máy chủ xiaozhi thông thường. Bốn thẻ của chúng — Giọng đọc, Bản tin,

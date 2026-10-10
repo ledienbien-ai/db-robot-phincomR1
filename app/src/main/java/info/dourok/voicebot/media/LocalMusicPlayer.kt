@@ -2,6 +2,7 @@ package info.dourok.voicebot.media
 
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.media.audiofx.Visualizer
 import android.os.Handler
 import android.os.Looper
 import info.dourok.voicebot.domain.voice.AppLog
@@ -45,6 +46,15 @@ object LocalMusicPlayer {
 
     private const val TICK_MS = 500L
 
+    /** Bars the panel draws. */
+    private const val BANDS = 40
+    /** FFT window asked of the platform (clamped to what it supports); 1024 gives ~43 Hz bins. */
+    private const val FFT_SIZE = 1024
+    /** Share of the spectrum drawn: above this there is little but hiss in a 128k MP3. */
+    private const val SPECTRUM_SHARE = 0.72
+    /** Level, in dB below full scale, that maps to an empty bar. */
+    private const val FLOOR_DB = 48.0
+
     private val main = Handler(Looper.getMainLooper())
     private var player: MediaPlayer? = null   // main thread only
     private var prepared = false              // main thread only
@@ -58,6 +68,12 @@ object LocalMusicPlayer {
     // Set when a voice session interrupted a song that was playing, so only that song is resumed
     // afterwards -- one the user paused by hand stays paused.
     @Volatile private var heldForVoice = false
+
+    // The platform's own analyser, attached to the playing song's audio session. Created and
+    // released on the main thread with the player; read from HTTP worker threads, hence the lock.
+    private val vizLock = Any()
+    private var visualizer: Visualizer? = null
+    private var fftBuf: ByteArray? = null
 
     /** A song is coming out of the speaker, or is about to. */
     val isActive: Boolean
@@ -126,6 +142,63 @@ object LocalMusicPlayer {
         }
     }
 
+    /**
+     * Current spectrum as [BANDS] levels 0..255, low frequencies first, as a JSON reply. All zero
+     * while nothing is playing; `{"ok":false}` when the platform gave us no analyser at all, so the
+     * panel can stop asking.
+     */
+    fun spectrumJson(): String {
+        val levels = IntArray(BANDS)
+        synchronized(vizLock) {
+            val v = visualizer ?: return """{"ok":false}"""
+            val buf = fftBuf ?: return """{"ok":false}"""
+            if (state == PLAYING) {
+                try {
+                    if (v.getFft(buf) == Visualizer.SUCCESS) fillBands(buf, levels)
+                } catch (e: Throwable) {
+                    // released underneath us between songs -- an empty frame is the right answer
+                }
+            }
+        }
+        val sb = StringBuilder(BANDS * 4 + 24)
+        sb.append("""{"ok":true,"bands":[""")
+        for (i in 0 until BANDS) {
+            if (i > 0) sb.append(',')
+            sb.append(levels[i])
+        }
+        sb.append("]}")
+        return sb.toString()
+    }
+
+    /**
+     * Fold the platform's FFT into [BANDS] bars. [fft] is its packed layout: two real values first
+     * (DC, Nyquist), then (real, imaginary) byte pairs for bins 1..n/2-1. Bars are spaced
+     * logarithmically -- music is, and linear bars would spend most of the width on treble -- and
+     * each takes the peak of its bins on a dB scale, which is how loudness is heard.
+     */
+    private fun fillBands(fft: ByteArray, out: IntArray) {
+        val bins = fft.size / 2
+        val top = (bins * SPECTRUM_SHARE).toInt().coerceIn(2, bins - 1)
+        var lo = 1
+        for (b in 0 until out.size) {
+            val edge = Math.pow(top.toDouble(), (b + 1).toDouble() / out.size).toInt()
+            val hi = edge.coerceIn(lo + 1, top + 1)
+            var peak = 0.0
+            for (k in lo until hi) {
+                if (k >= bins) break
+                val re = fft[2 * k].toDouble()
+                val im = fft[2 * k + 1].toDouble()
+                val mag = Math.sqrt(re * re + im * im)
+                if (mag > peak) peak = mag
+            }
+            // 181 = |(-128, -128)|, the largest magnitude a byte pair can hold.
+            val db = 20.0 * Math.log10(peak / 181.0 + 1e-6)
+            out[b] = (((db + FLOOR_DB) / FLOOR_DB).coerceIn(0.0, 1.0) * 255.0).toInt()
+            lo = hi
+            if (lo > top) break
+        }
+    }
+
     /** Same shape as the server-driven media state, so the panel needs no second code path. */
     fun snapshot(): String {
         val q = queue
@@ -172,6 +245,7 @@ object LocalMusicPlayer {
                 if (mp === player) {
                     prepared = true
                     durationMs = try { mp.duration.coerceAtLeast(0) } catch (e: Exception) { 0 }
+                    attachVisualizer(mp.audioSessionId)
                     if (wantPlaying) {
                         mp.start()
                         state = PLAYING
@@ -242,8 +316,50 @@ object LocalMusicPlayer {
         state = endState
     }
 
+    /**
+     * Attach the spectrum analyser to this song's audio session. Purely decorative, so any failure
+     * (the engine refusing to initialise is a known per-ROM hazard) costs the bars and nothing else.
+     */
+    private fun attachVisualizer(sessionId: Int) {
+        detachVisualizer()
+        try {
+            val v = Visualizer(sessionId)
+            v.setEnabled(false)
+            val range = Visualizer.getCaptureSizeRange()
+            v.setCaptureSize(FFT_SIZE.coerceIn(range[0], range[1]))
+            // Normalised: otherwise the levels follow the volume slider and a quiet room shows
+            // an empty display for a song that is plainly playing.
+            v.setScalingMode(Visualizer.SCALING_MODE_NORMALIZED)
+            v.setEnabled(true)
+            synchronized(vizLock) {
+                fftBuf = ByteArray(v.getCaptureSize())
+                visualizer = v
+            }
+        } catch (e: Throwable) {
+            AppLog.w("Không bật được quang phổ nhạc: ${e.message}")
+        }
+    }
+
+    private fun detachVisualizer() {
+        val v = synchronized(vizLock) {
+            val current = visualizer
+            visualizer = null
+            fftBuf = null
+            current
+        }
+        if (v != null) {
+            try {
+                v.setEnabled(false)
+                v.release()
+            } catch (e: Throwable) {
+                // already gone with its audio session
+            }
+        }
+    }
+
     private fun releasePlayer() {
         main.removeCallbacks(tick)
+        detachVisualizer()
         val p = player
         player = null
         prepared = false
