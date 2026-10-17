@@ -353,6 +353,8 @@ object SpeakerLink {
         }
     }
 
+    private val VIDEO_ID = Regex("id=(?:yt_)?([A-Za-z0-9_-]{11})(?:&|$)")
+
     /** Everything a display shows, kept well under one datagram. */
     fun state(): String {
         val o = JSONObject()
@@ -379,8 +381,16 @@ object SpeakerLink {
                 id.contains("id=yt_") -> "YouTube"
                 else -> "Nhạc"
             }
-            o.put("m", JSONObject().put("s", np[0]).put("ti", tail(np[1] as String, 120))
-                .put("ar", tail(np[2] as String, 80)).put("src", src).put("pos", np[4]).put("dur", np[5]))
+            val m = JSONObject().put("s", np[0]).put("ti", tail(np[1] as String, 120))
+                .put("ar", tail(np[2] as String, 80)).put("src", src).put("pos", np[4]).put("dur", np[5])
+            // a song from the music server: the display can fetch its cover / picture from there
+            if (src == "YouTube" || src == "Nhạc") {
+                VIDEO_ID.find(id)?.let { mt ->
+                    m.put("vid", mt.groupValues[1])
+                    o.put("mu", Settings.musicUrl.trim().trimEnd('/'))
+                }
+            }
+            o.put("m", m)
         }
         LocationManager.cachedNow()?.let { o.put("wx", it) }
         val al = JSONObject()

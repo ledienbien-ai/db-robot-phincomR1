@@ -351,14 +351,14 @@ qua trợ lý:
 - Chỗ dễ sai: câu thông báo phụ thuộc LLM chịu nhắc lại nguyên văn; và `awaitServerFrame()` coi
   BẤT KỲ frame nào là "máy chủ đã nhận", kể cả frame MCP ngay sau hello.
 
-### Nhóm loa & SpeakerLink (UDP 8089) — v1.5.15, CHƯA đo trên loa thật
+### Nhóm loa & SpeakerLink (UDP 8089) — v1.5.15 (màn hình phụ 1.5.16), CHƯA đo trên loa thật
 
 - `link/SpeakerLink.kt` bind UDP **8089** (reuseAddress, broadcast). JSON một datagram/tin:
   `{"t":"find"}` → `{"t":"here",id,name,ip,ver,model,vol,playing,leader}`; `{"t":"sub","name"}` (lease 20s,
   màn hình gửi lại mỗi 8s) → đẩy `{"t":"st",name,ip,ver,vs,awake,emo,mute,vol,user,bot,m:{s,ti,ar,src,pos,dur},wx:{t,c,d,day,city},al:{next,ring},group,tm,tzo}`
   mỗi khi khác (so chuỗi, poll 200ms) + keepalive 3s; `tm`/`tzo` gắn lúc gửi để đồng hồ không tính là thay đổi.
   Phổ: nhị phân `'S','P'` + 32 byte, 66ms, chỉ khi có subscriber; im lặng gửi một khung 0 rồi thôi. `{"t":"bye"}`,
-  `{"t":"cmd","c":wake|sleep|pause|resume|next|stop|vol+|vol-|alarm_stop}`. Datagram st có thể >1500 byte
+  `{"t":"cmd","c":wake|sleep|mute|unmute|pause|resume|next|stop|vol+|vol-|alarm_stop}` (`mute`/`unmute` = `VoiceGate.paused`, từ 1.5.16). Datagram st có thể >1500 byte
   (user/bot 280 ký tự tiếng Việt) → bên nhận phải ghép mảnh IP (firmware bật `LWIP_IP4_REASSEMBLY`).
 - `link/GroupSync.kt` (object, cài vào `LocalMusicPlayer.groupLeader` khi `groupSync && members`):
   `startAt` trên loa chính tạo token → `onTrack` → POST `/api/group/play` song song tới từng loa (follower
@@ -372,6 +372,14 @@ qua trợ lý:
   commit, `.gitignore`), build với `IDF_COMPONENT_MANAGER=0`; LVGL cần thư mục rỗng `examples/` `demos/`. Có preview
   desktop của `ui.c` (stub link/net, render PPM) và đã boot thử trên QEMU esp32s3 không LCD (bắt được lỗi link_state
   trước link_init). QEMU không giả lập SPI LCD → `display_init` thật treo ở đó; đó là giới hạn QEMU, không phải lỗi.
+  **1.5.16**: `ui.c` viết lại — hai bảng màu `pal_t` (tối đỏ / sáng xanh dbrobot.vn, như control.html) chọn bằng `g_cfg.light`,
+  đổi giao diện = dựng lại cả màn hình (`request_rebuild` → `lv_async_call`, vì widget đang bắn sự kiện không tự xoá được mình);
+  `lv_tileview` hai ô (trang chính | menu Ứng dụng) + "sheet" cài đặt phủ lên; tự về trang chính sau 45 giây không chạm
+  hoặc khi có người nói. Nút "Tắt nghe" ở trang trò chuyện gửi `sleep` rồi `mute`, khoá chat (`chat_locked`) đến khi loa im 1.5 s (tối đa 20 s, lặp `sleep` mỗi 2 s). Hình bài hát (1.5.19): `st.m.vid` + `st.mu` → màn hình tải `/video_mjpeg` của máy chủ nhạc (`video.c`). Menu Ứng dụng: Màn hình / Âm lượng / Báo thức / Radio / Podcast / Nhạc / Gọi loa / Tìm loa / Thông tin; Radio, Podcast, Nhạc, Báo thức đi qua `req`/`play`/`al` trong `SpeakerLink.handleApi` (worker thread, HTTP loopback tới ControlServer + AlarmScheduler).  Màn ST7789: panel giữ 240×320 dọc đúng thông
+  số hãng (`board.h`), `display.c` xoay hình ngang bằng `lv_display_set_rotation` + `lv_draw_sw_rotate` (270 = chiều cũ của
+  swap+mirror_x, nên calibration đã lưu vẫn khớp; "Xoay 180°" = 90). ⚠️ LVGL 9.2 muốn điểm chạm ở khung DỌC của panel
+  rồi tự xoay — `touch_cb` đổi ngược từ toạ độ ngang đã hiệu chỉnh. `cfg_t.light` thêm ở cuối; blob NVS cũ ngắn hơn vẫn đọc được.
+  Mô phỏng trên máy (`sim`, stub link/net/display, cùng đường flush xoay + chạm giả) dựng đủ các trang sáng/tối.
 
 ### adb rớt giữa một lần push để lại adbd chết mà cổng vẫn "open"
 

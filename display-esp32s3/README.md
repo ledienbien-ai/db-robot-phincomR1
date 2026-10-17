@@ -163,3 +163,10 @@ esptool.py --chip esp32s3 merge_bin -o DBR1-Display-ESP32S3.bin --flash_mode dio
 | `main/link.c` | tìm loa và nhận trạng thái qua UDP 8089 |
 | `main/ui.c` | các màn hình, giao diện sáng/tối, menu Ứng dụng |
 | `main/cfg.c` | cài đặt lưu trong NVS |
+
+## Hình bài hát (1.5.19)
+
+Gói `st` của loa có thêm `m.vid` (mã video 11 ký tự) và `mu` (địa chỉ máy chủ nhạc) khi bài đang phát đến từ máy chủ nhạc. Màn hình (`video.c`) tải
+`<mu>/video_mjpeg?id=<vid>&ss=<giây>` — multipart/x-mixed-replace các ảnh JPEG baseline 4:2:0 320×240 — bằng `esp_http_client` (HTTPS dùng bộ chứng chỉ có sẵn),
+giải mã bằng TJpgDec trong ROM của ESP32-S3 ra RGB565 (3 bộ đệm trong PSRAM). Nút "Hình" ở trang nhạc mở lớp phủ toàn màn hình. Nếu `main/CMakeLists.txt` có `REQUIRES`,
+thêm `esp_http_client esp-tls mbedtls`.

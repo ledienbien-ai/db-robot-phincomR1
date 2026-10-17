@@ -28,6 +28,7 @@
 #include "cfg.h"
 #include "display.h"
 #include "touch.h"
+#include "video.h"
 #include "board.h"
 #ifdef ESP_PLATFORM
 #include "freertos/FreeRTOS.h"
@@ -160,6 +161,10 @@ static uint32_t c_hash;
 static lv_obj_t *v_face, *v_eye[2], *v_mouth_arc, *v_mouth_o, *v_state, *v_scroll, *v_user, *v_bot, *v_btn;
 static int v_anim;
 /* music */
+static lv_obj_t *v_btn, *v_layer, *v_img, *v_msg;   // picture of the song (video.c)
+static lv_image_dsc_t v_dsc;
+static uint32_t v_seq;
+static char v_vid[12];
 static lv_obj_t *m_title, *m_artist, *m_bars[LINK_BANDS], *m_bar, *m_pos, *m_dur, *m_play;
 static uint8_t m_level[LINK_BANDS];
 /* idle */
@@ -301,7 +306,7 @@ static void backlight_update(void)
         if (tm.tm_hour >= 22 || tm.tm_hour < 6) b = b * 25 / 100;
     }
     // ringing, talking, or setting the brightness: the real level
-    if (st.al_ring[0] || cur_page == P_VOICE || sheet_app == APP_SETTINGS) b = g_cfg.bright;
+    if (st.al_ring[0] || cur_page == P_VOICE || sheet_app == APP_SETTINGS || v_layer) b = g_cfg.bright;
     if (b < 3) b = 3;
     static int last = -1;
     if (b != last) { display_backlight(b); last = b; }
@@ -636,12 +641,87 @@ static void update_voice_text(void)
 
 static void play_cb(lv_event_t *e) { link_cmd(!strcmp(st.ms, "playing") ? "pause" : "resume"); }
 
+/* ── the song's picture: a full-screen overlay fed by video.c ─────────────────────── */
+
+static void close_video(void)
+{
+    if (!v_layer) return;
+    video_stop();
+    lv_obj_delete(v_layer);
+    v_layer = v_img = v_msg = NULL;
+}
+
+static void video_tap_cb(lv_event_t *e) { close_video(); }
+
+static void open_video(void)
+{
+    if (v_layer || !st.has_m || !st.vid[0] || !st.mu[0]) return;
+    int pos = st.pos;
+    if (!strcmp(st.ms, "playing")) pos += (int)((NOW_US() - st.got_us) / 1000000);
+    snprintf(v_vid, sizeof v_vid, "%s", st.vid);
+    v_layer = box(lv_layer_top(), 0, 0, LCD_H_RES, LCD_V_RES);
+    lv_obj_set_style_bg_opa(v_layer, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(v_layer, lv_color_hex(0x000000), 0);
+    lv_obj_add_flag(v_layer, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(v_layer, video_tap_cb, LV_EVENT_CLICKED, NULL);
+    v_img = lv_image_create(v_layer);
+    lv_obj_set_pos(v_img, 0, 0);
+    lv_obj_remove_flag(v_img, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(v_img, LV_OBJ_FLAG_HIDDEN);
+    v_msg = label(v_layer, &font_vn18, 0xCBD5E1, "Đang tải hình…");
+    lv_obj_set_width(v_msg, 300);
+    lv_label_set_long_mode(v_msg, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(v_msg, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(v_msg, LV_ALIGN_CENTER, 0, 0);
+    memset(&v_dsc, 0, sizeof v_dsc);
+    v_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+    v_dsc.header.cf = LV_COLOR_FORMAT_RGB565;
+    v_dsc.header.w = 320;
+    v_dsc.header.h = 240;
+    v_dsc.header.stride = 640;
+    v_dsc.data_size = 320 * 240 * 2;
+    v_seq = 0;
+    video_start(st.mu, st.vid, pos + 1);
+}
+
+static void video_btn_cb(lv_event_t *e) { open_video(); }
+
+static void update_video(void)
+{
+    if (v_btn) {
+        bool can = st.has_m && st.vid[0] && st.mu[0];
+        if (can) lv_obj_remove_flag(v_btn, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(v_btn, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (!v_layer) return;
+    // another song, nothing playing, or the alarm: the picture is no longer the right one
+    if (!st.has_m || strcmp(st.vid, v_vid) || st.al_ring[0]) { close_video(); return; }
+    char m[80];
+    vid_state_t vs = video_state(m, sizeof m);
+    const uint16_t *f = video_frame(&v_seq);
+    if (f) {
+        v_dsc.data = (const uint8_t *)f;
+        lv_image_set_src(v_img, &v_dsc);
+        lv_obj_remove_flag(v_img, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(v_msg, LV_OBJ_FLAG_HIDDEN);
+        lv_image_cache_drop(&v_dsc);
+        lv_obj_invalidate(v_img);
+    } else if (vs == VID_ERROR) {
+        lv_obj_add_flag(v_img, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(v_msg, LV_OBJ_FLAG_HIDDEN);
+        set_text(v_msg, m[0] ? m : "Không có hình");
+    }
+    lv_display_trigger_activity(NULL);   // keep the screen on while the picture is up
+}
+
 static void build_music(lv_obj_t *p)
 {
     m_title = label(p, &font_vn24, C_TEXT, "");
     lv_obj_set_pos(m_title, 10, 2);
-    lv_obj_set_width(m_title, LCD_H_RES - 20);
+    lv_obj_set_width(m_title, LCD_H_RES - 70);
     lv_label_set_long_mode(m_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    v_btn = button(p, LCD_H_RES - 56, 4, 48, 26, "Hình", &font_vn14, false, NULL);
+    lv_obj_add_event_cb(v_btn, video_btn_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_flag(v_btn, LV_OBJ_FLAG_HIDDEN);
     m_artist = label(p, &font_vn14, C_MUTED, "");
     lv_obj_set_pos(m_artist, 10, 36);
     lv_obj_set_width(m_artist, LCD_H_RES - 20);
@@ -1901,6 +1981,7 @@ static void tick_timer(lv_timer_t *t)
     }
     if (p != P_CHOOSE) c_count = -1;
     poll_menu();
+    update_video();
     update_alarm();
     update_dots();
     if (sheet_app == APP_SETTINGS) update_volume_sheet();
@@ -1964,8 +2045,10 @@ static void rebuild_cb(void *arg)
 {
     rb_pending = false;
     apply_palette();
+    close_video();
     if (a_layer) lv_obj_delete(a_layer);
     a_layer = NULL;
+    v_btn = NULL;
     lv_obj_clean(lv_screen_active());
     build_all();
     if (rb_tile) lv_tileview_set_tile_by_index(tv, 1, 0, LV_ANIM_OFF);

@@ -22,6 +22,7 @@ typedef struct {
     char user[900], bot[900];
     bool has_m;
     char ms[14], ti[400], ar[260], src[12];
+    char vid[12], mu[80];  // a song from the music server: its video id and the server's address
     int pos, dur;
     bool has_wx, wx_day;
     int wx_t, wx_c;

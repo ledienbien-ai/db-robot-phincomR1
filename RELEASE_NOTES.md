@@ -3,6 +3,11 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.19
+
+- **Màn hình phụ xem hình bài hát**: khi loa phát nhạc từ máy chủ nhạc (YouTube), trang nhạc có nút **Hình**; bấm vào để xem video nhỏ (320×240, ~10 khung/giây, không tiếng — tiếng vẫn phát ở loa), chạm màn hình để đóng. Hình tự đóng khi đổi bài.
+- Máy chủ nhạc (`youtube-music/app.py`) có thêm `/video_mjpeg?id=&ss=` và `/cover?id=`; **phải cập nhật và dựng lại container máy chủ nhạc**. Loa 1.5.19 báo mã video và địa chỉ máy chủ cho màn hình trong gói trạng thái.
+
 ## v1.5.18
 
 - **Sửa màn hình phụ không nhận được Radio, Podcast, Nhạc, Báo thức từ loa**: loa trả lời bằng gói UDP nhỏ gọn (dưới ~1,2 KB, ESP32 bỏ gói lớn hơn), bắt cả lỗi nặng để luôn có phản hồi và ghi vào Nhật ký ("Màn hình phụ hỏi: …"). Cần cài APK 1.5.18 lên loa cùng firmware màn hình 1.5.18.
