@@ -55,6 +55,9 @@ màn hình.
 - **Đúng giờ, đúng thời tiết nơi bạn ở** — nhập thành phố một lần; hỏi "mấy giờ rồi", "thời tiết
   hôm nay thế nào" là trợ lý trả lời theo nơi đặt loa (cần máy chủ hỗ trợ, xem
   [bên dưới](#vị-trí-và-thời-tiết)).
+- **Giá vàng, giá xăng, lịch âm** — hỏi "giá vàng SJC hôm nay", "giá xăng RON 95", "hôm nay mùng
+  mấy âm", "còn bao lâu tới Tết", "xem tử vi hôm nay cho người sinh 31/7/1999"; loa lấy giá thật và
+  tự tính lịch âm (xem [bên dưới](#giá-vàng-giá-xăng-và-lịch-âm)).
 - **Tự cập nhật qua mạng (OTA)** — loa tự kiểm tra bản mới; cập nhật bằng một nút bấm, hoặc bật
   tự động.
 - **Phát ra loa Bluetooth** — ghép đôi loa hoặc tai nghe ngoài và phát mọi âm thanh ra đó.
@@ -206,6 +209,11 @@ những thiết bị đó dùng được ngay với loa.
 | "Mấy giờ rồi?" | `self.get_local_time` | — |
 | "Thời tiết hôm nay?" | `self.get_weather` | `city` (tuỳ chọn) |
 | "Địa chỉ IP của bạn là gì?" | `self.network.get_ip_address` | — |
+| "Giá vàng SJC hôm nay?", "vàng nhẫn bao nhiêu?" | `self.market.get_gold_price` | — |
+| "Giá xăng RON 95?", "xăng tăng hay giảm?" | `self.market.get_fuel_price` | — |
+| "Hôm nay mùng mấy âm?", "giờ hoàng đạo hôm nay?" | `self.calendar.get_lunar_date` | `date` dd/mm/yyyy (tuỳ chọn) |
+| "Còn bao lâu tới Tết?", "rằm tháng giêng là ngày nào?" | `self.calendar.lunar_to_solar` | `day`, `month`, `year` và `leap` (tuỳ chọn) |
+| "Xem tử vi hôm nay cho người sinh 31/7/1999" | `self.calendar.get_horoscope_facts` | `birth_date` dd/mm/yyyy |
 
 `self.music.set_display_mode` cũng được khai báo cho tương thích, nhưng loa không có màn hình nên
 nó chỉ trả lời rằng không có gì để đổi.
@@ -233,6 +241,28 @@ thành phố, chọn đúng nơi trong danh sách, loa lưu toạ độ và múi
 Loa đưa thông tin này cho trợ lý qua hai công cụ `self.get_local_time` và `self.get_weather` (xem
 [Lệnh giọng nói](#lệnh-giọng-nói)); hỏi thời tiết của một thành phố khác cũng được. Chưa chọn thành phố thì loa dùng múi
 giờ Việt Nam và chưa có thời tiết.
+
+## Giá vàng, giá xăng và lịch âm
+
+Hỏi giá hôm nay thì mô hình AI thường đoán theo dữ liệu nó đã học, nên loa tự đi lấy giá:
+
+- **Giá vàng** từ bảng giá của PNJ (`edge-api.pnj.io`, không cần key): vàng miếng SJC, nhẫn trơn
+  999.9, vàng nữ trang 24K, 18K, 14K…, mua vào và bán ra, đọc theo triệu đồng một lượng và một chỉ.
+  Trang của SJC chặn truy cập tự động (Cloudflare), nên loa dùng PNJ, bảng này có cả vàng miếng SJC.
+- **Giá xăng dầu** Petrolimex vùng 1, vùng 2 và PVOIL, kèm mức tăng giảm của kỳ điều chỉnh gần nhất,
+  đọc từ bảng của [giaxanghomnay.com](https://giaxanghomnay.com/) (trang của Petrolimex mã hoá yêu
+  cầu, PVOIL chặn truy cập tự động).
+
+Giá được giữ 10 phút, nên hỏi tiếp ("còn vàng nhẫn thì sao?") không phải tải lại. Nguồn đổi giao
+diện thì công cụ báo lỗi chứ không đọc sai giá; phần đọc nằm trong `market/MarketPrices.java`, có
+test chạy trên dữ liệu thật đã lưu.
+
+**Lịch âm** được tính ngay trên loa, không cần mạng, theo thuật toán của Hồ Ngọc Đức ở múi giờ
+UTC+7 (lịch Việt Nam, có năm lệch một ngày so với lịch Trung Quốc như Tết 1985). Loa trả lời ngày
+âm, tháng nhuận, can chi, giờ hoàng đạo, đổi ngày âm sang dương ("còn bao nhiêu ngày tới Tết"), và
+đưa cho trợ lý các dữ kiện để xem tử vi hằng ngày theo ngày sinh: tuổi, mệnh, cung hoàng đạo, ngày
+hôm nay hợp hay xung với tuổi. "Hôm nay" là theo múi giờ của thành phố đã chọn ở thẻ
+[Vị trí & thời tiết](#vị-trí-và-thời-tiết).
 
 ## Đổi mạng Wi-Fi
 
@@ -406,6 +436,8 @@ Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `appl
 | `…/voicebot/media/LocalMusicPlayer.kt` | Phát nhạc từ máy chủ nhạc, lấy quang phổ |
 | `…/voicebot/weather/` | Vị trí, múi giờ, thời tiết (`Weather.java`, `LocationManager.kt`) |
 | `…/voicebot/mcp/` | Công cụ MCP cho trợ lý (`DeviceMcp.java`, `DeviceTools.kt`) |
+| `…/voicebot/market/MarketPrices.java` | Giá vàng (PNJ) và giá xăng dầu (Petrolimex, PVOIL) |
+| `…/voicebot/lunar/` | Lịch âm Việt Nam, can chi, giờ hoàng đạo, dữ kiện tử vi (`LunarCalendar.java`, `LunarAnswers.java`) |
 | `…/voicebot/alarm/AlarmBook.java`, `AlarmScheduler.kt`, `AlarmRinger.kt` | Báo thức: quy tắc giờ báo, hẹn giờ, phát chuông |
 | `…/voicebot/media/Podcasts.java`, `YouTubeSearch.java` | Danh sách podcast, đọc RSS, chuyển tập cho trình phát; tìm video YouTube cho trang điều khiển |
 | `…/voicebot/media/RadioStations.java`, `HlsAudioStream.java`, `MusicService.kt` | Danh sách kênh radio, đọc luồng HLS của đài; phát nhạc/radio theo lệnh giọng nói |
