@@ -100,6 +100,7 @@ Web control on-device (NanoHTTPD) như control center của aiboxplus. Mở `htt
   | Setup | `/api/setup/server?ota=`, `/api/setup/wake?engine=`, `/api/setup/llm` |
   | LLM | `/api/llm/models`, `/api/llm/test` |
   | Home Assistant | `/api/ha/test`, `/api/ha/devices` |
+  | Máy chủ MCP | `GET /api/mcp/state` (`servers[{name,url,token_set,enabled,ok,error,refreshing,checked_ms,tools[]}]`, không bao giờ trả token), `/api/mcp/refresh`, `POST /api/mcp/save` (body `[{name,url,token,enabled}]`, token rỗng = giữ token đã lưu cho cùng `url`, sameOrigin), `POST /api/mcp/test` (body `{url,token}`). Lưu ở `Settings.mcpServers`; loa là MCP **client** (`mcp/RemoteMcpClient.java`: Streamable HTTP, hoặc HTTP+SSE khi url kết thúc `/sse`), công cụ được đưa vào `DeviceMcp` qua `addSource` với tên `<server>.<tool>`. `tools/list` trả từ cache (`RemoteMcpServers`, làm mới ở nền 10 phút/lần) để không chặn lúc wake. |
   | Bluetooth | `/api/bt/state`, `/api/bt/enable?on=`, `/api/bt/scan/{start,stop}`, `/api/bt/{pair,connect,disconnect,forget}?addr=`, `/api/bt/auto?on=` |
 
   `/api/state.chat[]` gồm `sender`,`text`,`time` — epoch-ms THẬT lấy từ `ConversationLog.Entry.time`

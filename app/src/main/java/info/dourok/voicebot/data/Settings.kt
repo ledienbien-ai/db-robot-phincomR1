@@ -223,6 +223,11 @@ object Settings {
         get() = prefs.getString("ha_devices", "")!!
         set(v) = prefs.edit().putString("ha_devices", v).apply()
 
+    /** MCP servers whose tools the assistant may use: JSON `[{name,url,token,enabled}]` (see mcp/RemoteMcpServers). */
+    var mcpServers: String
+        get() = prefs.getString("mcp_servers", "[]")!!
+        set(v) = prefs.edit().putString("mcp_servers", v).apply()
+
     /** Persona ghi đè server cho phiên này (Assistant card). Trống = server dùng prompt: mặc định. */
     var customPrompt: String
         get() = prefs.getString("custom_prompt", "")!!

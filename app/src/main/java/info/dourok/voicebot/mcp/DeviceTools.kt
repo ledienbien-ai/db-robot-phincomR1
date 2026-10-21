@@ -1,6 +1,7 @@
 package info.dourok.voicebot.mcp
 
 import info.dourok.voicebot.data.Settings
+import info.dourok.voicebot.domain.voice.AppLog
 import info.dourok.voicebot.media.LocalMusicPlayer
 import info.dourok.voicebot.media.MusicService
 import info.dourok.voicebot.media.RadioStations
@@ -22,7 +23,13 @@ import org.json.JSONObject
  */
 object DeviceTools {
 
+    /** The MCP servers added in the panel; their tools follow this device's own. */
+    val remoteServers: RemoteMcpServers by lazy {
+        RemoteMcpServers { AppLog.i(it) }.also { it.configure(Settings.mcpServers) }
+    }
+
     fun build(appVersion: String): DeviceMcp = DeviceMcp("db-robot-r1", appVersion)
+        .addSource(remoteServers)
         .add(tool(
             "self.get_device_status",
             "Provides the real-time information of the device, including the current status of " +

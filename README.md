@@ -63,6 +63,8 @@ màn hình.
 - **Đèn LED** — vòng đèn của loa đổi hiệu ứng theo trạng thái: đang nghe, đang trả lời, phát nhạc.
   Chọn hiệu ứng cho từng trạng thái trong danh sách có sẵn.
 - **Home Assistant** — chọn thiết bị nhà thông minh để trợ lý điều khiển (cần máy chủ hỗ trợ).
+- **Thêm công cụ từ máy chủ MCP bất kỳ** — dán địa chỉ một máy chủ MCP (tìm kiếm web, lịch, ghi
+  chú, nhà thông minh…), trợ lý dùng được công cụ của nó ngay (xem [Máy chủ MCP](#máy-chủ-mcp)).
 - **Tự chạy khi cắm điện**, kèm khung chat và nhật ký hoạt động ngay trên trang điều khiển.
 
 ## Hình ảnh
@@ -222,6 +224,31 @@ bị; các bản xiaozhi-esp32-server gần đây có sẵn.
 Radio gồm 8 kênh: VOV1, VOV2, VOV3, VOV4, VOV5, VOV Giao thông Hà Nội, VOV Giao thông TP.HCM và
 VOV Mekong FM. Đài phát các kênh này dưới dạng HLS qua https; loa tự đọc luồng đó và chuyển cho
 trình phát trên máy (`media/HlsAudioStream.java`), mỗi kênh có địa chỉ dự phòng.
+
+## Máy chủ MCP
+
+Ngoài các công cụ có sẵn ở trên, trợ lý có thể dùng công cụ của **bất kỳ máy chủ MCP nào** bạn thêm
+vào thẻ **Máy chủ MCP** (tab System): đặt tên, dán địa chỉ, thêm token nếu máy chủ cần, bấm
+**Test** để xem danh sách công cụ rồi **Save**. Công cụ `search` của máy chủ tên `web` hiện với trợ
+lý là `web.search`, cạnh các công cụ `self.*` của loa.
+
+- **Kiểu kết nối:** Streamable HTTP (địa chỉ thường kết thúc bằng `/mcp`) và kiểu cũ HTTP+SSE (địa
+  chỉ kết thúc bằng `/sse`). Ví dụ không cần key: `https://mcp.deepwiki.com/mcp` (hỏi về tài liệu
+  của một repo GitHub).
+- **Máy chủ chạy bằng dòng lệnh** (stdio, phần lớn máy chủ cài bằng `npx` hay `uvx`): loa không chạy
+  được chúng, nên chạy chúng trên máy tính hoặc NAS cùng mạng qua một cổng chuyển, ví dụ
+  ```
+  npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-everything" --outputTransport streamableHttp --stateful --port 8000
+  ```
+  rồi nhập `http://<IP-máy-đó>:8000/mcp`.
+- **Token** được gửi dưới dạng `Authorization: Bearer …`, lưu trên loa, không hiện lại trên trang
+  điều khiển; để trống ô token khi sửa là giữ token đã lưu.
+- **Không làm chậm loa:** máy chủ trợ lý hỏi danh sách công cụ mỗi lần bắt đầu trò chuyện, và loa
+  trả lời ngay từ bản đã lưu; danh sách được lấy lại ở nền 10 phút một lần và mỗi khi bấm Save. Máy
+  chủ MCP tạm tắt thì loa vẫn trả lời bình thường, chỉ công cụ của nó báo lỗi khi được gọi.
+
+Cần máy chủ trợ lý hỗ trợ MCP trên thiết bị (xiaozhi-esp32-server bản gần đây có sẵn), như các công
+cụ có sẵn.
 
 ## Vị trí và thời tiết
 
@@ -405,7 +432,7 @@ Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `appl
 | `…/voicebot/data/voice/` | Từ đánh thức, thu âm, phát âm, đèn LED |
 | `…/voicebot/media/LocalMusicPlayer.kt` | Phát nhạc từ máy chủ nhạc, lấy quang phổ |
 | `…/voicebot/weather/` | Vị trí, múi giờ, thời tiết (`Weather.java`, `LocationManager.kt`) |
-| `…/voicebot/mcp/` | Công cụ MCP cho trợ lý (`DeviceMcp.java`, `DeviceTools.kt`) |
+| `…/voicebot/mcp/` | Công cụ MCP cho trợ lý (`DeviceMcp.java`, `DeviceTools.kt`); kết nối tới máy chủ MCP khác (`RemoteMcpClient.java`, `RemoteMcpServers.java`) |
 | `…/voicebot/alarm/AlarmBook.java`, `AlarmScheduler.kt`, `AlarmRinger.kt` | Báo thức: quy tắc giờ báo, hẹn giờ, phát chuông |
 | `…/voicebot/media/Podcasts.java`, `YouTubeSearch.java` | Danh sách podcast, đọc RSS, chuyển tập cho trình phát; tìm video YouTube cho trang điều khiển |
 | `…/voicebot/media/RadioStations.java`, `HlsAudioStream.java`, `MusicService.kt` | Danh sách kênh radio, đọc luồng HLS của đài; phát nhạc/radio theo lệnh giọng nói |

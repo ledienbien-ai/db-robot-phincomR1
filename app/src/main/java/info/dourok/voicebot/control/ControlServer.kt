@@ -11,6 +11,8 @@ import fi.iki.elonen.NanoHTTPD.Response
 import fi.iki.elonen.NanoHTTPD.newFixedLengthResponse
 import info.dourok.voicebot.data.ServerProvisioner
 import info.dourok.voicebot.data.Settings
+import info.dourok.voicebot.mcp.DeviceTools
+import info.dourok.voicebot.mcp.RemoteMcpServers
 import info.dourok.voicebot.data.maskApiKey
 import info.dourok.voicebot.data.model.DeviceInfo
 import info.dourok.voicebot.domain.bluetooth.BtController
@@ -84,6 +86,8 @@ class ControlServer @Inject constructor(
         }
         // An update replaces the package, and with it every alarm AlarmManager held for it.
         try { info.dourok.voicebot.alarm.AlarmScheduler.reschedule(context) } catch (e: Exception) { }
+        // Fetch the added MCP servers' tools now, so the first conversation after boot has them.
+        DeviceTools.remoteServers
     }
 
     /**
@@ -210,6 +214,12 @@ class ControlServer @Inject constructor(
             "/api/llm/test" -> json(handleLlmTest(session))
             "/api/ha/devices" -> json(handleHaDevices(session))
             "/api/ha/test" -> json(handleHaTest(session))
+            // MCP servers whose tools the assistant may use (mcp/RemoteMcpServers). Tokens go in
+            // POST bodies and never come back out; a blank token keeps the saved one.
+            "/api/mcp/state" -> json(DeviceTools.remoteServers.stateJson())
+            "/api/mcp/refresh" -> { DeviceTools.remoteServers.refreshAll(); json(DeviceTools.remoteServers.stateJson()) }
+            "/api/mcp/save" -> json(if (sameOrigin(session)) handleMcpSave(bodyOf(session)) else FOREIGN_ORIGIN)
+            "/api/mcp/test" -> json(if (sameOrigin(session)) handleMcpTest(bodyOf(session)) else FOREIGN_ORIGIN)
             "/api/media/search" -> json(handleMediaSearch(param(session, "q")))
             "/api/media/play" -> json(handleMediaPlay(session))
             // With a music server configured the song plays on this device (LocalMusicPlayer);
@@ -746,6 +756,29 @@ class ControlServer @Inject constructor(
 
     private fun param(session: IHTTPSession, name: String): String =
         session.parameters[name]?.firstOrNull().orEmpty()
+
+    private fun handleMcpSave(body: String): String {
+        val merged = RemoteMcpServers.merge(body, Settings.mcpServers)
+        Settings.mcpServers = merged
+        DeviceTools.remoteServers.configure(merged)
+        AppLog.i("Đã lưu ${org.json.JSONArray(merged).length()} máy chủ MCP")
+        return DeviceTools.remoteServers.stateJson()
+    }
+
+    /** Body `{url, token}`; a blank token means the one saved for that address, so Test works after reload. */
+    private fun handleMcpTest(body: String): String {
+        val j = try { JSONObject(body) } catch (e: Exception) { JSONObject() }
+        val url = j.optString("url").trim()
+        var token = j.optString("token")
+        if (token.isEmpty()) {
+            val saved = org.json.JSONArray(Settings.mcpServers)
+            for (i in 0 until saved.length()) {
+                val s = saved.optJSONObject(i) ?: continue
+                if (s.optString("url").trim() == url) token = s.optString("token")
+            }
+        }
+        return RemoteMcpServers.test(url, token)
+    }
 
     /** The request body as text; empty when there is none or it cannot be read. */
     private fun bodyOf(session: IHTTPSession): String {

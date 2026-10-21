@@ -1151,6 +1151,14 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
     </div>
 
     <div class="card">
+      <div class="ch"><span class="icon-badge ib-srv"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v4M13 3v4M5 7h10v3a5 5 0 01-10 0z"/><path d="M10 15v2"/></svg></span><h2>Máy chủ MCP</h2></div>
+      <div id="mcpList"></div>
+      <div class="row" style="gap:8px;margin-top:6px"><button class="btn rec" style="flex:1;width:auto" onclick="addMcp()">Thêm máy chủ</button><button class="btn rec" style="flex:1;width:auto" onclick="saveMcp()">Save</button></div>
+      <div class="hint" id="mcpStat">Chưa có máy chủ MCP nào.</div>
+      <div class="hint">Cho trợ lý dùng công cụ của bất kỳ máy chủ MCP nào: dán địa chỉ, thêm token nếu máy chủ cần, bấm Test rồi Save. Công cụ <i>search</i> của máy chủ tên <i>web</i> hiện với trợ lý là <code>web.search</code>.<details><summary>Chi tiết</summary><p>Loa nói được hai kiểu kết nối MCP qua HTTP: <b>Streamable HTTP</b> (địa chỉ thường kết thúc bằng <code>/mcp</code>) và kiểu cũ <b>HTTP+SSE</b> (địa chỉ kết thúc bằng <code>/sse</code>).</p><p>Máy chủ MCP chạy bằng dòng lệnh (stdio, như phần lớn máy chủ cài bằng <code>npx</code> hoặc <code>uvx</code>) thì chạy nó trên máy tính hay NAS cùng mạng qua một cổng chuyển, ví dụ <code>npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-everything" --outputTransport streamableHttp --stateful --port 8000</code>, rồi nhập <code>http://&lt;IP-máy-đó&gt;:8000/mcp</code>.</p><p>Token được gửi kèm mỗi yêu cầu dưới dạng <code>Authorization: Bearer …</code>, lưu trên loa và không hiện lại trên trang này. Để trống ô token khi sửa là giữ token đã lưu.</p><p>Danh sách công cụ được lấy lại 10 phút một lần và mỗi khi bấm Save, nên một máy chủ tạm tắt không làm loa chậm trả lời. Máy chủ phải hỗ trợ MCP trên thiết bị (xiaozhi-esp32-server bản gần đây có sẵn).</p></details></div>
+    </div>
+
+    <div class="card">
       <div class="ch"><span class="icon-badge ib-wake"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="4" cy="16" r="1.3" fill="currentColor" stroke="none"/><path d="M7 13a6 6 0 018 0"/><path d="M9.3 15.3a3 3 0 014 0"/></svg></span><h2>Wake word</h2></div>
       <div class="row"><label>Engine</label><div class="segsel" style="flex:1"><button id="weAlexa" onclick="setWake('alexa')">Alexa</button><button id="weNabu" onclick="setWake('nabu')">OK Nabu</button><button id="weMaiOi" onclick="setWake('mai_oi')">Nabi ơi<span class="seg-tag">(Beta)</span></button></div></div>
       <div class="hint">Đổi engine cần restart app. Ngưỡng/độ nhạy bên dưới là của engine đang chọn.</div>
@@ -1724,6 +1732,7 @@ function render(s){
     if(s.ha_token_set)$('haTok').placeholder='•••• (đã lưu)';
     renderHaSaved(s.ha_devices||'');
     restoreHaSel(s.ha_devices||'');
+    loadMcp();
   }
   // News bulletin — own guard (like setupInit above): populate once from saved state, never on
   // later polls, so an in-progress edit (checkbox/order/time) isn't clobbered every ~1.5s.
@@ -3190,6 +3199,42 @@ function _haLines(){return JSON.parse($('haSaved').dataset.lines||'[]');}
 async function _saveHaLines(lines){await fetch(`/api/set?key=ha_devices&value=${encodeURIComponent(lines.join('\n'))}`,{method:'POST'});renderHaSaved(lines.join('\n'));}
 function editHaLine(i,v){const l=_haLines();l[i]=v.trim();_saveHaLines(l);}
 function removeHaLine(i){const l=_haLines();l.splice(i,1);_saveHaLines(l);}
+
+// ── MCP servers (their tools are offered to the assistant next to the speaker's own) ─────────
+// Tokens never come back from the speaker: a row shows "đã lưu" and sends an empty token, which the
+// speaker reads as "keep the saved one" (RemoteMcpServers.merge).
+let mcpRows=[];
+const escAttr=t=>(t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function loadMcp(){try{const j=await(await fetch('/api/mcp/state')).json();
+  mcpRows=(j.servers||[]).map(s=>({name:s.name,url:s.url,token:'',token_set:s.token_set,enabled:s.enabled,st:s}));
+  renderMcp();}catch(e){}}
+function mcpStatus(s){if(!s)return '';
+  if(s.refreshing)return 'Đang lấy danh sách công cụ…';
+  if(s.error)return '✗ '+esc(s.error);
+  if(!s.checked_ms)return '';
+  return `✓ ${s.tools.length} công cụ: ${esc(s.tools.join(', '))}`;}
+function renderMcp(){
+  $('mcpList').innerHTML=mcpRows.map((r,i)=>`<div style="border-top:1px solid var(--line);padding-top:8px;margin-top:8px">
+    <div class="row" style="gap:6px"><input class="codein" placeholder="tên, ví dụ web" value="${escAttr(r.name)}" oninput="mcpRows[${i}].name=this.value" style="flex:1">
+      <label class="sw sw-sm"><input type="checkbox" ${r.enabled?'checked':''} onchange="mcpRows[${i}].enabled=this.checked" aria-label="Bật máy chủ MCP này"><span></span></label>
+      <button class="tbtn" onclick="mcpRows.splice(${i},1);renderMcp()" aria-label="Xoá máy chủ MCP"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="row"><input class="codein" placeholder="https://…/mcp hoặc …/sse" value="${escAttr(r.url)}" oninput="mcpRows[${i}].url=this.value"></div>
+    <div class="row" style="gap:6px"><input class="codein" type="password" placeholder="${r.token_set?'•••• (đã lưu)':'token (nếu cần)'}" value="${escAttr(r.token)}" oninput="mcpRows[${i}].token=this.value" style="flex:1"><button class="btn rec" style="width:auto;padding:8px 14px" onclick="testMcp(${i})">Test</button></div>
+    <div class="hint" id="mcpRowStat${i}">${mcpStatus(r.st)}</div></div>`).join('');
+  $('mcpStat').textContent=mcpRows.length?'':'Chưa có máy chủ MCP nào.';}
+function addMcp(){mcpRows.push({name:'',url:'',token:'',token_set:false,enabled:true,st:null});renderMcp();}
+async function testMcp(i){const r=mcpRows[i];$('mcpRowStat'+i).textContent='Đang kết nối…';
+  try{const j=await(await fetch('/api/mcp/test',{method:'POST',body:JSON.stringify({url:r.url.trim(),token:r.token})})).json();
+    $('mcpRowStat'+i).textContent=j.ok?`✓ ${j.tools.length} công cụ: ${j.tools.join(', ')}`:'✗ '+(j.error||'lỗi');}
+  catch(e){$('mcpRowStat'+i).textContent='✗ '+e;}}
+async function saveMcp(){$('mcpStat').textContent='Đang lưu…';
+  const body=mcpRows.filter(r=>r.url.trim()).map(r=>({name:r.name.trim(),url:r.url.trim(),token:r.token,enabled:r.enabled}));
+  try{const j=await(await fetch('/api/mcp/save',{method:'POST',body:JSON.stringify(body)})).json();
+    if(j.ok===false){$('mcpStat').textContent='✗ '+(j.error||'lỗi');return;}
+    mcpRows=(j.servers||[]).map(s=>({name:s.name,url:s.url,token:'',token_set:s.token_set,enabled:s.enabled,st:s}));renderMcp();
+    $('mcpStat').textContent='Đã lưu '+mcpRows.length+' máy chủ — đang lấy danh sách công cụ.';
+    setTimeout(loadMcp,4000);}
+  catch(e){$('mcpStat').textContent='✗ '+e;}}
 
 // ── Bluetooth (A2DP source: this box plays OUT through a speaker/headphones) ─────────
 // The opposite direction -- a phone streaming into the R1 -- is the platform's own A2dpSinkService

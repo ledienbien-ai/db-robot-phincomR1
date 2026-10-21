@@ -35,6 +35,11 @@ public final class DeviceMcp {
         String call(JSONObject arguments) throws Exception;
     }
 
+    /** Tools that come and go while the app runs: those of the MCP servers added in the panel. */
+    public interface ToolSource {
+        List<Tool> tools();
+    }
+
     private static final String PROTOCOL_VERSION = "2024-11-05";
     private static final int METHOD_NOT_FOUND = -32601;
     private static final int INVALID_PARAMS = -32602;
@@ -42,6 +47,7 @@ public final class DeviceMcp {
     private final String name;
     private final String version;
     private final List<Tool> tools = new ArrayList<Tool>();
+    private ToolSource extra;
 
     public DeviceMcp(String name, String version) {
         this.name = name;
@@ -51,6 +57,25 @@ public final class DeviceMcp {
     public DeviceMcp add(Tool tool) {
         tools.add(tool);
         return this;
+    }
+
+    /** Offer {@code source}'s tools after this device's own, read afresh on every list and call. */
+    public DeviceMcp addSource(ToolSource source) {
+        extra = source;
+        return this;
+    }
+
+    private List<Tool> allTools() {
+        if (extra == null) {
+            return tools;
+        }
+        List<Tool> all = new ArrayList<Tool>(tools);
+        try {
+            all.addAll(extra.tools());
+        } catch (RuntimeException e) {
+            // A broken remote configuration must not take the device's own tools down with it.
+        }
+        return all;
     }
 
     /**
@@ -75,7 +100,7 @@ public final class DeviceMcp {
             }
             if (method.equals("tools/list")) {
                 JSONArray list = new JSONArray();
-                for (Tool t : tools) {
+                for (Tool t : allTools()) {
                     list.put(new JSONObject()
                             .put("name", t.name())
                             .put("description", t.description())
@@ -91,7 +116,7 @@ public final class DeviceMcp {
                 if (arguments == null) {
                     arguments = new JSONObject();
                 }
-                for (Tool t : tools) {
+                for (Tool t : allTools()) {
                     if (t.name().equals(wanted)) {
                         return result(id, callTool(t, arguments));
                     }
