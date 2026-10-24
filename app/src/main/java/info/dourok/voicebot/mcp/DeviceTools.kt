@@ -1,6 +1,8 @@
 package info.dourok.voicebot.mcp
 
 import info.dourok.voicebot.data.Settings
+import info.dourok.voicebot.ha.HaActions
+import info.dourok.voicebot.ha.HomeTools
 import info.dourok.voicebot.media.LocalMusicPlayer
 import info.dourok.voicebot.media.MusicService
 import info.dourok.voicebot.media.RadioStations
@@ -160,6 +162,47 @@ object DeviceTools {
                 )
             )),
         ) { args -> LocationManager.weatherText(args.optString("city", "").trim()) })
+        // Home Assistant, from the speaker itself (it is the one inside the house). The device list
+        // in the description is read each time the server asks for the tools, i.e. every session.
+        .add(liveTool(
+            "self.home.control",
+            {
+                "Điều khiển thiết bị nhà thông minh (Home Assistant) của người dùng: bật/tắt đèn, quạt, " +
+                    "ổ cắm, công tắc, điều hoà, rèm, cửa cuốn, khoá, tivi, kịch bản/ngữ cảnh… LUÔN dùng công cụ " +
+                    "này khi người dùng muốn bật, tắt, mở, đóng, chỉnh độ sáng, nhiệt độ, tốc độ quạt, vị trí rèm " +
+                    "của một thiết bị trong nhà. Không tự nói là đã làm nếu chưa gọi công cụ.\n" +
+                    "Args:\n" +
+                    "  device: thiết bị như người dùng gọi ('đèn phòng khách', 'quạt'), tên phòng ('phòng ngủ' = " +
+                    "mọi thiết bị trong phòng), 'tất cả đèn', hoặc entity_id trong danh sách dưới (có thể nhiều, " +
+                    "cách nhau bằng dấu phẩy). Nên dùng entity_id khi biết.\n" +
+                    "  action: turn_on (bật/mở/chạy), turn_off (tắt/đóng), toggle, open, close, stop, " +
+                    "set_brightness, set_temperature, set_position, set_volume, set_speed, lock, unlock, press, play, pause.\n" +
+                    "  value: số cho set_brightness / set_position / set_volume / set_speed (0-100 %) và " +
+                    "set_temperature (°C).\n" +
+                    "Return: câu báo kết quả; đọc lại ngắn gọn cho người dùng. Nếu kết quả nói có nhiều thiết bị " +
+                    "khớp, hỏi lại người dùng." + HomeTools.describe()
+            },
+            arguments(JSONObject()
+                .put("device", JSONObject().put("type", "string"))
+                .put("action", JSONObject().put("type", "string").put("enum", JSONArray(HaActions.ACTIONS.toList())))
+                .put("value", JSONObject().put("type", "number")), "device", "action"),
+        ) { args ->
+            HomeTools.control(
+                args.optString("device", "").trim(),
+                args.optString("action", "").trim(),
+                if (args.has("value") && !args.isNull("value")) args.optDouble("value", Double.NaN) else Double.NaN,
+            )
+        })
+        .add(liveTool(
+            "self.home.get_state",
+            {
+                "Đọc trạng thái thiết bị và cảm biến nhà thông minh (Home Assistant): đèn đang bật hay tắt, " +
+                    "nhiệt độ, độ ẩm trong phòng, điều hoà đang đặt bao nhiêu độ, rèm đang mở hay đóng, cửa có " +
+                    "khoá chưa. Dùng khi người dùng hỏi về tình trạng thiết bị trong nhà. Bỏ trống device để đọc " +
+                    "tất cả thiết bị đã chọn; hoặc điền tên thiết bị, tên phòng hay entity_id." + HomeTools.describe()
+            },
+            arguments(JSONObject().put("device", JSONObject().put("type", "string"))),
+        ) { args -> HomeTools.status(args.optString("device", "").trim()) })
 
     /** What the ESP32 devices return for `self.get_device_status`, with this speaker's own facts. */
     private fun deviceStatus(appVersion: String): String {
@@ -201,6 +244,19 @@ object DeviceTools {
         val schema = JSONObject().put("type", "object").put("properties", properties)
         if (required.isNotEmpty()) schema.put("required", JSONArray(required.toList()))
         return schema
+    }
+
+    /** A tool whose description is written anew each time it is listed (it carries live settings). */
+    private fun liveTool(
+        name: String,
+        describe: () -> String,
+        schema: JSONObject,
+        run: (JSONObject) -> String,
+    ): DeviceMcp.Tool = object : DeviceMcp.Tool {
+        override fun name() = name
+        override fun description() = describe()
+        override fun inputSchema() = schema
+        override fun call(arguments: JSONObject): String = run(arguments)
     }
 
     private fun tool(

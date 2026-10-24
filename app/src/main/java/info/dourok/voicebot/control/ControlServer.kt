@@ -210,6 +210,8 @@ class ControlServer @Inject constructor(
             "/api/llm/test" -> json(handleLlmTest(session))
             "/api/ha/devices" -> json(handleHaDevices(session))
             "/api/ha/test" -> json(handleHaTest(session))
+            "/api/ha/states" -> json(handleHaStates())
+            "/api/ha/control" -> json(if (sameOrigin(session)) handleHaControl(session) else FOREIGN_ORIGIN)
             "/api/media/search" -> json(handleMediaSearch(param(session, "q")))
             "/api/media/play" -> json(handleMediaPlay(session))
             // With a music server configured the song plays on this device (LocalMusicPlayer);
@@ -924,31 +926,52 @@ class ControlServer @Inject constructor(
         return null
     }
 
-    /** GET {ha_url}/api/states → controllable entities: [{entity_id, name, domain}]. */
+    /** GET {ha_url}/api/states → every entity: [{entity_id, name, domain, state}] (homeassistant.local works too). */
     private fun handleHaDevices(session: IHTTPSession): String {
-        val base = param(session, "ha_url").ifBlank { Settings.haUrl }.trimEnd('/')
+        val base = param(session, "ha_url").ifBlank { Settings.haUrl }
         val token = param(session, "token").ifBlank { Settings.haToken }
-        if (base.isBlank()) return """{"ok":false,"error":"no ha_url"}"""
         return try {
-            val req = Request.Builder().url("$base/api/states")
-                .header("Authorization", "Bearer $token").get().build()
-            http.newCall(req).execute().use { resp ->
-                val txt = resp.body?.string().orEmpty()
-                if (!resp.isSuccessful) return """{"ok":false,"error":${JSONObject.quote("HTTP ${resp.code}: ${txt.take(120)}")}}"""
-                val arr = JSONArray(txt)
-                val out = JSONArray()
-                for (i in 0 until arr.length()) {
-                    val e = arr.optJSONObject(i) ?: continue
-                    val id = e.optString("entity_id", "")
-                    if (id.isBlank()) continue
-                    val name = e.optJSONObject("attributes")?.optString("friendly_name", "") ?: ""
-                    out.put(JSONObject().put("entity_id", id).put("name", name).put("domain", id.substringBefore(".")))
-                }
-                """{"ok":true,"devices":$out}"""
+            val arr = info.dourok.voicebot.ha.HomeAssistant.states(base, token)
+            val out = JSONArray()
+            for (i in 0 until arr.length()) {
+                val e = arr.optJSONObject(i) ?: continue
+                val id = e.optString("entity_id", "")
+                if (id.isBlank()) continue
+                val name = e.optJSONObject("attributes")?.optString("friendly_name", "") ?: ""
+                out.put(JSONObject().put("entity_id", id).put("name", name).put("domain", id.substringBefore("."))
+                    .put("state", e.optString("state")))
             }
+            JSONObject().put("ok", true).put("devices", out).toString()
         } catch (e: Exception) {
-            """{"ok":false,"error":${JSONObject.quote(e.message ?: "error")}}"""
+            JSONObject().put("ok", false).put("error", e.message ?: "lỗi").toString()
         }
+    }
+
+    /** The saved devices with what Home Assistant says about each, for the panel's list. */
+    private fun handleHaStates(): String = try {
+        val saved = info.dourok.voicebot.ha.HaDevices.parse(Settings.haDevices)
+        val states = info.dourok.voicebot.ha.HomeAssistant.states()
+        val byId = HashMap<String, JSONObject>()
+        for (i in 0 until states.length()) states.optJSONObject(i)?.let { byId[it.optString("entity_id")] = it }
+        val out = JSONArray()
+        for (d in saved) {
+            val s = byId[d.entityId]
+            out.put(JSONObject().put("entity_id", d.entityId).put("label", d.label())
+                .put("state", s?.optString("state") ?: "missing")
+                .put("text", if (s == null) "không có trong Home Assistant" else info.dourok.voicebot.ha.HomeTools.describeState(d.domain(), s)))
+        }
+        JSONObject().put("ok", true).put("devices", out).toString()
+    } catch (e: Exception) {
+        JSONObject().put("ok", false).put("error", e.message ?: "lỗi").toString()
+    }
+
+    /** One command from the panel (entity + action [+ value]), the same path the assistant's tool takes. */
+    private fun handleHaControl(session: IHTTPSession): String = try {
+        val v = param(session, "value").toDoubleOrNull() ?: Double.NaN
+        info.dourok.voicebot.ha.HomeTools.control(param(session, "entity"), param(session, "action"), v)
+            .let { JSONObject(it).put("ok", JSONObject(it).optBoolean("success")).toString() }
+    } catch (e: Exception) {
+        JSONObject().put("ok", false).put("error", e.message ?: "lỗi").toString()
     }
 
     // ── Media Player ──────────────────────────────────────────────────────
@@ -1199,19 +1222,17 @@ class ControlServer @Inject constructor(
             .toString()
     }
 
-    /** GET {ha_url}/api/ → HA ping (validates URL + token). */
+    /** GET {ha_url}/api/config → proves the URL and the token; tells the version, home name and address used. */
     private fun handleHaTest(session: IHTTPSession): String {
-        val base = param(session, "ha_url").ifBlank { Settings.haUrl }.trimEnd('/')
+        val base = param(session, "ha_url").ifBlank { Settings.haUrl }
         val token = param(session, "token").ifBlank { Settings.haToken }
-        if (base.isBlank()) return """{"ok":false,"error":"no ha_url"}"""
         return try {
-            val req = Request.Builder().url("$base/api/").header("Authorization", "Bearer $token").get().build()
-            http.newCall(req).execute().use { resp ->
-                if (resp.isSuccessful) """{"ok":true}"""
-                else """{"ok":false,"error":${JSONObject.quote("HTTP ${resp.code}")}}"""
-            }
+            val c = info.dourok.voicebot.ha.HomeAssistant.info(base, token)
+            JSONObject().put("ok", true).put("version", c.optString("version")).put("name", c.optString("location_name"))
+                .put("host", info.dourok.voicebot.ha.HomeAssistant.resolvedHost(base))
+                .put("lan", info.dourok.voicebot.ha.HomeAssistant.isLan(base)).toString()
         } catch (e: Exception) {
-            """{"ok":false,"error":${JSONObject.quote(e.message ?: "error")}}"""
+            JSONObject().put("ok", false).put("error", e.message ?: "lỗi").toString()
         }
     }
 

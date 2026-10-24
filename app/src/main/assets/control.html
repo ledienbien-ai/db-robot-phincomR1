@@ -1138,15 +1138,21 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
       <div class="ch"><span class="icon-badge ib-srv"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 2 8v10h6v-6h4v6h6V8z"/></svg></span><h2>Home Assistant</h2></div>
       <div class="row"><label>HA URL</label><input class="codein" id="haUrl" placeholder="http://homeassistant.local:8123"></div>
       <div class="row"><label>Token</label><input class="codein" id="haTok" type="password" placeholder="long-lived token"><button class="tbtn" onclick="togHaKey()" aria-label="Hiện/ẩn HA token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/></svg></button></div>
-      <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="fetchHaDevices()">Fetch devices<span class="btn-ico trail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 11-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg></span></button><button class="btn rec" style="flex:1;width:auto" onclick="testHa()">Test</button></div>
+      <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="fetchHaDevices()">Tải thiết bị<span class="btn-ico trail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 11-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg></span></button><button class="btn rec" style="flex:1;width:auto" onclick="testHa()">Kiểm tra</button></div>
       <div class="media-search bare" style="margin:8px 0 0"><svg class="ms-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg><input class="codein ui" id="haSearch" placeholder="tên hoặc entity_id" oninput="renderHaPick()"></div>
       <div class="segsel" id="haDomains" style="flex:1;margin-top:6px;flex-wrap:wrap"></div>
       <div id="haPick" style="max-height:220px;overflow:auto;margin-top:8px"></div>
-      <div class="row" style="margin-top:6px"><button class="btn rec" style="flex:1;width:auto" onclick="saveHa()">Save</button></div>
-      <div class="hint" id="haStat">Nhập HA URL + token rồi Fetch để chọn thiết bị.</div>
+      <div class="row" style="margin-top:6px"><button class="btn rec" style="flex:1;width:auto" onclick="saveHa()">Lưu</button></div>
+      <div class="hint" id="haStat">Nhập địa chỉ Home Assistant và token, bấm Kiểm tra, rồi Tải thiết bị để chọn những thiết bị loa được điều khiển.</div>
+      <div class="hint">Loa điều khiển Home Assistant trực tiếp trong mạng nhà, nên dùng được địa chỉ <b>http://homeassistant.local:8123</b> hoặc IP như <b>http://192.168.1.10:8123</b>. Chọn thiết bị, đặt tên phòng và tên gọi dễ nói, bấm Lưu, rồi nói: “bật đèn phòng khách”, “tắt tất cả đèn”, “đặt điều hoà 26 độ”, “mở rèm phòng ngủ”, “phòng ngủ đang bao nhiêu độ”.<details><summary>Lấy token ở đâu?</summary><p>Mở Home Assistant trên trình duyệt › bấm tên tài khoản ở góc dưới bên trái (Hồ sơ) › tab <b>Bảo mật</b> › cuối trang, mục <b>Token truy cập dài hạn</b> › <b>Tạo token</b> › đặt tên (ví dụ “Loa R1”) › sao chép chuỗi token hiện ra (chỉ hiện một lần) và dán vào ô Token ở trên.</p><p>Token được lưu trên loa và chỉ gửi tới Home Assistant của bạn. Nếu Home Assistant ở địa chỉ Internet (ví dụ Nabu Casa), cấu hình còn được gửi cho máy chủ trò chuyện có hỗ trợ; địa chỉ trong mạng nhà thì không bao giờ rời khỏi loa.</p><p>Nếu loa không tìm thấy <b>homeassistant.local</b>, dùng địa chỉ IP của máy chạy Home Assistant (xem trong Cài đặt › Hệ thống › Mạng của Home Assistant, hoặc trong trang quản lý router).</p></details></div>
       <details class="saved-block" id="haSavedBox">
         <summary><h2>Đã lưu</h2><span class="saved-count" id="haSavedCount">0</span></summary>
         <div id="haSaved"></div>
+      </details>
+      <details class="saved-block" id="haLiveBox" ontoggle="if(this.open)loadHaStates()">
+        <summary><h2>Điều khiển thử</h2></summary>
+        <div class="row" style="margin-top:6px"><button class="btn rec" style="flex:1;width:auto;padding:8px" onclick="loadHaStates()">Làm mới trạng thái</button></div>
+        <div id="haLive"><div class="hint">(bấm Làm mới để xem trạng thái các thiết bị đã lưu)</div></div>
       </details>
     </div>
 
@@ -3134,17 +3140,33 @@ function wakeUI(e){var a=document.getElementById('alexaWake'),n=document.getElem
   if(m)m.style.display=(e==='mai_oi')?'':'none';}
 
 // ── Home Assistant device manager ─────────────────
-const HA_DOMAINS=['all','light','switch','fan','media_player','script','climate','cover'];
-const HA_CTRL=['light','switch','fan','media_player','script','climate','cover','input_boolean'];
+const HA_DOMAINS=['all','light','switch','fan','climate','cover','media_player','lock','scene','script','sensor'];
+const HA_CTRL=['light','switch','fan','media_player','script','scene','climate','cover','input_boolean','lock','vacuum','valve','button','humidifier','water_heater'];
 let haAll=[];        // fetched [{entity_id,name,domain}]
 let haSel={};        // entity_id -> {location,name}
 let haDomain='all';
 function togHaKey(){$('haTok').type=$('haTok').type==='password'?'text':'password';}
 function haParams(){return `ha_url=${encodeURIComponent($('haUrl').value.trim())}&token=${encodeURIComponent($('haTok').value)}`;}
-async function testHa(){$('haStat').textContent='Testing…';
+async function testHa(){$('haStat').textContent='Đang kiểm tra…';
   try{const j=await(await fetch('/api/ha/test?'+haParams())).json();
-    $('haStat').textContent=j.ok?'✓ HA reachable':('✗ '+j.error);}
+    $('haStat').textContent=j.ok?`✓ Đã nối Home Assistant ${j.version||''}${j.name?' · '+j.name:''}${j.host?' · '+j.host:''}${j.lan?' (trong mạng nhà, loa tự điều khiển)':''}`:('✗ '+j.error);}
   catch(e){$('haStat').textContent='✗ '+e;}}
+// The saved devices with their live state, and a quick on/off to prove the speaker can drive them.
+function haEsc(t){return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+async function loadHaStates(){const box=$('haLive');box.innerHTML='<div class="hint">Đang đọc trạng thái…</div>';
+  try{const j=await(await fetch('/api/ha/states')).json();
+    if(!j.ok){box.innerHTML=`<div class="hint">✗ ${haEsc(j.error)}</div>`;return;}
+    box.innerHTML=j.devices.map(d=>{const dom=d.entity_id.split('.')[0];const ro=dom==='sensor'||dom==='binary_sensor';
+      const on=['on','open','opening','playing','unlocked','heat','cool','auto','dry','fan_only','heat_cool'].includes(d.state);
+      return `<div class="row" style="margin:6px 0;gap:6px;align-items:center"><div style="flex:1;min-width:0"><div style="font-size:13px">${haEsc(d.label)}</div><div class="hint" style="padding:0">${haEsc(d.text)}</div></div>`+
+        (ro?'':`<button class="btn ${on?'rec':''}" style="width:auto;padding:7px 12px" onclick="haCtl('${d.entity_id}','turn_on')">Bật</button><button class="btn" style="width:auto;padding:7px 12px" onclick="haCtl('${d.entity_id}','turn_off')">Tắt</button>`)+`</div>`;}).join('')
+      ||'<div class="hint">(chưa lưu thiết bị nào)</div>';}
+  catch(e){box.innerHTML=`<div class="hint">✗ ${haEsc(e)}</div>`;}}
+async function haCtl(id,action){$('haStat').textContent='Đang gửi lệnh…';
+  try{const j=await(await fetch(`/api/ha/control?entity=${encodeURIComponent(id)}&action=${action}`,{method:'POST'})).json();
+    $('haStat').textContent=(j.ok?'✓ ':'✗ ')+(j.message||j.error||'');}
+  catch(e){$('haStat').textContent='✗ '+e;}
+  setTimeout(loadHaStates,600);}
 async function fetchHaDevices(){$('haStat').textContent='Đang tải devices…';
   try{const j=await(await fetch('/api/ha/devices?'+haParams())).json();
     if(!j.ok){$('haStat').textContent='✗ '+j.error;return;}
@@ -3177,7 +3199,8 @@ async function saveHa(){const lines=haLines();
   const kv={ha_url:$('haUrl').value.trim(),ha_devices:lines};
   if($('haTok').value)kv.ha_token=$('haTok').value;   // don't wipe the saved token when left blank
   for(const k in kv)await setKV(k,kv[k]);
-  $('haStat').textContent='Đã lưu '+lines.split('\n').filter(Boolean).length+' thiết bị.';renderHaSaved(lines);}
+  $('haStat').textContent='Đã lưu '+lines.split('\n').filter(Boolean).length+' thiết bị. Trợ lý dùng được từ lần gọi loa kế tiếp.';renderHaSaved(lines);
+  if($('haLiveBox').open)loadHaStates();}
 function renderHaSaved(devs){const lines=(devs||'').split('\n').filter(Boolean);
   $('haSaved').innerHTML=lines.map((l,i)=>`<div class="row" style="margin:5px 0;gap:6px"><input class="codein" value="${l.replace(/"/g,'&quot;')}" onchange="editHaLine(${i},this.value)"><button class="tbtn" onclick="removeHaLine(${i})" aria-label="Xoá thiết bị"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join('')||'<div class="hint">(chưa lưu thiết bị nào)</div>';
   $('haSaved').dataset.lines=JSON.stringify(lines);

@@ -99,7 +99,7 @@ Web control on-device (NanoHTTPD) như control center của aiboxplus. Mở `htt
   | Media | `/api/media/search?q=`, `/api/media/play` (POST body), `/api/media/{pause,resume,next,stop}`, `/api/media/seek?position_s=`, `/api/media/state` |
   | Setup | `/api/setup/server?ota=`, `/api/setup/wake?engine=`, `/api/setup/llm` |
   | LLM | `/api/llm/models`, `/api/llm/test` |
-  | Home Assistant | `/api/ha/test`, `/api/ha/devices` |
+  | Home Assistant | `/api/ha/test` (GET /api/config: version, tên nhà, IP đã tìm), `/api/ha/devices`, `/api/ha/states` (thiết bị đã lưu + trạng thái), `/api/ha/control?entity=&action=&value=` (POST, sameOrigin). Từ 1.5.31 loa tự điều khiển HA qua REST + token (`ha/HomeAssistant.kt`, HttpURLConnection; `.local` qua `ha/MdnsResolver.java` — legacy unicast mDNS, Android 5.1 không tự phân giải), công cụ MCP `self.home.control` / `self.home.get_state` (`ha/HomeTools.kt`; mô tả liệt kê thiết bị đã lưu, đọc lại mỗi `tools/list`). Tìm thiết bị theo tên không dấu ở `ha/HaDevices.java`, ánh xạ thao tác→service ở `ha/HaActions.java` (Java thuần, kiểm bằng javac ngoài máy). `ha_config` chỉ còn gửi máy chủ khi URL KHÔNG phải mạng nhà (`HomeAssistant.isLan`). |
   | Bluetooth | `/api/bt/state`, `/api/bt/enable?on=`, `/api/bt/scan/{start,stop}`, `/api/bt/{pair,connect,disconnect,forget}?addr=`, `/api/bt/auto?on=` |
 
   `/api/state.chat[]` gồm `sender`,`text`,`time` — epoch-ms THẬT lấy từ `ConversationLog.Entry.time`

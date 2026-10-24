@@ -196,10 +196,14 @@ class WebsocketProtocol(private val deviceInfo: DeviceInfo,
                         })
                     }
                     // Per-session BYO Home Assistant: send the client-configured HA + device list so
-                    // the server injects it into the prompt + hass_* tools use it. Only when configured.
+                    // the server injects it into the prompt + hass_* tools use it. Only when configured,
+                    // and only for a Home Assistant the server can reach: one inside the house
+                    // (homeassistant.local, 192.168.x.x) is driven by the speaker itself through its
+                    // self.home.* tools (ha/HomeTools), and its token has no business leaving the house.
                     val haUrl = info.dourok.voicebot.data.Settings.haUrl
                     val haDevices = info.dourok.voicebot.data.Settings.haDevices
-                    if (shareSecrets && haUrl.isNotBlank() && haDevices.isNotBlank()) {
+                    if (shareSecrets && haUrl.isNotBlank() && haDevices.isNotBlank() &&
+                        !info.dourok.voicebot.ha.HomeAssistant.isLan(haUrl)) {
                         put("ha_config", JSONObject().apply {
                             put("base_url", haUrl)
                             put("token", info.dourok.voicebot.data.Settings.haToken)

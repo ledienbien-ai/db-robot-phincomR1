@@ -62,7 +62,8 @@ màn hình.
   thu thử micro để nghe lại.
 - **Đèn LED** — vòng đèn của loa đổi hiệu ứng theo trạng thái: đang nghe, đang trả lời, phát nhạc.
   Chọn hiệu ứng cho từng trạng thái trong danh sách có sẵn.
-- **Home Assistant** — chọn thiết bị nhà thông minh để trợ lý điều khiển (cần máy chủ hỗ trợ).
+- **Home Assistant** — nối loa với Home Assistant trong nhà bằng token truy cập dài hạn (kể cả
+  `http://homeassistant.local:8123`), chọn thiết bị rồi bảo trợ lý bật/tắt, chỉnh, hỏi trạng thái.
 - **Tự chạy khi cắm điện**, kèm khung chat và nhật ký hoạt động ngay trên trang điều khiển.
 
 ## Hình ảnh
@@ -187,7 +188,32 @@ kiểm tra rồi **Save**.
 - Loa không gửi API key hay token Home Assistant cho máy chủ Xiaozhi công cộng.
 - **Dùng model của máy chủ** xoá cấu hình và key đã lưu trên loa.
 
-Thẻ **Home Assistant** hoạt động theo cùng cách (trường `ha_config`).
+## Home Assistant (nhà thông minh)
+
+Loa điều khiển Home Assistant **trực tiếp trong mạng nhà**, qua REST API với một token truy cập dài
+hạn, nên dùng được cả `http://homeassistant.local:8123` và địa chỉ IP như `http://192.168.1.10:8123`
+mà máy chủ trên Internet không với tới.
+
+1. Trong Home Assistant: Hồ sơ (tên tài khoản, góc dưới bên trái) › **Bảo mật** › **Token truy cập dài
+   hạn** › **Tạo token**, sao chép chuỗi token (chỉ hiện một lần).
+2. Trang điều khiển của loa › tab **System** › thẻ **Home Assistant**: nhập địa chỉ và token, bấm
+   **Kiểm tra** (hiện phiên bản, tên nhà và địa chỉ loa tìm được).
+3. **Tải thiết bị**, đánh dấu những thiết bị loa được điều khiển, đặt **tên phòng** và **tên gọi** dễ
+   nói (ví dụ `Phòng khách`, `Đèn trần`), bấm **Lưu**. Mục **Điều khiển thử** bật/tắt từng thiết bị
+   ngay trên trang để kiểm tra.
+4. Gọi loa và nói: "bật đèn phòng khách", "tắt tất cả đèn", "tắt hết đồ phòng ngủ", "đặt điều hoà 26
+   độ", "đèn trần sáng 30 phần trăm", "mở rèm", "quạt tốc độ 50", "phòng ngủ đang bao nhiêu độ?".
+
+Loa khai báo hai công cụ MCP cho trợ lý: `self.home.control` (`device`, `action`, `value`) và
+`self.home.get_state` (`device`). Danh sách thiết bị đã lưu (phòng / tên / entity_id) nằm trong mô tả
+công cụ, gửi lại mỗi phiên, nên trợ lý biết đúng tên và mã từng thiết bị. Loa tìm thiết bị theo tên
+không dấu: tên phòng một mình là mọi thiết bị trong phòng, "tất cả …" là mọi thiết bị khớp, hai thiết
+bị trùng tên thì trợ lý hỏi lại. Chưa chọn thiết bị nào thì loa tìm trong mọi thiết bị điều khiển được
+của Home Assistant.
+
+`homeassistant.local` được tìm bằng một câu hỏi mDNS (Android 5.1 không tự làm được). Token chỉ đi
+tới Home Assistant của bạn; với địa chỉ trên Internet (ví dụ Nabu Casa) cấu hình còn được gửi cho máy
+chủ trò chuyện có hỗ trợ (trường `ha_config`, như AI Model), địa chỉ trong mạng nhà thì không.
 
 ## Lệnh giọng nói
 
@@ -206,6 +232,8 @@ những thiết bị đó dùng được ngay với loa.
 | "Mấy giờ rồi?" | `self.get_local_time` | — |
 | "Thời tiết hôm nay?" | `self.get_weather` | `city` (tuỳ chọn) |
 | "Địa chỉ IP của bạn là gì?" | `self.network.get_ip_address` | — |
+| "Bật đèn phòng khách", "đặt điều hoà 26 độ" | `self.home.control` | `device`, `action`, `value` |
+| "Phòng ngủ đang bao nhiêu độ?", "đèn có bật không?" | `self.home.get_state` | `device` (tuỳ chọn) |
 
 `self.music.set_display_mode` cũng được khai báo cho tương thích, nhưng loa không có màn hình nên
 nó chỉ trả lời rằng không có gì để đổi.
