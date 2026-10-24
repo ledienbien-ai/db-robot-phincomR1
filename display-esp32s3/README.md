@@ -16,11 +16,13 @@ Wi-Fi với loa, tự tìm loa và hiển thị:
 - **Giao diện sáng / tối** giống trang điều khiển của loa (tối đỏ, hoặc sáng xanh dbrobot.vn); màn
   hình nhớ lựa chọn sau khi tắt nguồn.
 - **Đồng hồ lật (flip)** ở trang chính: bốn thẻ số, số nào đổi thì lật xuống như đồng hồ lật thật.
-- **Menu Ứng dụng**: **vuốt ngang** màn hình chính để mở, như màn hình điện thoại. 8 ứng dụng:
+- **Menu Ứng dụng**: **vuốt ngang** màn hình chính để mở, như màn hình điện thoại. 9 ứng dụng:
   *Tìm loa* (chọn loa khác), *Wifi* (quét, chọn mạng, nhập mật khẩu rồi màn hình khởi động lại để
   vào mạng mới; sai mật khẩu thì sau chừng 25 giây màn hình phát Wi-Fi `DBR1-Display-xxxx` để cài
   lại), *Báo thức* (danh sách, bật/tắt, thêm, sửa giờ + ngày lặp, xoá), *Radio*, *Nhạc* (gõ tên
-  bài hát không dấu, loa tìm và phát bài khớp nhất), *Podcast* (chương trình → tập), *Cài đặt*
+  bài hát không dấu, loa tìm và phát bài khớp nhất), *Podcast* (chương trình → tập), *Nhà*
+  (1.5.34: các thiết bị Home Assistant đã chọn trên trang loa, chạm để bật/tắt, cảm biến hiện giá
+  trị; loa tự gọi Home Assistant, cần loa 1.5.34 trở lên), *Cài đặt*
   (âm lượng loa, độ sáng, giao diện sáng/tối, xoay 90° (4 hướng, ngang hoặc dọc), đảo màu, giảm sáng ban đêm, chỉnh lại cảm
   ứng) và *Thông tin* (loa, Wi-Fi, IP, khởi động lại). Không chạm 45 giây, hoặc khi có người nói
   chuyện với loa, màn hình tự quay về trang chính.
@@ -123,7 +125,8 @@ Màn hình nói chuyện với loa qua UDP cổng **8089** (`link/SpeakerLink.kt
 - Menu Ứng dụng (1.5.17), loa trả lời cho đúng máy hỏi: `{"t":"req","k":"radio"|"podcast"|"alarms"}`,
   `{"t":"req","k":"episodes","id":<chương trình>}` → `{"t":"list","k","id","items":[{id,n}]}` /
   `{"t":"alarms","alarms":[{id,on,time,days,label}],"next"}`; `{"t":"play","k":"radio","id"}`,
-  `{"k":"episode","n"}`, `{"k":"music","q"}` → `{"t":"res","ok","msg"}`;
+  `{"k":"episode","n"}`, `{"k":"music","q"}` → `{"t":"res","ok","msg"}`; Home Assistant (1.5.34):
+  `{"t":"req","k":"ha"}` → `list` với `id` = `"<thứ tự>|on|off|ro|na"`, `{"t":"play","k":"ha","id":<thứ tự>,"op":"toggle"}` → `res`;
   `{"t":"al","op":"toggle"|"save"|"del",...}` → `alarms`. Loa gọi cùng API của trang điều khiển
   (127.0.0.1:8088), không có đường tắt riêng.
 

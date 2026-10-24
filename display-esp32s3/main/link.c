@@ -459,6 +459,14 @@ void link_play_music(const char *query)
     send_obj(o);
 }
 
+void link_ha_cmd(const char *index, const char *op)
+{
+    cJSON *o = msg("play", "ha");
+    cJSON_AddStringToObject(o, "id", index);
+    cJSON_AddStringToObject(o, "op", op);
+    send_obj(o);
+}
+
 static cJSON *al_msg(const char *op, const char *id)
 {
     cJSON *o = msg("al", NULL);

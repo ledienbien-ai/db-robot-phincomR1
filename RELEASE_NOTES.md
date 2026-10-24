@@ -3,6 +3,10 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.34
+
+- Màn hình phụ có thêm ứng dụng "Nhà" trong menu Ứng dụng: danh sách thiết bị Home Assistant đã chọn trên trang loa, mỗi thiết bị một công tắc bật/tắt theo đúng trạng thái; chạm để bật/tắt, cảm biến hiện giá trị (nhiệt độ, độ ẩm…). Menu Ứng dụng xếp 9 ô: 5 + 4 khi nằm ngang, 3 × 3 khi dựng dọc. Cần cập nhật cả ứng dụng trên loa và firmware màn hình.
+
 ## v1.5.33
 
 - Dùng trợ lý của chính Home Assistant: thẻ Home Assistant có thêm Agent ID (ví dụ `conversation.google_ai_conversation`) và Assist (nút Quét Assist lấy danh sách, nút Thử Assist gửi câu thử). Khi trò chuyện qua máy chủ DB-Robot, lệnh nhà thông minh được chuyển nguyên câu cho agent đó xử lý.

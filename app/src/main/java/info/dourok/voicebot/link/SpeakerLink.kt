@@ -227,6 +227,43 @@ object SpeakerLink {
         return JSONObject().put("t", "list").put("k", kind).put("id", id).put("items", items).toString()
     }
 
+    /**
+     * The Home Assistant devices for the display's "Nhà" app, as a list datagram: id = "<index>|<state>"
+     * (on, off, ro = a sensor to read, na = not reachable), n = the name and room (cut at the END, the
+     * opposite of tail(): a name's beginning is what tells devices apart).
+     */
+    private fun haList(): String {
+        if (!info.dourok.voicebot.ha.HomeAssistant.configured()) {
+            return res(false, "Loa chưa nối Home Assistant: mở trang loa › System › Home Assistant")
+        }
+        val devs = info.dourok.voicebot.ha.HomeTools.devices()
+        val states = info.dourok.voicebot.ha.HomeAssistant.states()
+        val byId = HashMap<String, JSONObject>()
+        for (i in 0 until states.length()) states.optJSONObject(i)?.let { byId[it.optString("entity_id")] = it }
+        val on = setOf("on", "open", "opening", "playing", "unlocked", "heat", "cool", "auto", "dry", "fan_only", "heat_cool", "cleaning")
+        val items = JSONArray()
+        var used = 80
+        for ((i, d) in devs.withIndex()) {
+            if (items.length() >= 20) break
+            val s = byId[d.entityId]
+            val dom = d.domain()
+            val state = s?.optString("state") ?: "unavailable"
+            val (code, text) = when {
+                s == null || state == "unavailable" -> "na" to d.label() + " · không kết nối được"
+                dom == "sensor" || dom == "binary_sensor" -> "ro" to d.label() + ": " + info.dourok.voicebot.ha.HomeTools.describeState(dom, s)
+                else -> (if (state in on) "on" else "off") to d.label()
+            }
+            val n = if (text.length > 40) text.take(39).trimEnd() + "…" else text
+            val o = JSONObject().put("id", "$i|$code").put("n", n)
+            val len = o.toString().toByteArray(Charsets.UTF_8).size + 1
+            if (used + len > 1150) break
+            used += len
+            items.put(o)
+        }
+        if (items.length() == 0) return res(false, "Chưa chọn thiết bị Home Assistant nào trên trang loa")
+        return JSONObject().put("t", "list").put("k", "ha").put("id", "").put("items", items).toString()
+    }
+
     private fun handleApi(msg: JSONObject, from: InetSocketAddress) {
         AppLog.i("Màn hình phụ hỏi: ${msg.optString("t")} ${msg.optString("k")}${msg.optString("op")}")
         when (msg.optString("t")) {
@@ -256,8 +293,22 @@ object SpeakerLink {
                     }))
                 }
                 "alarms" -> send(from, alarmsJson())
+                "ha" -> send(from, haList())
             }
             "play" -> when (msg.optString("k")) {
+                "ha" -> {
+                    // one of the listed Home Assistant devices, by its place in haList()
+                    val i = msg.optString("id").toIntOrNull() ?: -1
+                    val devs = info.dourok.voicebot.ha.HomeTools.devices()
+                    if (i !in devs.indices) { send(from, res(false, "Danh sách thiết bị đã cũ")); return }
+                    val op = msg.optString("op").ifBlank { "toggle" }
+                    val r = try {
+                        JSONObject(info.dourok.voicebot.ha.HomeTools.control(devs[i].entityId, op, Double.NaN))
+                    } catch (e: Exception) {
+                        JSONObject().put("success", false).put("message", e.message ?: "Lỗi")
+                    }
+                    send(from, res(r.optBoolean("success"), tail(r.optString("message"), 90)))
+                }
                 "radio" -> {
                     val r = local("/api/radio/play?id=" + java.net.URLEncoder.encode(msg.optString("id"), "UTF-8"))
                     send(from, res(r.optBoolean("ok", false), r.optString("error", "Đang mở radio")))

@@ -67,6 +67,8 @@ void link_request(const char *kind, const char *id);          // "radio" | "podc
 void link_play_radio(const char *id);
 void link_play_episode(int n);                                 // n-th of the last episodes list
 void link_play_music(const char *query);
+/* Home Assistant (speaker 1.5.34+): the list is link_request("ha"); items are "<index>|<on|off|ro|na>" + label. */
+void link_ha_cmd(const char *index, const char *op);   // op: toggle | turn_on | turn_off
 void link_alarm_toggle(const char *id, bool on);
 void link_alarm_save(const char *id, const char *time, uint8_t days, const char *label);   // id "" = new
 void link_alarm_del(const char *id);

@@ -50,6 +50,7 @@ LV_FONT_DECLARE(font_flip64);
 LV_FONT_DECLARE(font_num52);
 LV_FONT_DECLARE(font_icon40);
 LV_FONT_DECLARE(font_icon30);
+LV_FONT_DECLARE(font_home30);    /* the Home Assistant app's house (Font Awesome 6, only that glyph) */
 
 /* FontAwesome code points present in the fonts */
 #define I_MUSIC   ""
@@ -87,6 +88,7 @@ LV_FONT_DECLARE(font_icon30);
 #define I_DISH    ""
 #define I_COG     ""
 #define I_BACK    ""
+#define I_HOME    "\xEF\x80\x95"   /* U+F015, in font_home30 only */
 
 // ── themes ───────────────────────────────────────────────────────────────────────
 // The colours of the control panel (assets/control.html): dark with the red accent, and the light
@@ -147,7 +149,7 @@ static int ui_w = 320, ui_h = 240;
 
 typedef enum { P_STATUS, P_CHOOSE, P_VOICE, P_MUSIC, P_IDLE, P_COUNT } page_t;
 
-enum { APP_FIND, APP_WIFI, APP_ALARM, APP_RADIO, APP_MUSIC, APP_PODCAST, APP_SETTINGS, APP_INFO, APP_COUNT };
+enum { APP_FIND, APP_WIFI, APP_ALARM, APP_RADIO, APP_MUSIC, APP_PODCAST, APP_HOME, APP_SETTINGS, APP_INFO, APP_COUNT };
 
 static spk_state_t st;           // the copy the UI works from
 static uint32_t st_seq = 0xFFFFFFFF;
@@ -199,7 +201,7 @@ static void sheet_alarm(lv_obj_t *b);
 static void sheet_music(lv_obj_t *b);
 static void sheet_wifi(lv_obj_t *b);
 static void toast(const char *msg, bool ok);
-enum { LM_RADIO, LM_PODCAST, LM_EPISODES };
+enum { LM_RADIO, LM_PODCAST, LM_EPISODES, LM_HA };
 
 // ── helpers ──────────────────────────────────────────────────────────────────────
 
@@ -1036,6 +1038,7 @@ static const app_t APPS[APP_COUNT] = {
     [APP_RADIO]    = { I_BCAST,   "Radio",     0xEA580C },
     [APP_MUSIC]    = { I_MUSIC,   "Nhạc",      0xDB2777 },
     [APP_PODCAST]  = { I_PODCAST, "Podcast",   0x7C3AED },
+    [APP_HOME]     = { I_HOME,    "Nhà",       0x16A34A },
     [APP_SETTINGS] = { I_COG,     "Cài đặt",   0x0891B2 },
     [APP_INFO]     = { I_INFO,    "Thông tin", 0x2563EB },
 };
@@ -1056,15 +1059,16 @@ static void app_cb(lv_event_t *e)
 
 static void build_apps(lv_obj_t *p)
 {
-    const int cols = PORT ? 3 : 4, cw = LCD_H_RES / cols, ch = PORT ? 96 : 100;
+    // 9 apps: 3 x 3 standing up, 5 + 4 lying down
+    const int cols = PORT ? 3 : 5, cw = LCD_H_RES / cols, ch = PORT ? 96 : 100, sqs = PORT ? 54 : 48, gap = PORT ? 6 : 2;
     for (int i = 0; i < APP_COUNT; i++) {
         int x = (i % cols) * cw, y = 4 + (i / cols) * ch;
-        lv_obj_t *cell = box(p, x + 3, y, cw - 6, ch - 4);
+        lv_obj_t *cell = box(p, x + gap / 2, y, cw - gap, ch - 4);
         lv_obj_add_flag(cell, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_style_radius(cell, 14, 0);
         lv_obj_set_style_bg_color(cell, lv_color_hex(C_CARD2), 0);
         lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, LV_STATE_PRESSED);
-        lv_obj_t *sq = box(cell, (cw - 6 - 54) / 2, 8, 54, 54);
+        lv_obj_t *sq = box(cell, (cw - gap - sqs) / 2, 8, sqs, sqs);
         lv_obj_remove_flag(sq, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_style_radius(sq, 15, 0);
         lv_obj_set_style_bg_opa(sq, LV_OPA_COVER, 0);
@@ -1072,12 +1076,13 @@ static void build_apps(lv_obj_t *p)
         lv_obj_set_style_bg_grad_color(sq, lv_color_mix(lv_color_white(), lv_color_hex(APPS[i].color), 70), 0);
         lv_obj_set_style_bg_grad_dir(sq, LV_GRAD_DIR_VER, 0);
         const char *ic = APPS[i].icon;
-        app_icon_lbl[i] = label(sq, &font_icon30, 0xFFFFFF, ic);
+        app_icon_lbl[i] = label(sq, i == APP_HOME ? &font_home30 : &font_icon30, 0xFFFFFF, ic);
         lv_obj_center(app_icon_lbl[i]);
         lv_obj_t *l = label(cell, &font_vn14, C_TEXT, APPS[i].label);
-        lv_obj_set_width(l, cw - 6);
+        lv_obj_set_width(l, cw - gap);
         lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_pos(l, 0, 68);
+        lv_label_set_long_mode(l, LV_LABEL_LONG_CLIP);
+        lv_obj_set_pos(l, 0, sqs + 14);
         lv_obj_add_event_cb(cell, app_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     }
 }
@@ -1340,6 +1345,14 @@ static void menu_reset(void)
 static void lst_say(const char *text);
 
 /* Radio, podcasts, music and alarms need the speaker app 1.5.18 or newer (older ones ignore the requests). */
+/* The speaker app is older than a.b.c given as a*10000+b*100+c (unknown: assume new). */
+static bool speaker_before(int ver)
+{
+    int a = 0, b = 0, c = 0;
+    if (sscanf(st.ver, "%d.%d.%d", &a, &b, &c) < 2) return false;
+    return a * 10000 + b * 100 + c < ver;
+}
+
 static bool speaker_old(void)
 {
     int a = 0, b = 0, c = 0;
@@ -1382,10 +1395,23 @@ static void lst_say(const char *text)
     lst_note = note(lst, 14, 10, LCD_H_RES - 28, text, C_MUTED);
 }
 
+static bool ha_cmd;   // a Home Assistant command is waiting for its answer
+
 static void list_pick_cb(lv_event_t *e)
 {
     int i = (int)(intptr_t)lv_event_get_user_data(e);
     if (i < 0 || i >= lst_data.count) return;
+    if (list_mode == LM_HA) {
+        // "<index>|<state>": the speaker asks Home Assistant, answers with a toast, the list is read again
+        char idx[8];
+        snprintf(idx, sizeof idx, "%.*s", (int)strcspn(lst_data.it[i].id, "|"), lst_data.it[i].id);
+        const char *bar = strchr(lst_data.it[i].id, '|');
+        if (bar && (!strcmp(bar + 1, "ro") || !strcmp(bar + 1, "na"))) return;   // a sensor: nothing to switch
+        link_ha_cmd(idx, "toggle");
+        ha_cmd = true;
+        toast("Đang gửi lệnh…", true);
+        return;
+    }
     if (list_mode == LM_RADIO) {
         link_play_radio(lst_data.it[i].id);
         play_wait = true;
@@ -1419,8 +1445,25 @@ static void lst_fill(void)
         lv_obj_set_width(l, LCD_H_RES - 16 - 36);
         lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
         lv_obj_align(l, LV_ALIGN_LEFT_MID, 12, 0);
-        lv_obj_t *ch = label(r, &font_vn14, C_ACCENT, list_mode == LM_PODCAST ? ">" : I_PLAY);
-        lv_obj_align(ch, LV_ALIGN_RIGHT_MID, -10, 0);
+        if (list_mode == LM_HA) {
+            lv_obj_set_height(l, 18);   // one line, cut with "…"
+            lv_obj_align(l, LV_ALIGN_LEFT_MID, 12, 0);
+            // on/off as a switch (it follows the device; a tap anywhere on the row toggles it)
+            const char *bar = strchr(lst_data.it[i].id, '|');
+            const char *stt = bar ? bar + 1 : "";
+            if (!strcmp(stt, "on") || !strcmp(stt, "off")) {
+                lv_obj_t *sw = lv_switch_create(r);
+                lv_obj_set_size(sw, 42, 22);
+                lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -8, 0);
+                style_switch(sw);
+                lv_obj_remove_flag(sw, LV_OBJ_FLAG_CLICKABLE);
+                if (!strcmp(stt, "on")) lv_obj_add_state(sw, LV_STATE_CHECKED);
+                lv_obj_set_width(l, LCD_H_RES - 16 - 70);
+            }
+        } else {
+            lv_obj_t *ch = label(r, &font_vn14, C_ACCENT, list_mode == LM_PODCAST ? ">" : I_PLAY);
+            lv_obj_align(ch, LV_ALIGN_RIGHT_MID, -10, 0);
+        }
         lv_obj_add_event_cb(r, list_pick_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     }
     lv_obj_t *pad = box(lst, 0, 2 + lst_data.count * 48, 1, 6);
@@ -1430,9 +1473,16 @@ static void lst_fill(void)
 static void list_load(int mode, const char *id)
 {
     list_mode = mode;
-    snprintf(want_kind, sizeof want_kind, "%s", mode == LM_RADIO ? "radio" : mode == LM_PODCAST ? "podcast" : "episodes");
+    snprintf(want_kind, sizeof want_kind, "%s", mode == LM_RADIO ? "radio" : mode == LM_PODCAST ? "podcast" : mode == LM_HA ? "ha" : "episodes");
     snprintf(want_id, sizeof want_id, "%s", id ? id : "");
     if (speaker_old()) { say_old(); lst_wait = false; return; }
+    if (mode == LM_HA && speaker_before(10534)) {
+        char t[200];
+        snprintf(t, sizeof t, "Loa đang chạy DB-Robot %s. Cần cập nhật loa lên 1.5.34 trở lên để điều khiển Home Assistant từ màn hình.", st.ver);
+        lst_say(t);
+        lst_wait = false;
+        return;
+    }
     lst_say("Đang tải…");
     lst_wait = true;
     lst_t0 = NOW_US();
@@ -1864,6 +1914,13 @@ static void poll_menu(void)
         toast(r.msg, r.ok);
         if (!r.ok && lst && lst_wait) { lst_wait = false; lst_say(r.msg); }
         if (r.ok && play_wait) go_main();
+        // a Home Assistant command was answered: read the list again so the switches follow
+        if (ha_cmd && sheet_app == APP_HOME && lst && list_mode == LM_HA && !lst_wait) {
+            lst_wait = true;
+            lst_t0 = NOW_US();
+            link_request("ha", NULL);
+        }
+        ha_cmd = false;
         play_wait = false;
     }
     if (lst && lst_wait && NOW_US() - lst_t0 > 8000000) { lst_wait = false; char t[200]; snprintf(t, sizeof t, "Loa (DB-Robot %s) không trả lời. Cần bản 1.5.18 trở lên; kiểm tra loa đang bật và cùng mạng.", st.ver); lst_say(t); }
@@ -1909,6 +1966,7 @@ static void open_sheet(int app)
     case APP_WIFI:    sheet_wifi(sheet_body); break;
     case APP_ALARM:   sheet_alarm(sheet_body); break;
     case APP_RADIO:   sheet_list(sheet_body, LM_RADIO); break;
+    case APP_HOME:    sheet_list(sheet_body, LM_HA); break;
     case APP_PODCAST: sheet_list(sheet_body, LM_PODCAST); break;
     case APP_MUSIC:   sheet_music(sheet_body); break;
     case APP_INFO:    sheet_info(sheet_body); break;
