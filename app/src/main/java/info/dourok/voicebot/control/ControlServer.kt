@@ -450,6 +450,7 @@ class ControlServer @Inject constructor(
             "announce_ip" -> Settings.announceIp = v == "true"
             "speaker_name" -> Settings.speakerName = v
             "ha_url" -> Settings.haUrl = v
+            "ha_url_remote" -> Settings.haUrlRemote = v
             "ha_token" -> Settings.haToken = v
             "ha_devices" -> Settings.haDevices = v
             "custom_prompt" -> Settings.customPrompt = v
@@ -596,6 +597,7 @@ class ControlServer @Inject constructor(
         o.put("tts_host", ttsHostFromWs(Settings.wsUrl))
         // Home Assistant — token NEVER returned raw, masked only.
         o.put("ha_url", Settings.haUrl)
+        o.put("ha_url_remote", Settings.haUrlRemote)
         o.put("ha_token_masked", maskApiKey(Settings.haToken))
         o.put("ha_token_set", Settings.haToken.isNotEmpty())
         o.put("ha_devices", Settings.haDevices)

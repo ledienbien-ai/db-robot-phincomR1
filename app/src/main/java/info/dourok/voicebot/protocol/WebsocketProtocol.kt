@@ -195,21 +195,10 @@ class WebsocketProtocol(private val deviceInfo: DeviceInfo,
                             put("api_key", info.dourok.voicebot.data.Settings.llmApiKey)
                         })
                     }
-                    // Per-session BYO Home Assistant: send the client-configured HA + device list so
-                    // the server injects it into the prompt + hass_* tools use it. Only when configured,
-                    // and only for a Home Assistant the server can reach: one inside the house
-                    // (homeassistant.local, 192.168.x.x) is driven by the speaker itself through its
-                    // self.home.* tools (ha/HomeTools), and its token has no business leaving the house.
-                    val haUrl = info.dourok.voicebot.data.Settings.haUrl
-                    val haDevices = info.dourok.voicebot.data.Settings.haDevices
-                    if (shareSecrets && haUrl.isNotBlank() && haDevices.isNotBlank() &&
-                        !info.dourok.voicebot.ha.HomeAssistant.isLan(haUrl)) {
-                        put("ha_config", JSONObject().apply {
-                            put("base_url", haUrl)
-                            put("token", info.dourok.voicebot.data.Settings.haToken)
-                            put("devices", haDevices)
-                        })
-                    }
+                    // Home Assistant is NOT handed to the server any more (no "ha_config"): the speaker
+                    // drives it itself through its self.home.* tools (ha/HomeTools), at home over the
+                    // LAN address and from anywhere over the internet one, so the token never has to
+                    // leave the speaker.
                     // Per-session BYO persona: send the client-configured system-prompt override so
                     // the server substitutes it for its own prompt: for this session. Blank = server default.
                     val customPrompt = info.dourok.voicebot.data.Settings.customPrompt

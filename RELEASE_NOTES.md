@@ -3,6 +3,10 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.32
+
+- Home Assistant từ xa: thêm ô "Từ xa" cho địa chỉ Internet của Home Assistant (Nabu Casa `https://xxxx.ui.nabu.casa`, DuckDNS, Cloudflare Tunnel). Loa dùng địa chỉ trong nhà trước, không nối được thì tự chuyển sang địa chỉ Internet, nên vẫn điều khiển được nhà thông minh khi loa đặt ở nơi khác. HTTPS được kiểm bằng danh sách chứng chỉ gốc mới của ứng dụng (Let's Encrypt dùng được). Nút Kiểm tra kiểm cả hai địa chỉ. Loa không còn gửi cấu hình Home Assistant cho máy chủ trò chuyện.
+
 ## v1.5.31
 
 - Home Assistant: loa tự điều khiển nhà thông minh trong mạng nhà bằng token truy cập dài hạn, dùng được cả địa chỉ `http://homeassistant.local:8123` (loa tự tìm qua mDNS) và IP. Chọn thiết bị, đặt tên phòng và tên gọi rồi nói "bật đèn phòng khách", "tắt tất cả đèn", "đặt điều hoà 26 độ", "mở rèm", "phòng ngủ đang bao nhiêu độ". Trang loa có nút Kiểm tra (hiện phiên bản và tên nhà), hướng dẫn lấy token, và mục Điều khiển thử bật/tắt từng thiết bị. Token của Home Assistant trong mạng nhà không còn được gửi cho máy chủ.

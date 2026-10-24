@@ -215,6 +215,10 @@ object Settings {
     var haUrl: String
         get() = prefs.getString("ha_url", "")!!
         set(v) = prefs.edit().putString("ha_url", v).apply()
+    /** A second address for the same Home Assistant over the internet (Nabu Casa, DuckDNS, Cloudflare…). */
+    var haUrlRemote: String
+        get() = prefs.getString("ha_url_remote", "")!!
+        set(v) = prefs.edit().putString("ha_url_remote", v).apply()
     var haToken: String
         get() = prefs.getString("ha_token", "")!!
         set(v) = prefs.edit().putString("ha_token", v).apply()

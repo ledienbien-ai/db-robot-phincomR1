@@ -174,7 +174,7 @@ public final class Https {
     }
 
     /** The factory that trusts system roots plus the bundle; null if there is no usable bundle. */
-    static SSLSocketFactory socketFactory() {
+    public static SSLSocketFactory socketFactory() {
         synchronized (LOCK) {
             if (!loaded) {
                 loaded = true;

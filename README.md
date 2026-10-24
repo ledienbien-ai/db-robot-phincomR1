@@ -190,14 +190,23 @@ kiểm tra rồi **Save**.
 
 ## Home Assistant (nhà thông minh)
 
-Loa điều khiển Home Assistant **trực tiếp trong mạng nhà**, qua REST API với một token truy cập dài
-hạn, nên dùng được cả `http://homeassistant.local:8123` và địa chỉ IP như `http://192.168.1.10:8123`
-mà máy chủ trên Internet không với tới.
+Loa tự gọi Home Assistant qua REST API với một token truy cập dài hạn, theo hai địa chỉ:
+
+- **Trong nhà**: `http://homeassistant.local:8123` hoặc IP như `http://192.168.1.10:8123` — địa chỉ mà
+  máy chủ trên Internet không với tới, nhưng loa thì có vì nó ở trong nhà.
+- **Từ xa** (tuỳ chọn): địa chỉ Internet có HTTPS của cùng Home Assistant — Home Assistant Cloud
+  (`https://xxxx.ui.nabu.casa`), DuckDNS + Let's Encrypt, hoặc Cloudflare Tunnel. Loa dùng địa chỉ này
+  khi địa chỉ trong nhà không nối được, nên vẫn điều khiển được khi đặt ở nhà khác, văn phòng… Chứng
+  chỉ được kiểm bằng danh sách gốc mới của ứng dụng (Android 5.1 không biết Let's Encrypt). Chứng chỉ
+  tự ký và địa chỉ chỉ có trong VPN (Tailscale, ZeroTier) thì không dùng được.
+
+Có thể chỉ điền một trong hai. Địa chỉ trả lời gần nhất được dùng trước trong 5 phút, để địa chỉ đang
+hỏng không làm mỗi lệnh chậm thêm vài giây.
 
 1. Trong Home Assistant: Hồ sơ (tên tài khoản, góc dưới bên trái) › **Bảo mật** › **Token truy cập dài
    hạn** › **Tạo token**, sao chép chuỗi token (chỉ hiện một lần).
-2. Trang điều khiển của loa › tab **System** › thẻ **Home Assistant**: nhập địa chỉ và token, bấm
-   **Kiểm tra** (hiện phiên bản, tên nhà và địa chỉ loa tìm được).
+2. Trang điều khiển của loa › tab **System** › thẻ **Home Assistant**: nhập địa chỉ **Trong nhà**,
+   **Từ xa** (nếu có) và token, bấm **Kiểm tra** (kiểm từng địa chỉ, hiện phiên bản và tên nhà).
 3. **Tải thiết bị**, đánh dấu những thiết bị loa được điều khiển, đặt **tên phòng** và **tên gọi** dễ
    nói (ví dụ `Phòng khách`, `Đèn trần`), bấm **Lưu**. Mục **Điều khiển thử** bật/tắt từng thiết bị
    ngay trên trang để kiểm tra.
@@ -212,8 +221,8 @@ bị trùng tên thì trợ lý hỏi lại. Chưa chọn thiết bị nào thì
 của Home Assistant.
 
 `homeassistant.local` được tìm bằng một câu hỏi mDNS (Android 5.1 không tự làm được). Token chỉ đi
-tới Home Assistant của bạn; với địa chỉ trên Internet (ví dụ Nabu Casa) cấu hình còn được gửi cho máy
-chủ trò chuyện có hỗ trợ (trường `ha_config`, như AI Model), địa chỉ trong mạng nhà thì không.
+tới Home Assistant của bạn; từ 1.5.32 loa không gửi cấu hình Home Assistant (`ha_config`) cho máy chủ
+trò chuyện nữa — mọi lệnh đều do loa tự làm.
 
 ## Lệnh giọng nói
 
