@@ -47,6 +47,7 @@ public final class Https {
     private static final Object LOCK = new Object();
     private static Callable<InputStream> bundleSource;
     private static SSLSocketFactory factory;
+    private static X509TrustManager trust;
     private static boolean loaded;
 
     private Https() {
@@ -188,6 +189,14 @@ public final class Https {
         }
     }
 
+    /** The trust manager behind {@link #socketFactory()} (OkHttp wants both); null without a bundle. */
+    public static X509TrustManager trustManager() {
+        synchronized (LOCK) {
+            socketFactory();
+            return factory == null ? null : trust;
+        }
+    }
+
     private static SSLSocketFactory build() throws Exception {
         if (bundleSource == null) {
             return null;
@@ -230,7 +239,8 @@ public final class Https {
         X509TrustManager system = trustManager(null);
         X509TrustManager bundled = trustManager(extra);
         SSLContext ctx = SSLContext.getInstance("TLS");
-        ctx.init(null, new TrustManager[] {new Either(system, bundled)}, null);
+        trust = new Either(system, bundled);
+        ctx.init(null, new TrustManager[] {trust}, null);
         return ctx.getSocketFactory();
     }
 

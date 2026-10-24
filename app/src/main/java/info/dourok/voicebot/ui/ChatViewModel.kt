@@ -29,14 +29,18 @@ class ChatViewModel @Inject constructor(
     private val voiceAssistant: VoiceAssistant,
 ) : ViewModel() {
 
-    private val protocol: Protocol = when (settings.transportType) {
-        TransportType.MQTT -> MqttProtocol(context, settings.mqttConfig!!)
-        TransportType.WebSockets -> WebsocketProtocol(
-            deviceInfo,
-            info.dourok.voicebot.data.Settings.wsUrl.ifBlank { settings.webSocketUrl.orEmpty() },
-            info.dourok.voicebot.data.Settings.wsToken.ifBlank { "test-token" },
-        )
-    }
+    // The xiaozhi server, or Home Assistant Assist when the panel picks it (chosen per session).
+    private val protocol: Protocol = info.dourok.voicebot.protocol.RoutedProtocol(
+        when (settings.transportType) {
+            TransportType.MQTT -> MqttProtocol(context, settings.mqttConfig!!)
+            TransportType.WebSockets -> WebsocketProtocol(
+                deviceInfo,
+                info.dourok.voicebot.data.Settings.wsUrl.ifBlank { settings.webSocketUrl.orEmpty() },
+                info.dourok.voicebot.data.Settings.wsToken.ifBlank { "test-token" },
+            )
+        },
+        info.dourok.voicebot.ha.HaAssistProtocol(),
+    )
 
     val state = voiceAssistant.state
     val messages = voiceAssistant.messages

@@ -220,6 +220,24 @@ không dấu: tên phòng một mình là mọi thiết bị trong phòng, "tấ
 bị trùng tên thì trợ lý hỏi lại. Chưa chọn thiết bị nào thì loa tìm trong mọi thiết bị điều khiển được
 của Home Assistant.
 
+### Trợ lý của chính Home Assistant (Agent / Assist)
+
+Thẻ Home Assistant còn có **Agent ID** (ví dụ `conversation.google_ai_conversation`) và **Assist** (bấm
+**Quét Assist** để lấy danh sách trợ lý Assist và agent của Home Assistant). Có hai cách dùng:
+
+- **Cùng máy chủ DB-Robot/Xiaozhi**: trợ lý có thêm công cụ `self.home.assist` — chuyển nguyên câu
+  của người dùng cho agent của Home Assistant (agent đã chọn, hoặc agent của Assist đã chọn, hoặc mặc
+  định) rồi đọc lại câu trả lời. Đã chọn agent hay Assist riêng thì trợ lý ưu tiên đường này cho mọi
+  lệnh nhà thông minh; Home Assistant tự hiểu khu vực, tên gọi khác (alias) và thiết bị đã lộ diện.
+  Nút **Thử Assist** gửi một câu thử.
+- **Home Assistant làm máy chủ** (thẻ Server › **Home Assistant**): bỏ hẳn máy chủ xiaozhi. Gọi
+  loa xong, loa mở WebSocket tới Home Assistant và chạy Assist đã chọn (`assist_pipeline/run`
+  stt → intent → tts): micro gửi lên dạng PCM 16 kHz, STT và phát hiện im lặng của Home Assistant tìm
+  câu nói, agent trả lời và điều khiển nhà, tiếng TTS tải về rồi phát trên loa. Nói tiếp được nếu
+  agent còn chờ câu (`continue_conversation`), im 8 giây thì kết thúc. Assist phải có STT và TTS tiếng
+  Việt (Home Assistant Cloud, hoặc Whisper/Piper). Ở chế độ này không có nhạc, radio, thời tiết của
+  DB-Robot. Đổi lại bằng nút DB-Robot / Xiaozhi; áp dụng từ lần gọi loa kế tiếp, không cần khởi động lại.
+
 `homeassistant.local` được tìm bằng một câu hỏi mDNS (Android 5.1 không tự làm được). Token chỉ đi
 tới Home Assistant của bạn; từ 1.5.32 loa không gửi cấu hình Home Assistant (`ha_config`) cho máy chủ
 trò chuyện nữa — mọi lệnh đều do loa tự làm.

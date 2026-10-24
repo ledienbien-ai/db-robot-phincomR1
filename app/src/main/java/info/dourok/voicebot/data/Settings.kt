@@ -219,6 +219,18 @@ object Settings {
     var haUrlRemote: String
         get() = prefs.getString("ha_url_remote", "")!!
         set(v) = prefs.edit().putString("ha_url_remote", v).apply()
+    /** Home Assistant conversation agent for typed/forwarded requests ("" = the pipeline's or HA's default). */
+    var haAgentId: String
+        get() = prefs.getString("ha_agent_id", "")!!
+        set(v) = prefs.edit().putString("ha_agent_id", v).apply()
+    /** Assist pipeline id ("" = Home Assistant's preferred one). */
+    var haPipeline: String
+        get() = prefs.getString("ha_pipeline", "")!!
+        set(v) = prefs.edit().putString("ha_pipeline", v).apply()
+    /** Who answers the wake word: "xiaozhi" (the server from the OTA url) or "ha" (Home Assistant Assist). */
+    var voiceServer: String
+        get() = prefs.getString("voice_server", "xiaozhi")!!
+        set(v) = prefs.edit().putString("voice_server", v).apply()
     var haToken: String
         get() = prefs.getString("ha_token", "")!!
         set(v) = prefs.edit().putString("ha_token", v).apply()

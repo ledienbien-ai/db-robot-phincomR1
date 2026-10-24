@@ -37,7 +37,7 @@ object HomeAssistant {
         (Settings.haUrl.isNotBlank() || Settings.haUrlRemote.isNotBlank()) && Settings.haToken.isNotBlank()
 
     /** The saved addresses, home one first. */
-    private fun bases(): List<String> =
+    internal fun bases(): List<String> =
         listOf(Settings.haUrl, Settings.haUrlRemote).map { it.trim().trimEnd('/') }.filter { it.isNotEmpty() }.distinct()
 
     /** The address that answered last, tried first for a while (a dead home address costs seconds). */
@@ -96,6 +96,18 @@ object HomeAssistant {
 
     fun state(entityId: String): JSONObject = JSONObject(saved("GET", "/api/states/$entityId", null))
 
+    /**
+     * POST /api/conversation/process: the sentence to a Home Assistant conversation agent (its own
+     * Assist, or an LLM one such as Google Generative AI); returns the agent's answer as JSON.
+     */
+    fun converse(text: String, agentId: String, language: String, conversationId: String?): JSONObject {
+        val body = JSONObject().put("text", text)
+        if (language.isNotBlank()) body.put("language", language)
+        if (agentId.isNotBlank()) body.put("agent_id", agentId)
+        if (!conversationId.isNullOrBlank()) body.put("conversation_id", conversationId)
+        return JSONObject(saved("POST", "/api/conversation/process", body.toString()))
+    }
+
     /** POST /api/services/<domain>/<service>; returns the states that changed. */
     fun call(domain: String, service: String, data: JSONObject): JSONArray =
         JSONArray(saved("POST", "/api/services/$domain/$service", data.toString()))
@@ -103,7 +115,8 @@ object HomeAssistant {
     /** The address actually used for [base] ("192.168.1.20" for homeassistant.local), for the panel. */
     fun resolvedHost(base: String): String = runCatching { target(URL(base.trim())).host }.getOrDefault("")
 
-    private fun target(u: URL): URL {
+    /** [u] with a ".local" host swapped for its address (Android 5.1 cannot look those up). */
+    internal fun target(u: URL): URL {
         if (u.protocol == "http" && MdnsResolver.isLocalName(u.host)) {
             val ip: InetAddress = MdnsResolver.resolve(u.host, 2500)
                 ?: runCatching { InetAddress.getByName(u.host) }.getOrNull()

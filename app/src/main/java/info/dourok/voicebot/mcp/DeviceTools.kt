@@ -194,6 +194,21 @@ object DeviceTools {
             )
         })
         .add(liveTool(
+            "self.home.assist",
+            {
+                "Chuyển nguyên câu yêu cầu về nhà thông minh của người dùng cho trợ lý Home Assistant (Assist) " +
+                    "của chính họ xử lý, rồi đọc lại câu trả lời của Home Assistant. Dùng khi yêu cầu phức tạp hoặc " +
+                    "không có trong danh sách thiết bị (ngữ cảnh, kịch bản, khu vực, hỏi nhiều thiết bị cùng lúc, " +
+                    "đặt hẹn giờ trong nhà), hoặc khi self.home.control không tìm được thiết bị." +
+                    (if (Settings.haAgentId.isNotBlank() || Settings.haPipeline.isNotBlank())
+                        " Người dùng đã chọn trợ lý Home Assistant riêng: ưu tiên công cụ này cho MỌI lệnh nhà thông minh."
+                    else "") +
+                    "\nArgs:\n  text: câu người dùng nói, giữ nguyên ý (tiếng Việt)." +
+                    "\nReturn: câu trả lời của Home Assistant; đọc lại cho người dùng."
+            },
+            arguments(JSONObject().put("text", JSONObject().put("type", "string")), "text"),
+        ) { args -> HomeTools.assist(args.optString("text", "").trim()) })
+        .add(liveTool(
             "self.home.get_state",
             {
                 "Đọc trạng thái thiết bị và cảm biến nhà thông minh (Home Assistant): đèn đang bật hay tắt, " +

@@ -1035,12 +1035,12 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
 
     <div class="card">
       <div class="ch"><span class="icon-badge ib-srv"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c2.5 2 2.5 12 0 14M10 3c-2.5 2-2.5 12 0 14"/></svg></span><h2>Server</h2></div>
-      <div class="row"><label>Máy chủ</label><div class="segsel" style="flex:1"><button id="srvDb" onclick="connectPreset('db')">DB-Robot</button><button id="srvXz" onclick="connectPreset('xz')">Xiaozhi</button></div></div>
+      <div class="row"><label>Máy chủ</label><div class="segsel" style="flex:1"><button id="srvDb" onclick="connectPreset('db')">DB-Robot</button><button id="srvXz" onclick="connectPreset('xz')">Xiaozhi</button><button id="srvHa" onclick="useHaServer()">Home Assistant</button></div></div>
       <div class="row"><label>Tuỳ chỉnh</label><input class="codein" id="ota" placeholder="https://máy-chủ-của-bạn/xiaozhi/ota/"></div>
       <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="connectServer()">Save</button><span class="hint" id="srvStat" style="flex:1"></span></div>
       <div class="row"><label>Mã thiết bị</label><span class="hint" id="devId" style="flex:1;-webkit-user-select:text;user-select:text">—</span></div>
       <div class="hint" id="actBox" hidden style="margin:2px 0 8px;color:var(--a1);font-weight:600;-webkit-user-select:text;user-select:text"></div>
-      <div class="hint">Bấm DB-Robot hoặc Xiaozhi là kết nối ngay. Máy chủ khác: nhập OTA URL vào ô Tuỳ chỉnh rồi bấm Save.</div>
+      <div class="hint">Bấm DB-Robot hoặc Xiaozhi là kết nối ngay. Máy chủ khác: nhập OTA URL vào ô Tuỳ chỉnh rồi bấm Save.<details><summary>Home Assistant làm máy chủ</summary><p>Loa dùng thẳng Assist của Home Assistant: nhận giọng nói (STT), trả lời và điều khiển nhà (agent đã chọn ở thẻ Home Assistant), đọc câu trả lời (TTS). Cần nhập địa chỉ + token ở thẻ Home Assistant, và Assist đã chọn phải có STT và TTS hỗ trợ tiếng Việt (ví dụ Home Assistant Cloud, hoặc Whisper/Piper). Áp dụng từ lần gọi loa kế tiếp; bấm DB-Robot hay Xiaozhi để quay lại. Khi dùng Home Assistant, các lệnh nhạc, radio, thời tiết của DB-Robot không có.</p></details></div>
       <a class="guide-link" href="https://dbrobot.vn/huongdan.html#huong-dan-console" target="_blank" rel="noopener"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 4.5c2.2-.9 4.4-.9 6.5.6 2.1-1.5 4.3-1.5 6.5-.6v10.6c-2.2-.9-4.4-.9-6.5.6-2.1-1.5-4.3-1.5-6.5-.6z"/><path d="M10 5.1v10.6"/></svg><span><b>Hướng dẫn kết nối máy chủ DB-Robot</b><small>Đăng nhập Console, lấy mã 6 số, gắn loa vào tài khoản</small></span><svg class="gl-go" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l5 5-5 5"/></svg></a>
     </div>
 
@@ -1140,6 +1140,10 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
       <div class="row"><label>Từ xa</label><input class="codein" id="haUrlRemote" placeholder="https://xxxx.ui.nabu.casa (tuỳ chọn)"></div>
       <div class="row"><label>Token</label><input class="codein" id="haTok" type="password" placeholder="long-lived token"><button class="tbtn" onclick="togHaKey()" aria-label="Hiện/ẩn HA token"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/></svg></button></div>
       <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="fetchHaDevices()">Tải thiết bị<span class="btn-ico trail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 11-2.3-5.6"/><path d="M20 3.5V9h-5.5"/></svg></span></button><button class="btn rec" style="flex:1;width:auto" onclick="testHa()">Kiểm tra</button></div>
+      <div class="row"><label>Agent ID</label><input class="codein" id="haAgent" placeholder="conversation.google_ai_conversation (tuỳ chọn)" list="haAgentList"><datalist id="haAgentList"></datalist></div>
+      <div class="row"><label>Assist</label><select class="codein" id="haPipe" style="flex:1"><option value="">-- Mặc định của Home Assistant --</option></select></div>
+      <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="scanHaAssist()">Quét Assist</button><button class="btn rec" style="flex:1;width:auto" onclick="testHaAssist()">Thử Assist</button></div>
+      <div class="hint" id="haAsStat">Agent ID và Assist là trợ lý của chính Home Assistant (Assist, hoặc agent AI như Google Generative AI). Để trống = dùng mặc định. Bấm Quét Assist để lấy danh sách, Lưu để áp dụng.</div>
       <div class="media-search bare" style="margin:8px 0 0"><svg class="ms-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg><input class="codein ui" id="haSearch" placeholder="tên hoặc entity_id" oninput="renderHaPick()"></div>
       <div class="segsel" id="haDomains" style="flex:1;margin-top:6px;flex-wrap:wrap"></div>
       <div id="haPick" style="max-height:220px;overflow:auto;margin-top:8px"></div>
@@ -1729,6 +1733,9 @@ function render(s){
     if(s.llm_api_key_set)$('akey').placeholder='•••• (đã lưu — để trống nếu giữ nguyên)';
     $('haUrl').value=s.ha_url||'';
     $('haUrlRemote').value=s.ha_url_remote||'';
+    $('haAgent').value=s.ha_agent_id||'';
+    if(s.ha_pipeline&&![...$('haPipe').options].some(o=>o.value===s.ha_pipeline))$('haPipe').add(new Option(s.ha_pipeline,s.ha_pipeline));
+    $('haPipe').value=s.ha_pipeline||'';
     if(s.ha_token_set)$('haTok').placeholder='•••• (đã lưu)';
     renderHaSaved(s.ha_devices||'');
     restoreHaSel(s.ha_devices||'');
@@ -1752,7 +1759,9 @@ function render(s){
   $('devId').textContent=(s.device_id||'—')+(s.app_version?' · v'+s.app_version:'');
   renderActivation(s.activation_code,s.activation_msg);
   updBanner(s.update_available,s.update_version);
-  (function(){const k=presetOf(s.ota_url);activateSeg(SRV_PRESET_IDS,k?SRV_PRESET[k].id:null);})();
+  (function(){const k=presetOf(s.ota_url);
+    if(s.voice_server==='ha')activateSeg(SRV_PRESET_IDS.concat('srvHa'),'srvHa');
+    else{activateSeg(SRV_PRESET_IDS,k?SRV_PRESET[k].id:null);$('srvHa').classList.remove('on');}})();
   $('msDb').classList.toggle('on',isMusicPreset(s.music_url));
   $('moT').value=parseFloat(s.mai_oi_threshold||'0.5');$('moTv').textContent=s.mai_oi_threshold||'0.5';
   $('moTs').value=parseFloat(s.mai_oi_threshold_speaking||'0.5');$('moTsv').textContent=s.mai_oi_threshold_speaking||'0.5';
@@ -3117,10 +3126,14 @@ async function doConnect(ota,sr,ch){$('srvStat').textContent='Đang kết nối�
     if(j.ok){const k=presetOf(ota);activateSeg(SRV_PRESET_IDS,k?SRV_PRESET[k].id:null);
       renderActivation(j.activation_code,j.activation_msg);}}
   catch(e){$('srvStat').textContent='✗ '+e;}}
-function connectPreset(k){const p=SRV_PRESET[k];$('ota').value='';doConnect(p.ota,p.sr,p.ch);}
+function connectPreset(k){const p=SRV_PRESET[k];$('ota').value='';setKV('voice_server','xiaozhi');$('srvHa').classList.remove('on');doConnect(p.ota,p.sr,p.ch);}
+async function useHaServer(){
+  if(!$('haUrl').value.trim()&&!$('haUrlRemote').value.trim()){$('srvStat').textContent='✗ Nhập địa chỉ và token ở thẻ Home Assistant trước.';return;}
+  await setKV('voice_server','ha');activateSeg(SRV_PRESET_IDS.concat('srvHa'),'srvHa');
+  $('srvStat').textContent='● Home Assistant Assist — áp dụng từ lần gọi loa kế tiếp.';}
 function connectServer(){const v=$('ota').value.trim();
   if(!v){$('srvStat').textContent='Nhập OTA URL vào ô Tuỳ chỉnh trước khi lưu.';return;}
-  doConnect(v);}
+  setKV('voice_server','xiaozhi');$('srvHa').classList.remove('on');doConnect(v);}
 // Shown while the server still has this device unbound: the code its owner types into the server
 // console. Empty code = bound (or not asked yet), and the box goes away.
 function renderActivation(code,msg){const b=$('actBox');
@@ -3160,6 +3173,22 @@ async function testHa(){$('haStat').textContent='Đang kiểm tra…';
     catch(e){out.push(`✗ ${lbl}: ${e}`);}
   }
   $('haStat').textContent=out.join('  —  ');}
+// Home Assistant's own assistants: its Assist pipelines and conversation agents.
+async function scanHaAssist(){$('haAsStat').textContent='Đang quét Assist…';
+  try{const j=await(await fetch('/api/ha/pipelines')).json();
+    if(!j.ok){$('haAsStat').textContent='✗ '+j.error+' (lưu địa chỉ và token trước)';return;}
+    const sel=$('haPipe'),cur=sel.value;
+    sel.innerHTML='<option value="">-- Mặc định của Home Assistant --</option>'+j.pipelines.map(p=>`<option value="${haEsc(p.id)}">${haEsc(p.name)} (${haEsc(p.language)})${p.id===j.preferred?' ★':''}</option>`).join('');
+    sel.value=cur;
+    $('haAgentList').innerHTML=(j.agents||[]).map(a=>`<option value="${haEsc(a.id)}">${haEsc(a.name)}</option>`).join('');
+    $('haAsStat').textContent=`${j.pipelines.length} Assist, ${(j.agents||[]).length} agent. Chọn rồi bấm Lưu.`;}
+  catch(e){$('haAsStat').textContent='✗ '+e;}}
+async function testHaAssist(){const t=prompt('Câu thử gửi cho Home Assistant:','Mấy giờ rồi?');if(!t)return;
+  await setKV('ha_agent_id',$('haAgent').value.trim());await setKV('ha_pipeline',$('haPipe').value);
+  $('haAsStat').textContent='Đang hỏi Home Assistant…';
+  try{const j=await(await fetch('/api/ha/assist?text='+encodeURIComponent(t),{method:'POST'})).json();
+    $('haAsStat').textContent=(j.ok?'✓ ':'✗ ')+(j.message||j.error||'');}
+  catch(e){$('haAsStat').textContent='✗ '+e;}}
 // The saved devices with their live state, and a quick on/off to prove the speaker can drive them.
 function haEsc(t){return String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 async function loadHaStates(){const box=$('haLive');box.innerHTML='<div class="hint">Đang đọc trạng thái…</div>';
@@ -3205,7 +3234,8 @@ async function saveAssistant(){const v=$('assistantPrompt').value;
   const j=await r.json().catch(()=>({ok:false}));
   $('assistantStat').textContent=j.ok?(v.trim()?'Đã lưu — áp dụng từ lần wake kế tiếp.':'Đã lưu (trống) — dùng mặc định server.'):'✗ Lỗi lưu, thử lại.';}
 async function saveHa(){const lines=haLines();
-  const kv={ha_url:$('haUrl').value.trim(),ha_url_remote:$('haUrlRemote').value.trim(),ha_devices:lines};
+  const kv={ha_url:$('haUrl').value.trim(),ha_url_remote:$('haUrlRemote').value.trim(),ha_devices:lines,
+    ha_agent_id:$('haAgent').value.trim(),ha_pipeline:$('haPipe').value};
   if($('haTok').value)kv.ha_token=$('haTok').value;   // don't wipe the saved token when left blank
   for(const k in kv)await setKV(k,kv[k]);
   $('haStat').textContent='Đã lưu '+lines.split('\n').filter(Boolean).length+' thiết bị. Trợ lý dùng được từ lần gọi loa kế tiếp.';renderHaSaved(lines);

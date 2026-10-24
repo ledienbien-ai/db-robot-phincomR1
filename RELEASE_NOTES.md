@@ -3,6 +3,11 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.33
+
+- Dùng trợ lý của chính Home Assistant: thẻ Home Assistant có thêm Agent ID (ví dụ `conversation.google_ai_conversation`) và Assist (nút Quét Assist lấy danh sách, nút Thử Assist gửi câu thử). Khi trò chuyện qua máy chủ DB-Robot, lệnh nhà thông minh được chuyển nguyên câu cho agent đó xử lý.
+- Thẻ Server có thêm lựa chọn "Home Assistant": loa dùng thẳng Assist của Home Assistant làm máy chủ (nhận giọng nói, trả lời, điều khiển nhà, đọc câu trả lời), không cần máy chủ xiaozhi. Assist cần có STT và TTS tiếng Việt. Bấm DB-Robot hoặc Xiaozhi để quay lại.
+
 ## v1.5.32
 
 - Home Assistant từ xa: thêm ô "Từ xa" cho địa chỉ Internet của Home Assistant (Nabu Casa `https://xxxx.ui.nabu.casa`, DuckDNS, Cloudflare Tunnel). Loa dùng địa chỉ trong nhà trước, không nối được thì tự chuyển sang địa chỉ Internet, nên vẫn điều khiển được nhà thông minh khi loa đặt ở nơi khác. HTTPS được kiểm bằng danh sách chứng chỉ gốc mới của ứng dụng (Let's Encrypt dùng được). Nút Kiểm tra kiểm cả hai địa chỉ. Loa không còn gửi cấu hình Home Assistant cho máy chủ trò chuyện.

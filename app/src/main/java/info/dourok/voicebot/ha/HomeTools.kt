@@ -121,6 +121,42 @@ object HomeTools {
         return JSONObject().put("success", true).put("message", msg.toString()).toString()
     }
 
+    @Volatile private var assistConversation: String? = null
+    @Volatile private var assistAt = 0L
+
+    /**
+     * self.home.assist: the user's request, as said, to Home Assistant's own conversation agent (the
+     * Agent ID on the panel, or the chosen Assist's agent, or Home Assistant's default). That agent
+     * knows the house's areas, aliases and exposed devices itself. Follow-ups within a minute keep
+     * the same Home Assistant conversation.
+     */
+    fun assist(text: String): String {
+        need()
+        if (text.isBlank()) throw IllegalArgumentException("Thiếu câu yêu cầu (tham số text).")
+        val conv = if (System.currentTimeMillis() - assistAt < 60_000) assistConversation else null
+        val r = HomeAssistant.converse(text, agentForText(), "", conv)
+        assistConversation = r.optString("conversation_id").ifBlank { null }
+        assistAt = System.currentTimeMillis()
+        val resp = r.optJSONObject("response") ?: JSONObject()
+        val speech = resp.optJSONObject("speech")?.optJSONObject("plain")?.optString("speech").orEmpty()
+        val type = resp.optString("response_type")
+        AppLog.i("Home Assistant Assist: \"$text\" -> $speech")
+        return JSONObject().put("success", type != "error")
+            .put("message", speech.ifBlank { if (type == "error") "Home Assistant không làm được yêu cầu này." else "Đã gửi cho Home Assistant." })
+            .toString()
+    }
+
+    /** The agent for typed requests: the panel's Agent ID, else the chosen Assist pipeline's own agent. */
+    private fun agentForText(): String {
+        if (Settings.haAgentId.isNotBlank()) return Settings.haAgentId.trim()
+        val p = Settings.haPipeline
+        if (p.isBlank()) return ""
+        return runCatching {
+            val r = HaSocket.request("assist_pipeline/pipeline/get", JSONObject().put("pipeline_id", p))
+            r.optJSONObject("result")?.optString("conversation_engine").orEmpty()
+        }.getOrDefault("")
+    }
+
     /** self.home.get_state: one device, a room, or (blank) everything saved. */
     fun status(device: String): String {
         need()

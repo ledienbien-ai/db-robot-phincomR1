@@ -211,6 +211,8 @@ class ControlServer @Inject constructor(
             "/api/ha/devices" -> json(handleHaDevices(session))
             "/api/ha/test" -> json(handleHaTest(session))
             "/api/ha/states" -> json(handleHaStates())
+            "/api/ha/pipelines" -> json(handleHaPipelines())
+            "/api/ha/assist" -> json(if (sameOrigin(session)) handleHaAssist(session) else FOREIGN_ORIGIN)
             "/api/ha/control" -> json(if (sameOrigin(session)) handleHaControl(session) else FOREIGN_ORIGIN)
             "/api/media/search" -> json(handleMediaSearch(param(session, "q")))
             "/api/media/play" -> json(handleMediaPlay(session))
@@ -451,6 +453,9 @@ class ControlServer @Inject constructor(
             "speaker_name" -> Settings.speakerName = v
             "ha_url" -> Settings.haUrl = v
             "ha_url_remote" -> Settings.haUrlRemote = v
+            "ha_agent_id" -> Settings.haAgentId = v
+            "ha_pipeline" -> Settings.haPipeline = v
+            "voice_server" -> Settings.voiceServer = if (v == "ha") "ha" else "xiaozhi"
             "ha_token" -> Settings.haToken = v
             "ha_devices" -> Settings.haDevices = v
             "custom_prompt" -> Settings.customPrompt = v
@@ -598,6 +603,9 @@ class ControlServer @Inject constructor(
         // Home Assistant — token NEVER returned raw, masked only.
         o.put("ha_url", Settings.haUrl)
         o.put("ha_url_remote", Settings.haUrlRemote)
+        o.put("ha_agent_id", Settings.haAgentId)
+        o.put("ha_pipeline", Settings.haPipeline)
+        o.put("voice_server", Settings.voiceServer)
         o.put("ha_token_masked", maskApiKey(Settings.haToken))
         o.put("ha_token_set", Settings.haToken.isNotEmpty())
         o.put("ha_devices", Settings.haDevices)
@@ -963,6 +971,35 @@ class ControlServer @Inject constructor(
                 .put("text", if (s == null) "không có trong Home Assistant" else info.dourok.voicebot.ha.HomeTools.describeState(d.domain(), s)))
         }
         JSONObject().put("ok", true).put("devices", out).toString()
+    } catch (e: Exception) {
+        JSONObject().put("ok", false).put("error", e.message ?: "lỗi").toString()
+    }
+
+    /** Home Assistant's Assist pipelines and conversation agents, for the panel's lists ("Quét Assist"). */
+    private fun handleHaPipelines(): String = try {
+        val r = info.dourok.voicebot.ha.HaSocket.request("assist_pipeline/pipeline/list").optJSONObject("result") ?: JSONObject()
+        val out = JSONArray()
+        val list = r.optJSONArray("pipelines") ?: JSONArray()
+        for (i in 0 until list.length()) {
+            val p = list.optJSONObject(i) ?: continue
+            out.put(JSONObject().put("id", p.optString("id")).put("name", p.optString("name"))
+                .put("language", p.optString("language")).put("agent", p.optString("conversation_engine"))
+                .put("stt", p.optString("stt_engine")).put("tts", p.optString("tts_engine")))
+        }
+        val agents = JSONArray()
+        runCatching {
+            val a = info.dourok.voicebot.ha.HaSocket.request("conversation/agent/list").optJSONObject("result")?.optJSONArray("agents")
+            if (a != null) for (i in 0 until a.length()) a.optJSONObject(i)?.let { agents.put(JSONObject().put("id", it.optString("id")).put("name", it.optString("name"))) }
+        }
+        JSONObject().put("ok", true).put("pipelines", out).put("preferred", r.optString("preferred_pipeline")).put("agents", agents).toString()
+    } catch (e: Exception) {
+        JSONObject().put("ok", false).put("error", e.message ?: "lỗi").toString()
+    }
+
+    /** A sentence to Home Assistant's conversation agent from the panel (the "Test" of Agent/Assist). */
+    private fun handleHaAssist(session: IHTTPSession): String = try {
+        val t = info.dourok.voicebot.ha.HomeTools.assist(param(session, "text"))
+        JSONObject(t).let { JSONObject().put("ok", it.optBoolean("success")).put("message", it.optString("message")).toString() }
     } catch (e: Exception) {
         JSONObject().put("ok", false).put("error", e.message ?: "lỗi").toString()
     }
