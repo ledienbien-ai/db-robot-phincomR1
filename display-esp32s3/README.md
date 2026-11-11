@@ -184,6 +184,14 @@ dừng. Ảnh video là 320×176 (16:9); `video.c` đặt ảnh nhỏ hơn 320×
 (1.5.35 gửi `vv` là số 1, firmware 1.5.35 chỉ nhận `true` nên không tự mở; từ 1.5.36 loa gửi `true` và
 firmware nhận cả hai.)
 
+**Thẻ hình cho câu trả lời (1.5.38)**: màn hình đăng ký với `"v":2` trong `sub`; loa 1.5.38 khi đó gửi
+ba gói nhỏ thay cho một gói `st` lớn: `st` (không có phần trò chuyện), `{"t":"tx","user","bot"}` và
+`{"t":"card","cs":<số thứ tự>,"k":<loại>,…}`. `k` = `wx` (thời tiết), `gold`, `fuel`, `lunar`, `math`,
+`flag` (`cc` = mã ISO 2 chữ thường), `ha`; `k` rỗng = không có thẻ. Màn hình phủ thẻ lên trang trò
+chuyện (`card_open` trong `ui.c`), câu trả lời chạy thành phụ đề ở dưới; chạm để đóng, tự đóng sau
+20 giây im lặng. Hình: biểu tượng và quốc kỳ Twemoji (CC BY 4.0) trong `art.c`, tạo bằng
+`tools/gen_art.py`; cờ là JPEG 120 px giải bằng TJpgDec trong ROM (`jpg.c`).
+
 **Ứng dụng YouTube (1.5.36)**: ô tìm + bàn phím, danh sách chủ đề có sẵn (`YT_TOPICS` trong `ui.c`).
 Tìm = `{"t":"req","k":"yt","id":<chữ>}` → loa hỏi `/yt/search` của máy chủ nhạc, trả `list` `k:"yt"`
 (id = mã video, n = tên · độ dài); chạm = `{"t":"play","k":"yt","id":<mã>}` (các video sau nó trong

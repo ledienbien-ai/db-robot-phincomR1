@@ -61,11 +61,24 @@ object LocationManager {
                         "thẻ Vị trí và thời tiết, rồi nhập thành phố."
                 )
             }
-            return Weather.speak(forecast(), Settings.locName)
+            val fc = forecast()
+            displayCard(fc, Settings.locName)
+            return Weather.speak(fc, Settings.locName)
         }
         val place = Weather.search(city, 1).firstOrNull()
             ?: throw IllegalStateException("Không tìm thấy địa điểm \"$city\".")
-        return Weather.speak(Weather.forecast(place.lat, place.lon), place.label())
+        val fc = Weather.forecast(place.lat, place.lon)
+        displayCard(fc, place.name)
+        return Weather.speak(fc, place.label())
+    }
+
+    /** The weather as a picture on the display (link/DisplayCard). */
+    private fun displayCard(fc: JSONObject, place: String) {
+        try {
+            info.dourok.voicebot.link.DisplayCard.weather(Weather.panel(fc), place)
+        } catch (e: Exception) {
+            AppLog.w("Thẻ thời tiết: ${e.message}")
+        }
     }
 
     /** Places matching what was typed, for the panel to offer. */

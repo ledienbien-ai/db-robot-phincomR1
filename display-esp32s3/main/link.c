@@ -33,6 +33,8 @@ static char s_cur_id[48];
 static link_list_t s_list;
 static link_alarms_t s_alarms;
 static link_res_t s_res;
+static uint32_t s_card_seq;
+static char s_card[1600];      // the speaker's last {"t":"card",…}, as received
 
 #define now_us() esp_timer_get_time()
 
@@ -204,6 +206,9 @@ static void send_sub(void)
     cJSON *o = cJSON_CreateObject();
     cJSON_AddStringToObject(o, "t", "sub");
     cJSON_AddStringToObject(o, "name", g_cfg.name);
+    // 2: send the conversation and the answer card as their own datagrams (speaker 1.5.38+), so no
+    // state datagram needs IP fragments put back together
+    cJSON_AddNumberToObject(o, "v", 2);
     char *t = cJSON_PrintUnformatted(o);
     send_to(&s_peer, t);
     cJSON_free(t);
@@ -346,7 +351,16 @@ static void link_task(void *arg)
                 xSemaphoreGive(s_mx);
             } else if (mode == FOLLOW && from.sin_addr.s_addr == s_peer.sin_addr.s_addr) {
                 xSemaphoreTake(s_mx, portMAX_DELAY);
-                if (!strcmp(ty->valuestring, "list")) parse_list(j);
+                if (!strcmp(ty->valuestring, "tx")) {
+                    copy(s_st.user, sizeof s_st.user, j, "user");
+                    copy(s_st.bot, sizeof s_st.bot, j, "bot");
+                    s_st.seq++;
+                } else if (!strcmp(ty->valuestring, "card")) {
+                    if (strcmp(s_card, buf)) {
+                        strlcpy(s_card, buf, sizeof s_card);
+                        s_card_seq++;
+                    }
+                } else if (!strcmp(ty->valuestring, "list")) parse_list(j);
                 else if (!strcmp(ty->valuestring, "alarms")) parse_alarms(j);
                 else if (!strcmp(ty->valuestring, "res")) {
                     s_res.ok = flag(j, "ok");
@@ -365,6 +379,18 @@ void link_init(void)
     s_mx = xSemaphoreCreateMutex();
     s_st.phase = LINK_OFFLINE;
     xTaskCreatePinnedToCore(link_task, "link", 6144, NULL, 5, NULL, 0);
+}
+
+bool link_card(char *out, size_t n, uint32_t *seq)
+{
+    xSemaphoreTake(s_mx, portMAX_DELAY);
+    bool changed = *seq != s_card_seq;
+    if (changed) {
+        strlcpy(out, s_card, n);
+        *seq = s_card_seq;
+    }
+    xSemaphoreGive(s_mx);
+    return changed;
 }
 
 bool link_state(spk_state_t *out, uint32_t *seq)

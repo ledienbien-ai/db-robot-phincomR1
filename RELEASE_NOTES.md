@@ -3,6 +3,12 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.38
+
+- Màn hình phụ vẽ câu trả lời thành hình: thời tiết (biểu tượng, nhiệt độ, 3 ngày tới), giá vàng và giá xăng dầu (bảng), lịch âm (tờ lịch), phép tính (số to, kèm hình quả táo cho phép tính nhỏ của trẻ em), quốc kỳ của 259 nước và vùng lãnh thổ (Twemoji), lệnh nhà thông minh (đèn, quạt… bật/tắt). Câu trả lời của loa chạy thành phụ đề bên dưới. Câu trả lời không có hình thì màn hình hiện chữ loa đang nói.
+- Thẻ thời tiết, vàng, xăng, lịch âm, nhà thông minh do chính công cụ của loa tạo nên luôn khớp số liệu; phép tính và quốc kỳ được nhận ra từ câu hỏi và câu trả lời (không nhầm ngày tháng, giờ, số điện thoại).
+- Sửa lỗi màn hình phụ không hiện chữ trò chuyện: loa giờ gửi phần trò chuyện và thẻ hình thành các gói riêng nhỏ, không cần ghép mảnh gói tin. Cần ứng dụng loa 1.5.38 và firmware màn hình 1.5.38 (màn hình cũ vẫn chạy như trước).
+
 ## v1.5.37
 
 - Công cụ mới cho trợ lý (đóng góp của hoanglt1223, #1): giá vàng hôm nay (bảng giá PNJ), giá xăng dầu (Petrolimex, PVOIL), đổi ngày dương ↔ âm lịch, can chi, giờ hoàng đạo, dữ kiện tử vi.

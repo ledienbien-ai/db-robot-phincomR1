@@ -51,7 +51,8 @@ object SpeakerLink {
     const val BANDS = 32
     private const val TEXT_MAX = 280
 
-    private class Sub(val addr: InetSocketAddress, var name: String, var seen: Long)
+    /** [v] 2 (display 1.5.38+): the conversation and the card come as their own datagrams ("tx", "card"). */
+    private class Sub(val addr: InetSocketAddress, var name: String, var seen: Long, var v: Int = 1)
 
     private val subs = LinkedHashMap<String, Sub>()
     @Volatile private var socket: DatagramSocket? = null
@@ -129,8 +130,8 @@ object SpeakerLink {
                         synchronized(subs) {
                             val have = subs[key]
                             fresh = have == null
-                            if (have == null) subs[key] = Sub(from, msg.optString("name", "Màn hình").take(32), now())
-                            else { have.seen = now(); have.name = msg.optString("name", have.name).take(32) }
+                            if (have == null) subs[key] = Sub(from, msg.optString("name", "Màn hình").take(32), now(), msg.optInt("v", 1))
+                            else { have.seen = now(); have.name = msg.optString("name", have.name).take(32); have.v = msg.optInt("v", 1) }
                         }
                         if (fresh) {
                             lastState = ""   // everyone gets the full state right away
@@ -421,23 +422,43 @@ object SpeakerLink {
 
     @Volatile private var lastState = ""
     private var lastSentAt = 0L
+    private var lastLite = ""
+    private var lastTx = ""
+    private var lastCard = ""
 
     private fun pushLoop() {
         while (true) {
             try {
                 Thread.sleep(STATE_EVERY_MS)
-                val targets = synchronized(subs) { prune(); subs.values.map { it.addr } }
-                if (targets.isEmpty()) { lastState = ""; continue }
-                val body = state()
-                val changed = body != lastState
-                if (changed || now() - lastSentAt > KEEPALIVE_MS) {
+                val all = synchronized(subs) { prune(); subs.values.map { it.addr to it.v } }
+                if (all.isEmpty()) { lastState = ""; continue }
+                val old = all.filter { it.second < 2 }.map { it.first }
+                val new = all.filter { it.second >= 2 }.map { it.first }
+                val keep = now() - lastSentAt > KEEPALIVE_MS
+                if (lastState.isEmpty()) { lastLite = ""; lastTx = ""; lastCard = "" }   // someone new: everything
+                // the clock is added on send so it alone never counts as a change
+                fun clock(body: String) = body.dropLast(1) + ",\"tm\":${System.currentTimeMillis() / 1000}" +
+                    ",\"tzo\":${TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000}}"
+                // A display before 1.5.38: one state datagram with the conversation in it. It can pass
+                // 1500 bytes, so it arrives only where IP fragments are put back together.
+                if (old.isNotEmpty()) {
+                    val body = state(true)
+                    if (body != lastState || keep) { old.forEach { send(it, clock(body)) } }
                     lastState = body
-                    lastSentAt = now()
-                    // the clock is added on send so it alone never counts as a change
-                    val withClock = body.dropLast(1) + ",\"tm\":${System.currentTimeMillis() / 1000}" +
-                        ",\"tzo\":${TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60000}}"
-                    targets.forEach { send(it, withClock) }
+                } else if (lastState.isEmpty()) lastState = "-"
+                // 1.5.38+: three small datagrams, each well inside one packet
+                if (new.isNotEmpty()) {
+                    val lite = state(false)
+                    if (lite != lastLite || keep) new.forEach { send(it, clock(lite)) }
+                    lastLite = lite
+                    val tx = textJson()
+                    if (tx != lastTx || keep) new.forEach { send(it, tx) }
+                    lastTx = tx
+                    val card = DisplayCard.json()
+                    if (card != lastCard || keep) new.forEach { send(it, card) }
+                    lastCard = card
                 }
+                if (keep) lastSentAt = now()
             } catch (e: InterruptedException) {
                 return
             } catch (e: Exception) {
@@ -448,8 +469,37 @@ object SpeakerLink {
 
     private val VIDEO_ID = Regex("id=(?:yt_)?([A-Za-z0-9_-]{11})(?:&|$)")
 
-    /** Everything a display shows, kept well under one datagram. */
-    fun state(): String {
+    /**
+     * The conversation for a 1.5.38+ display: the user's last words and the reply since, cut (from
+     * the front) to fit one packet with room to spare.
+     */
+    private fun textJson(): String {
+        val log = ConversationLog.recent()
+        val lastUser = log.indexOfLast { it.sender == "user" }
+        val user = if (lastUser >= 0) log[lastUser].text else ""
+        val reply = log.drop(lastUser + 1).filter { it.sender != "user" }.joinToString(" ") { it.text }
+        return JSONObject().put("t", "tx").put("user", tailBytes(user, 300)).put("bot", tailBytes(reply, 900)).toString()
+    }
+
+    /** The end of [s] in at most [max] UTF-8 bytes, from a word start, "…" in front when cut. */
+    private fun tailBytes(s: String, max: Int): String {
+        val t = s.trim()
+        if (t.toByteArray(Charsets.UTF_8).size <= max) return t
+        var i = t.length
+        var bytes = 3
+        while (i > 0) {
+            val n = t[i - 1].toString().toByteArray(Charsets.UTF_8).size
+            if (bytes + n > max) break
+            bytes += n
+            i--
+        }
+        val cut = t.substring(i)
+        val sp = cut.indexOf(' ')
+        return "…" + if (sp in 1..30) cut.substring(sp + 1) else cut
+    }
+
+    /** Everything a display shows, kept well under one datagram ([withText] false: without the conversation). */
+    fun state(withText: Boolean = true): String {
         val o = JSONObject()
             .put("t", "st")
             .put("name", Settings.speakerName)
@@ -461,11 +511,13 @@ object SpeakerLink {
             .put("mute", VoiceGate.paused)
             .put("vol", DeviceActions.getVolume?.invoke() ?: -1)
         // the last thing said each way: the user's words, and the assistant's reply since then
-        val log = ConversationLog.recent()
-        val lastUser = log.indexOfLast { it.sender == "user" }
-        o.put("user", if (lastUser >= 0) tail(log[lastUser].text) else "")
-        val reply = log.drop(lastUser + 1).filter { it.sender != "user" }.joinToString(" ") { it.text }
-        o.put("bot", tail(reply))
+        if (withText) {
+            val log = ConversationLog.recent()
+            val lastUser = log.indexOfLast { it.sender == "user" }
+            o.put("user", if (lastUser >= 0) tail(log[lastUser].text) else "")
+            val reply = log.drop(lastUser + 1).filter { it.sender != "user" }.joinToString(" ") { it.text }
+            o.put("bot", tail(reply))
+        }
         LocalMusicPlayer.nowPlayingBrief()?.let { np ->
             val id = np[3] as String
             val src = when {

@@ -43,6 +43,9 @@ public final class MarketPrices {
     private static long goldAt;
     private static String fuelCache;
     private static long fuelAt;
+    // the pages the answers came from, for the display's tables (goldTable, fuelTable)
+    private static String goldRaw;
+    private static String fuelRaw;
 
     private MarketPrices() {
     }
@@ -51,7 +54,9 @@ public final class MarketPrices {
         synchronized (LOCK) {
             long now = System.currentTimeMillis();
             if (goldCache == null || now - goldAt > CACHE_MS) {
-                goldCache = parseGold(fetch(GOLD_URL, "application/json"));
+                String raw = fetch(GOLD_URL, "application/json");
+                goldCache = parseGold(raw);
+                goldRaw = raw;
                 goldAt = now;
             }
             return goldCache;
@@ -62,7 +67,9 @@ public final class MarketPrices {
         synchronized (LOCK) {
             long now = System.currentTimeMillis();
             if (fuelCache == null || now - fuelAt > CACHE_MS) {
-                fuelCache = parseFuel(fetch(FUEL_URL, "text/html"));
+                String raw = fetch(FUEL_URL, "text/html");
+                fuelCache = parseFuel(raw);
+                fuelRaw = raw;
                 fuelAt = now;
             }
             return fuelCache;
@@ -76,6 +83,67 @@ public final class MarketPrices {
         headers.put("Accept", accept);
         headers.put("Accept-Language", "vi-VN,vi");
         return Https.readText(Https.get(url, headers), BODY_LIMIT);
+    }
+
+    /** The last gold list as rows [name, buy, sell], in million dong per luong ("142,3"); empty when none. */
+    public static List<String[]> goldTable() {
+        List<String[]> rows = new ArrayList<String[]>();
+        String raw;
+        synchronized (LOCK) {
+            raw = goldRaw;
+        }
+        if (raw == null) {
+            return rows;
+        }
+        try {
+            JSONArray data = new JSONObject(raw).getJSONArray("data");
+            for (int i = 0; i < data.length(); i++) {
+                JSONObject item = data.getJSONObject(i);
+                String name = item.optString("tensp", "").trim();
+                long buy = thousands(item.opt("giamua"));
+                long sell = thousands(item.opt("giaban"));
+                if (name.isEmpty() || (buy <= 0 && sell <= 0)) {
+                    continue;
+                }
+                rows.add(new String[]{name, buy > 0 ? decimal(buy * 10, 1000, 2) : "—", sell > 0 ? decimal(sell * 10, 1000, 2) : "—"});
+            }
+        } catch (JSONException e) {
+            rows.clear();
+        }
+        return rows;
+    }
+
+    /** When PNJ last updated its list, as it says it; "" when unknown. */
+    public static String goldUpdated() {
+        synchronized (LOCK) {
+            try {
+                return goldRaw == null ? "" : new JSONObject(goldRaw).optString("updateDate", "").trim();
+            } catch (JSONException e) {
+                return "";
+            }
+        }
+    }
+
+    /** The last Petrolimex table as rows [name, zone 1 price, last change ("+250", "-130", "")]. */
+    public static List<String[]> fuelTable() {
+        List<String[]> rows = new ArrayList<String[]>();
+        String raw;
+        synchronized (LOCK) {
+            raw = fuelRaw;
+        }
+        if (raw == null) {
+            return rows;
+        }
+        for (String[] r : table(raw, "table-petro")) {
+            if (r.length < 5) {
+                continue;
+            }
+            String p = r[2].trim();
+            String chg = p.isEmpty() || p.equals("—") || p.equals("-") || p.equals("0") ? "" : (p.startsWith("-") || p.startsWith("+") ? p : "+" + p);
+            // the site groups thousands with a comma: the Vietnamese way is a dot
+            rows.add(new String[]{r[0], r[3].replace(',', '.'), chg.replace(',', '.')});
+        }
+        return rows;
     }
 
     /** PNJ's price list in words. Prices arrive in thousand dong per chi (10 chi = 1 luong). */

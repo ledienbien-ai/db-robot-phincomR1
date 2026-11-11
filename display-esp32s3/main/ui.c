@@ -30,6 +30,9 @@
 #include "touch.h"
 #include "video.h"
 #include "emoji.h"
+#include "art.h"
+#include "jpg.h"
+#include "cJSON.h"
 #include "board.h"
 #ifdef ESP_PLATFORM
 #include "freertos/FreeRTOS.h"
@@ -50,7 +53,8 @@ LV_FONT_DECLARE(font_flip64);
 LV_FONT_DECLARE(font_num52);
 LV_FONT_DECLARE(font_icon40);
 LV_FONT_DECLARE(font_icon30);
-LV_FONT_DECLARE(font_home30);    /* the Home Assistant app's house (Font Awesome 6, only that glyph) */
+LV_FONT_DECLARE(font_home30);
+LV_FONT_DECLARE(font_big44);     /* numbers and + − × ÷ = ° √ for the answer cards */    /* the Home Assistant app's house (Font Awesome 6, only that glyph) */
 
 /* FontAwesome code points present in the fonts */
 #define I_MUSIC   ""
@@ -2135,6 +2139,440 @@ static bool chat_locked(void)
     return true;
 }
 
+/* ── answer cards (speaker 1.5.38+) ───────────────────────────────────────────────────────────
+ * The speaker sends a card for a turn it can picture: weather, gold or fuel prices, a lunar date, a
+ * sum, a country's flag, a Home Assistant device. It covers the screen while the conversation goes
+ * on, with the assistant's face at the top and what it says as a subtitle at the bottom; a tap
+ * closes it, and it goes by itself 20 s after the conversation ends. Without a card the voice page
+ * shows the words alone. */
+
+static lv_obj_t *c_layer, *c_face, *c_sub, *c_subbox;
+static uint32_t c_rx;
+static char c_json[1600];
+static int c_shown = -1;            // the card number on screen (the speaker's "cs")
+static int64_t c_quiet_since;
+static lv_image_dsc_t c_flag;
+
+static void card_close(void)
+{
+    if (c_layer) lv_obj_delete(c_layer);
+    c_layer = c_face = c_sub = c_subbox = NULL;
+    jpg_free(&c_flag);
+}
+
+static void card_tap_cb(lv_event_t *e) { card_close(); }
+
+static const char *jstr(const cJSON *o, const char *k)
+{
+    const cJSON *v = cJSON_GetObjectItemCaseSensitive(o, k);
+    return cJSON_IsString(v) && v->valuestring ? v->valuestring : "";
+}
+
+static int jint(const cJSON *o, const char *k, int def)
+{
+    const cJSON *v = cJSON_GetObjectItemCaseSensitive(o, k);
+    return cJSON_IsNumber(v) ? v->valueint : def;
+}
+
+/* A Twemoji picture from art.c, scaled to px pixels. */
+static lv_obj_t *art(lv_obj_t *p, const lv_image_dsc_t *img, int x, int y, int px)
+{
+    lv_obj_t *i = lv_image_create(p);
+    lv_image_set_src(i, img);
+    lv_image_set_pivot(i, 0, 0);
+    if (px != ART_ICON) lv_image_set_scale(i, 256 * px / ART_ICON);
+    lv_obj_set_pos(i, x, y);
+    lv_obj_set_size(i, px, px);
+    lv_image_set_inner_align(i, LV_IMAGE_ALIGN_TOP_LEFT);
+    lv_obj_remove_flag(i, LV_OBJ_FLAG_CLICKABLE);
+    return i;
+}
+
+/* WMO weather code (Open-Meteo) to a picture. */
+static const lv_image_dsc_t *wx_art(int c, bool day)
+{
+    if (c == 0) return day ? &art_sun : &art_moon;
+    if (c == 1) return day ? &art_sun_cloud_s : &art_cloud;
+    if (c == 2) return day ? &art_sun_cloud : &art_cloud;
+    if (c == 3) return &art_cloud;
+    if (c == 45 || c == 48) return &art_fog;
+    if ((c >= 51 && c <= 57) || (c >= 61 && c <= 67)) return &art_rain;
+    if ((c >= 71 && c <= 77) || c == 85 || c == 86) return &art_snow;
+    if (c >= 80 && c <= 82) return day ? &art_showers : &art_rain;
+    if (c >= 95) return &art_storm;
+    return &art_cloud;
+}
+
+static const lv_image_dsc_t *ha_art(const char *dm)
+{
+    if (!strcmp(dm, "light")) return &art_bulb;
+    if (!strcmp(dm, "switch") || !strcmp(dm, "input_boolean")) return &art_plug;
+    if (!strcmp(dm, "fan")) return &art_fan;
+    if (!strcmp(dm, "climate")) return &art_snowflake;
+    if (!strcmp(dm, "cover") || !strcmp(dm, "valve")) return &art_window;
+    if (!strcmp(dm, "lock")) return &art_lock;
+    if (!strcmp(dm, "media_player")) return &art_tv;
+    return &art_house;
+}
+
+/* A text in one of the card's fonts, placed and wrapped. */
+static lv_obj_t *ctext(lv_obj_t *p, const lv_font_t *f, uint32_t col, const char *t, int x, int y, int w)
+{
+    lv_obj_t *l = label(p, f, col, t);
+    lv_obj_set_pos(l, x, y);
+    if (w > 0) {
+        lv_obj_set_width(l, w);
+        lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
+    }
+    return l;
+}
+
+static void card_weather(lv_obj_t *b, const cJSON *j, int W, int H)
+{
+    bool day = jint(j, "dy", 1);
+    int lw = PORT ? W : 150;                 // landscape: now on the left, the days on the right
+    art(b, wx_art(jint(j, "c", 3), day), PORT ? 6 : (lw - 72) / 2 - 30, 0, 72);
+    char t[16];
+    snprintf(t, sizeof t, "%d°", jint(j, "tp", 0));
+    lv_obj_t *tl = ctext(b, &font_big44, C_TEXT, t, PORT ? 90 : 84, PORT ? 6 : 10, 0);
+    (void)tl;
+    ctext(b, &font_vn14, C_TEXT, jstr(j, "d"), PORT ? 90 : 6, PORT ? 58 : 76, PORT ? W - 96 : lw - 12);
+    char m[64] = "";
+    int h = jint(j, "h", -1), w = jint(j, "w", -1);
+    if (h >= 0 && w >= 0) snprintf(m, sizeof m, PORT ? "Độ ẩm %d%% · gió %d km/h" : "Ẩm %d%% · gió %dkm/h", h, w);
+    else if (h >= 0) snprintf(m, sizeof m, "Độ ẩm %d%%", h);
+    ctext(b, &font_vn14, C_MUTED, m, 6, PORT ? 80 : 96, lw - 12);
+    const cJSON *f = cJSON_GetObjectItemCaseSensitive(j, "f");
+    int n = cJSON_GetArraySize(f);
+    if (n > 3) n = 3;
+    for (int i = 0; i < n; i++) {
+        const cJSON *d = cJSON_GetArrayItem(f, i);
+        if (cJSON_GetArraySize(d) < 5) continue;
+        const char *lab = cJSON_GetStringValue(cJSON_GetArrayItem(d, 0));
+        int code = cJSON_GetArrayItem(d, 1)->valueint, lo = cJSON_GetArrayItem(d, 2)->valueint;
+        int hi = cJSON_GetArrayItem(d, 3)->valueint, rain = cJSON_GetArrayItem(d, 4)->valueint;
+        char r[32], rn[24] = "";
+        snprintf(r, sizeof r, "%d°–%d°", lo, hi);
+        if (rain >= 0) snprintf(rn, sizeof rn, "Mưa %d%%", rain);
+        lv_obj_t *c;
+        if (PORT) {   // three tiles in a row
+            int tw = (W - 12 - 2 * 6) / 3, th = H - 106;
+            if (th > 96) th = 96;
+            c = box(b, 6 + i * (tw + 6), 104, tw, th);
+            lv_obj_t *l = label(c, &font_vn14, C_MUTED, lab ? lab : "");
+            lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 2);
+            art(c, wx_art(code, true), (tw - 30) / 2, 20, 30);
+            l = label(c, &font_vn14, C_TEXT, r);
+            lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 52);
+            if (rn[0] && th >= 90) { l = label(c, &font_vn14, 0x38BDF8, rn); lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 72); }
+        } else {      // three rows in a column
+            int rh = (H - 4) / 3;
+            c = box(b, lw, i * rh, W - lw - 6, rh - 4);
+            art(c, wx_art(code, true), 4, (rh - 4 - 30) / 2, 30);
+            lv_obj_t *l = label(c, &font_vn14, C_MUTED, lab ? lab : "");
+            lv_obj_set_pos(l, 40, rh / 2 - 22);
+            l = label(c, &font_vn14, C_TEXT, r);
+            lv_obj_set_pos(l, 40, rh / 2 - 4);
+            // the chance of rain under it on the right, clear of the day's name
+            if (rain >= 0) { char rp[16]; snprintf(rp, sizeof rp, "%d%%", rain); l = label(c, &font_vn14, 0x38BDF8, rp); lv_obj_align(l, LV_ALIGN_TOP_RIGHT, -6, rh / 2 - 4); }
+        }
+        lv_obj_set_style_bg_color(c, lv_color_hex(C_CARD), 0);
+        lv_obj_set_style_bg_opa(c, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(c, 10, 0);
+    }
+}
+
+/* Gold and fuel: a table, the price columns lined up on the right. */
+static void card_table(lv_obj_t *b, const cJSON *j, int W, int H, bool gold)
+{
+    art(b, gold ? &art_coin : &art_fuel, W - 46, 0, 40);
+    ctext(b, &font_vn14, C_MUTED, gold ? "Triệu đồng / lượng" : "Đồng / lít", 6, 2, W - 60);
+    ctext(b, &font_vn14, C_MUTED, jstr(j, "u"), 6, 20, W - 60);
+    int c1 = gold ? 56 : 66, c2 = 56;    // the two number columns
+    int rh = PORT ? 40 : 24;            // standing up: the name on its own line, the numbers under it
+    lv_obj_t *hdr = box(b, 6, 42, W - 12, 18);
+    lv_obj_t *l = label(hdr, &font_vn14, C_MUTED, gold ? "Mua" : "Giá");
+    lv_obj_align(l, LV_ALIGN_RIGHT_MID, -c2 - 4, 0);
+    l = label(hdr, &font_vn14, C_MUTED, gold ? "Bán" : "+/-");
+    lv_obj_align(l, LV_ALIGN_RIGHT_MID, -4, 0);
+    lv_obj_t *list = box(b, 6, 62, W - 12, H - 62);
+    lv_obj_add_flag(list, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(list, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(list, LV_SCROLLBAR_MODE_OFF);
+    const cJSON *rows = cJSON_GetObjectItemCaseSensitive(j, "r");
+    int n = cJSON_GetArraySize(rows);
+    for (int i = 0; i < n; i++) {
+        const cJSON *r = cJSON_GetArrayItem(rows, i);
+        lv_obj_t *row = box(list, 0, i * (rh + 2), W - 12, rh);
+        lv_obj_set_style_bg_color(row, lv_color_hex(i % 2 ? C_BG : C_CARD), 0);
+        lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(row, 6, 0);
+        const char *name = cJSON_GetArrayItem(r, 0)->valuestring;
+        const char *v1 = cJSON_GetArrayItem(r, 1)->valuestring;
+        const char *v2 = cJSON_GetArrayItem(r, 2)->valuestring;
+        l = label(row, &font_vn14, C_TEXT, name ? name : "");
+        lv_obj_set_size(l, PORT ? W - 24 : W - 12 - c1 - c2 - 14, 18);
+        lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+        lv_obj_align(l, PORT ? LV_ALIGN_TOP_LEFT : LV_ALIGN_LEFT_MID, 6, PORT ? 2 : 0);
+        l = label(row, &font_vn14, gold ? 0x22C55E : C_TEXT, v1 ? v1 : "");
+        lv_obj_align(l, PORT ? LV_ALIGN_BOTTOM_RIGHT : LV_ALIGN_RIGHT_MID, -c2 - 4, PORT ? -2 : 0);
+        uint32_t col = gold ? 0xF59E0B : (v2 && v2[0] == '-' ? 0x22C55E : 0xEF4444);
+        l = label(row, &font_vn14, col, v2 ? v2 : "");
+        lv_obj_align(l, PORT ? LV_ALIGN_BOTTOM_RIGHT : LV_ALIGN_RIGHT_MID, -4, PORT ? -2 : 0);
+    }
+}
+
+static void card_lunar(lv_obj_t *b, const cJSON *j, int W, int H)
+{
+    // a tear-off calendar page: the month on a red band, the day big, the weekday under it
+    int pw = PORT ? 120 : 110, ph = PORT ? 110 : (H < 124 ? H : 124);
+    int px = PORT ? (W - pw) / 2 : 6;
+    lv_obj_t *pg = box(b, px, 0, pw, ph);
+    lv_obj_set_style_bg_color(pg, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_bg_opa(pg, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(pg, 10, 0);
+    lv_obj_set_style_clip_corner(pg, true, 0);
+    lv_obj_t *band = box(pg, 0, 0, pw, 28);
+    lv_obj_set_style_bg_color(band, lv_color_hex(0xDC2626), 0);
+    lv_obj_set_style_bg_opa(band, LV_OPA_COVER, 0);
+    char t[64];
+    snprintf(t, sizeof t, "Tháng %d · %d", jint(j, "sm", 1), jint(j, "sy", 2026));
+    lv_obj_t *l = label(band, &font_vn14, 0xFFFFFF, t);
+    lv_obj_center(l);
+    snprintf(t, sizeof t, "%d", jint(j, "sd", 1));
+    l = label(pg, &font_big44, 0x111827, t);
+    lv_obj_align(l, LV_ALIGN_TOP_MID, 0, PORT ? 28 : 32);
+    l = label(pg, &font_vn14, 0xDC2626, jstr(j, "wd"));
+    lv_obj_align(l, LV_ALIGN_BOTTOM_MID, 0, -8);
+    // the lunar side, one line under the other
+    lv_obj_t *col = PORT ? box(b, 6, ph + 6, W - 12, H - ph - 6) : box(b, px + pw + 10, 0, W - px - pw - 16, H);
+    lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(col, 2, 0);
+    int ld = jint(j, "ld", 1), lm = jint(j, "lm", 1);
+    if (ld <= 10) snprintf(t, sizeof t, "Mùng %d tháng %d%s", ld, lm, jint(j, "lp", 0) ? " nhuận" : "");
+    else snprintf(t, sizeof t, "Ngày %d tháng %d%s", ld, lm, jint(j, "lp", 0) ? " nhuận" : "");
+    lv_obj_t *x;
+    x = label(col, &font_vn18, C_TEXT, t);
+    snprintf(t, sizeof t, "Năm %s", jstr(j, "ly"));
+    x = label(col, &font_vn14, 0xF59E0B, t);
+    x = label(col, &font_vn14, C_TEXT, jstr(j, "cc"));
+    lv_obj_set_width(x, lv_pct(100));
+    lv_label_set_long_mode(x, LV_LABEL_LONG_WRAP);
+    char g[160];
+    snprintf(g, sizeof g, "Giờ tốt: %s", jstr(j, "gh"));
+    x = label(col, &font_vn14, C_MUTED, g);
+    lv_obj_set_width(x, lv_pct(100));
+    lv_label_set_long_mode(x, LV_LABEL_LONG_WRAP);
+}
+
+static void card_math(lv_obj_t *b, const cJSON *j, int W, int H)
+{
+    char e[96];
+    snprintf(e, sizeof e, "%s = %s", jstr(j, "e"), jstr(j, "r"));
+    int a = jint(j, "a", -1), bb = jint(j, "b", -1);
+    const char *op = jstr(j, "op");
+    int pics = a >= 0 && bb >= 0;
+    // the sum, on one line when it fits, else the answer under it
+    lv_point_t sz;
+    lv_text_get_size(&sz, e, &font_big44, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    int top = pics ? H - (sz.x > W - 12 ? 100 : 52) : (H - (sz.x > W - 12 ? 100 : 52)) / 2;
+    if (sz.x <= W - 12) {
+        lv_obj_t *l = label(b, &font_big44, C_TEXT, e);
+        lv_obj_align(l, LV_ALIGN_TOP_MID, 0, top);
+    } else {
+        lv_obj_t *l = label(b, &font_big44, C_TEXT, jstr(j, "e"));
+        lv_obj_set_width(l, W - 12);
+        lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+        lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_pos(l, 6, top);
+        char r[48];
+        snprintf(r, sizeof r, "= %s", jstr(j, "r"));
+        l = label(b, &font_big44, C_ACCENT, r);
+        lv_obj_align(l, LV_ALIGN_TOP_MID, 0, top + 50);
+    }
+    if (!pics) {
+        if (top >= 44) art(b, &art_abacus, (W - 40) / 2, top - 44, 40);
+        return;
+    }
+    // little apples a child can count: a and b side by side (crossed out for "−"), or a rows of b
+    int avail = top - 6, s = 22;
+    if (!strcmp(op, "×")) {
+        int rows = a, cols = bb;
+        while (s > 10 && (rows * (s + 2) > avail || cols * (s + 2) > W - 12)) s -= 2;
+        int x0 = (W - cols * (s + 2)) / 2, y0 = (avail - rows * (s + 2)) / 2;
+        for (int r = 0; r < rows; r++)
+            for (int c = 0; c < cols; c++) art(b, &art_apple, x0 + c * (s + 2), y0 + r * (s + 2), s);
+        return;
+    }
+    bool minus = !strcmp(op, "−");
+    int total = minus ? a : a + bb;           // "7 − 3": seven apples, the last three faded
+    int per = (W - 12) / (s + 2);
+    while (s > 12 && ((total + per - 1) / per) * (s + 2) > avail) { s -= 2; per = (W - 12) / (s + 2); }
+    int rows = (total + per - 1) / per, cols = total < per ? total : per;
+    int x0 = (W - cols * (s + 2)) / 2, y0 = (avail - rows * (s + 2)) / 2;
+    for (int i = 0; i < total; i++) {
+        lv_obj_t *im = art(b, &art_apple, x0 + (i % per) * (s + 2), y0 + (i / per) * (s + 2), s);
+        if (minus && i >= a - bb) lv_obj_set_style_image_opa(im, LV_OPA_30, 0);
+        else if (!minus && i >= a) {    // the second number's apples, tinted green
+            lv_obj_set_style_image_recolor(im, lv_color_hex(0x22C55E), 0);
+            lv_obj_set_style_image_recolor_opa(im, LV_OPA_50, 0);
+        }
+    }
+}
+
+static void card_flag(lv_obj_t *b, const cJSON *j, int W, int H)
+{
+    const art_flag_t *f = art_flag(jstr(j, "cc"));
+    int y = 0;
+    if (f && jpg_image(f->jpg, f->len, &c_flag)) {
+        int fw = f->w, fh = f->h;
+        int scale = 256;
+        if (H - 34 < fh) scale = 256 * (H - 34) / fh;
+        int sw = fw * scale / 256, sh = fh * scale / 256;
+        lv_obj_t *frame = box(b, (W - sw) / 2, (H - 34 - sh) / 2, sw, sh);
+        lv_obj_set_style_radius(frame, 12 * scale / 256, 0);
+        lv_obj_set_style_clip_corner(frame, true, 0);
+        lv_obj_set_style_shadow_width(frame, 16, 0);
+        lv_obj_set_style_shadow_opa(frame, LV_OPA_40, 0);
+        lv_obj_t *im = lv_image_create(frame);
+        lv_image_set_src(im, &c_flag);
+        lv_image_set_pivot(im, 0, 0);
+        lv_image_set_scale(im, scale);
+        lv_obj_set_pos(im, 0, 0);
+        lv_obj_remove_flag(im, LV_OBJ_FLAG_CLICKABLE);
+        y = (H - 34 - sh) / 2 + sh + 4;
+    } else {
+        art(b, &art_globe, (W - 72) / 2, (H - 34 - 72) / 2, 72);
+        y = (H - 34 - 72) / 2 + 76;
+    }
+    lv_obj_t *l = label(b, &font_vn24, C_TEXT, jstr(j, "nm"));
+    lv_obj_align(l, LV_ALIGN_TOP_MID, 0, y);
+}
+
+static void card_home(lv_obj_t *b, const cJSON *j, int W, int H)
+{
+    int on = jint(j, "on", -1);
+    int s = 84, x = PORT ? (W - s) / 2 : 10, y = PORT ? 0 : (H - s) / 2;
+    lv_obj_t *halo = box(b, x, y, s, s);
+    lv_obj_set_style_radius(halo, s / 2, 0);
+    lv_obj_set_style_bg_color(halo, lv_color_hex(on == 1 ? 0xFDE68A : C_CARD), 0);
+    lv_obj_set_style_bg_opa(halo, LV_OPA_COVER, 0);
+    if (on == 1) {
+        lv_obj_set_style_shadow_width(halo, 40, 0);
+        lv_obj_set_style_shadow_color(halo, lv_color_hex(0xFBBF24), 0);
+        lv_obj_set_style_shadow_opa(halo, LV_OPA_70, 0);
+    }
+    lv_obj_t *im = art(halo, ha_art(jstr(j, "dm")), (s - 56) / 2, (s - 56) / 2, 56);
+    if (on == 0) lv_obj_set_style_image_opa(im, LV_OPA_50, 0);
+    int tx = PORT ? 6 : x + s + 12, ty = PORT ? s + 10 : (H - 60) / 2, tw = PORT ? W - 12 : W - tx - 6;
+    lv_obj_t *l = ctext(b, &font_vn18, C_TEXT, jstr(j, "tx"), tx, ty, tw);
+    if (PORT) lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+    if (on >= 0) {
+        lv_obj_t *p = label(b, &font_vn14, on ? 0x22C55E : C_MUTED, on ? "Đang bật" : "Đang tắt");
+        lv_obj_set_pos(p, tx, ty + (PORT ? 52 : 50));
+        if (PORT) lv_obj_align(p, LV_ALIGN_TOP_MID, 0, ty + 52);
+    }
+}
+
+static void card_sub_text(void)
+{
+    if (!c_sub) return;
+    set_text(c_sub, st.bot[0] ? st.bot : st.user);
+    lv_obj_update_layout(c_subbox);
+    int32_t bt = lv_obj_get_scroll_bottom(c_subbox);
+    if (bt > 0) lv_obj_scroll_by(c_subbox, 0, -bt, LV_ANIM_OFF);
+}
+
+static void card_open(const cJSON *j, const char *k)
+{
+    card_close();
+    const int W = LCD_H_RES, H = LCD_V_RES;
+    c_layer = box(lv_layer_top(), 0, 0, W, H);
+    lv_obj_set_style_bg_color(c_layer, lv_color_hex(C_BG), 0);
+    lv_obj_set_style_bg_opa(c_layer, LV_OPA_COVER, 0);
+    lv_obj_add_flag(c_layer, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(c_layer, card_tap_cb, LV_EVENT_CLICKED, NULL);
+    // the face, small, and the title
+    lv_obj_t *fb = box(c_layer, 6, 4, 40, 40);
+    lv_obj_set_style_radius(fb, 20, 0);
+    lv_obj_set_style_bg_color(fb, lv_color_hex(C_CARD), 0);
+    lv_obj_set_style_bg_opa(fb, LV_OPA_COVER, 0);
+    c_face = lv_image_create(fb);
+    lv_image_set_src(c_face, emoji_face(st.emo));
+    lv_image_set_pivot(c_face, 0, 0);
+    lv_image_set_scale(c_face, 256 * 34 / EMOJI_SIZE);
+    lv_obj_set_pos(c_face, 3, 3);
+    lv_obj_set_size(c_face, 34, 34);
+    lv_image_set_inner_align(c_face, LV_IMAGE_ALIGN_TOP_LEFT);
+    char title[96];
+    if (!strcmp(k, "wx")) snprintf(title, sizeof title, "Thời tiết · %s", jstr(j, "pl"));
+    else if (!strcmp(k, "gold") || !strcmp(k, "fuel")) snprintf(title, sizeof title, "%s", jstr(j, "ti"));
+    else if (!strcmp(k, "lunar")) snprintf(title, sizeof title, "Lịch âm");
+    else if (!strcmp(k, "math")) snprintf(title, sizeof title, "Phép tính");
+    else if (!strcmp(k, "flag")) snprintf(title, sizeof title, "Quốc kỳ");
+    else if (!strcmp(k, "ha")) snprintf(title, sizeof title, "Nhà thông minh");
+    else title[0] = 0;
+    lv_obj_t *tl = label(c_layer, &font_vn18, C_TEXT, title);
+    lv_obj_set_width(tl, W - 60);
+    lv_label_set_long_mode(tl, LV_LABEL_LONG_DOT);
+    lv_obj_set_pos(tl, 54, 13);
+    // the picture
+    const int sub_h = PORT ? 62 : 44;
+    const int top = 50, bh = H - top - sub_h - 8;
+    lv_obj_t *b = box(c_layer, 0, top, W, bh);
+    if (!strcmp(k, "wx")) card_weather(b, j, W, bh);
+    else if (!strcmp(k, "gold")) card_table(b, j, W, bh, true);
+    else if (!strcmp(k, "fuel")) card_table(b, j, W, bh, false);
+    else if (!strcmp(k, "lunar")) card_lunar(b, j, W, bh);
+    else if (!strcmp(k, "math")) card_math(b, j, W, bh);
+    else if (!strcmp(k, "flag")) card_flag(b, j, W, bh);
+    else if (!strcmp(k, "ha")) card_home(b, j, W, bh);
+    // the subtitle
+    c_subbox = box(c_layer, 6, H - sub_h - 4, W - 12, sub_h);
+    lv_obj_set_style_bg_color(c_subbox, lv_color_hex(C_CARD), 0);
+    lv_obj_set_style_bg_opa(c_subbox, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(c_subbox, 10, 0);
+    lv_obj_set_style_pad_hor(c_subbox, 8, 0);
+    lv_obj_set_style_pad_ver(c_subbox, 4, 0);
+    lv_obj_add_flag(c_subbox, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(c_subbox, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_remove_flag(c_subbox, LV_OBJ_FLAG_CLICKABLE);
+    c_sub = label(c_subbox, &font_vn14, C_TEXT, "");
+    lv_obj_set_width(c_sub, W - 28);
+    lv_label_set_long_mode(c_sub, LV_LABEL_LONG_WRAP);
+    card_sub_text();
+    c_quiet_since = 0;
+}
+
+/* Each tick: a new card from the speaker, the face and subtitle of the one on screen, its end. */
+static void poll_card(bool fresh)
+{
+    if (link_card(c_json, sizeof c_json, &c_rx)) {
+        cJSON *j = cJSON_Parse(c_json);
+        if (j) {
+            const char *k = jstr(j, "k");
+            int cs = jint(j, "cs", -1);
+            if (!k[0]) {
+                card_close();
+                c_shown = cs;
+            } else if (cs != c_shown) {
+                c_shown = cs;
+                // a card is for the conversation going on: not over the song's pictures or an alarm
+                if (!v_layer && !st.al_ring[0] && (talking() || st.awake || NOW_US() < voice_until)) card_open(j, k);
+            }
+            cJSON_Delete(j);
+        }
+    }
+    if (!c_layer) return;
+    if (st.al_ring[0] || v_layer) { card_close(); return; }
+    const lv_image_dsc_t *img = emoji_face(st.emo);
+    if (lv_image_get_src(c_face) != (const void *)img) lv_image_set_src(c_face, img);
+    if (fresh) card_sub_text();
+    if (talking() || st.awake) c_quiet_since = 0;
+    else if (!c_quiet_since) c_quiet_since = NOW_US();
+    else if (NOW_US() - c_quiet_since > 20 * 1000000LL) card_close();
+}
+
 static page_t choose_page(void)
 {
     if (net_state() != NET_ONLINE) return P_STATUS;
@@ -2186,6 +2624,7 @@ static void tick_timer(lv_timer_t *t)
     if (p != P_CHOOSE) c_count = -1;
     poll_menu();
     update_video();
+    poll_card(fresh);
     update_alarm();
     update_dots();
     if (sheet_app == APP_SETTINGS) update_volume_sheet();
@@ -2252,6 +2691,8 @@ static void rebuild_cb(void *arg)
     rb_pending = false;
     apply_palette();
     close_video();
+    card_close();
+    c_shown = -1;
     if (a_layer) lv_obj_delete(a_layer);
     a_layer = NULL;
     vid_btn = NULL;

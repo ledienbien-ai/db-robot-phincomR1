@@ -118,6 +118,17 @@ object HomeTools {
         val msg = StringBuilder("Đã $v ")
         msg.append(if (done.size == 1) done[0] else "${done.size} thiết bị: ${done.joinToString(", ")}").append('.')
         if (failed.isNotEmpty()) msg.append(" Không làm được: ").append(failed.joinToString("; ")).append('.')
+        try {
+            val act = HaActions.normalize(action)
+            val on = when (act) {
+                "turn_on", "open", "unlock", "play" -> true
+                "turn_off", "close", "lock", "pause", "stop" -> false
+                "set_brightness", "set_position", "set_volume", "set_speed" -> !(value == 0.0)
+                "set_temperature" -> true
+                else -> null
+            }
+            info.dourok.voicebot.link.DisplayCard.home(dom, on, msg.toString())
+        } catch (e: Exception) { }
         return JSONObject().put("success", true).put("message", msg.toString()).toString()
     }
 

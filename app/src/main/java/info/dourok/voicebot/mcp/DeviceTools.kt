@@ -3,7 +3,9 @@ package info.dourok.voicebot.mcp
 import info.dourok.voicebot.data.Settings
 import info.dourok.voicebot.ha.HaActions
 import info.dourok.voicebot.ha.HomeTools
+import info.dourok.voicebot.link.DisplayCard
 import info.dourok.voicebot.lunar.LunarAnswers
+import info.dourok.voicebot.lunar.LunarCalendar
 import info.dourok.voicebot.market.MarketPrices
 import info.dourok.voicebot.domain.voice.AppLog
 import info.dourok.voicebot.media.LocalMusicPlayer
@@ -254,7 +256,11 @@ object DeviceTools {
                 "bằng triệu đồng một lượng (hoặc một chỉ nếu họ hỏi theo chỉ). " +
                 "Returns today's Vietnamese gold buy/sell prices; always use it for gold price questions.",
             noArguments(),
-        ) { MarketPrices.goldText() })
+        ) {
+            val text = MarketPrices.goldText()
+            card { DisplayCard.table("gold", "Giá vàng", MarketPrices.goldUpdated(), MarketPrices.goldTable()) }
+            text
+        })
         .add(tool(
             "self.market.get_fuel_price",
             "Trả về giá bán lẻ xăng dầu hiện hành tại Việt Nam của Petrolimex (vùng 1, vùng 2) và " +
@@ -263,7 +269,11 @@ object DeviceTools {
                 "xăng tăng hay giảm; không tự đoán giá. Nếu không nói vùng thì đọc giá vùng 1. " +
                 "Returns current Vietnamese retail fuel prices; always use it for fuel price questions.",
             noArguments(),
-        ) { MarketPrices.fuelText() })
+        ) {
+            val text = MarketPrices.fuelText()
+            card { DisplayCard.table("fuel", "Giá xăng dầu", "Petrolimex · vùng 1", MarketPrices.fuelTable()) }
+            text
+        })
         .add(tool(
             "self.calendar.get_lunar_date",
             "Đổi ngày dương lịch sang âm lịch Việt Nam: ngày tháng âm, tháng nhuận, can chi của ngày, " +
@@ -276,7 +286,12 @@ object DeviceTools {
                 JSONObject().put("type", "string")
                     .put("description", "Ngày dương lịch dạng dd/mm/yyyy; bỏ trống là hôm nay.")
             )),
-        ) { args -> LunarAnswers.lunarDate(LunarAnswers.parseDate(args.optString("date", ""), today()), today()) })
+        ) { args ->
+            val day = LunarAnswers.parseDate(args.optString("date", ""), today())
+            val text = LunarAnswers.lunarDate(day, today())
+            card { lunarCard(day) }
+            text
+        })
         .add(tool(
             "self.calendar.lunar_to_solar",
             "Đổi ngày âm lịch sang dương lịch và cho biết còn bao nhiêu ngày. Dùng khi người dùng " +
@@ -293,10 +308,17 @@ object DeviceTools {
                 "day", "month",
             ),
         ) { args ->
-            LunarAnswers.solarDate(
+            val text = LunarAnswers.solarDate(
                 args.getInt("day"), args.getInt("month"), args.optInt("year", 0),
                 args.optBoolean("leap", false), today(),
             )
+            card {
+                val t = today()
+                val y = args.optInt("year", 0).takeIf { it > 0 } ?: LunarCalendar.solarToLunar(t[0], t[1], t[2]).year
+                LunarCalendar.lunarToSolar(args.getInt("day"), args.getInt("month"), y, args.optBoolean("leap", false))
+                    ?.let { lunarCard(it) }
+            }
+            text
         })
         .add(tool(
             "self.calendar.get_horoscope_facts",
@@ -346,6 +368,23 @@ object DeviceTools {
             )
             .put("application", JSONObject().put("name", "DB-Robot Phicomm R1").put("version", appVersion))
             .toString()
+    }
+
+    /** A picture for the display (link/DisplayCard); never lets a drawing problem fail the tool. */
+    private inline fun card(block: () -> Unit) {
+        try { block() } catch (e: Exception) { AppLog.w("Thẻ màn hình: ${e.message}") }
+    }
+
+    private val WEEKDAY = arrayOf("Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy")
+
+    private fun lunarCard(s: IntArray) {
+        val jd = LunarCalendar.jdFromDate(s[0], s[1], s[2])
+        val l = LunarCalendar.solarToLunar(s[0], s[1], s[2])
+        DisplayCard.lunar(
+            s[0], s[1], s[2], WEEKDAY[(jd + 1) % 7], l.day, l.month, l.leap, LunarCalendar.yearCanChi(l.year),
+            "Ngày ${LunarCalendar.dayCanChi(jd)} · tháng ${LunarCalendar.monthCanChi(l.month, l.year)}",
+            LunarCalendar.gioHoangDao(jd).replace(Regex(" \\([^)]*\\)"), ""),
+        )
     }
 
     /** Today in the speaker's own time zone, which is the owner's, not the server's. */

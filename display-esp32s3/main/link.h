@@ -36,6 +36,8 @@ typedef struct {
 void link_init(void);
 /* Copy the latest state when it changed since *seq (true) — cheap to call often. */
 bool link_state(spk_state_t *out, uint32_t *seq);
+/* The answer card (speaker 1.5.38+): the raw {"t":"card","cs":…,"k":…} JSON when it changed since *seq. */
+bool link_card(char *out, size_t n, uint32_t *seq);
 /* The latest spectrum, 0..255 per band; false when nothing is playing. */
 bool link_spectrum(uint8_t out[LINK_BANDS]);
 /* Speakers found by the last search. */
