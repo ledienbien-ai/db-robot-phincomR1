@@ -105,6 +105,7 @@ static void parse_state(cJSON *j)
     copy(s->bot, sizeof s->bot, j, "bot");
     const cJSON *m = cJSON_GetObjectItemCaseSensitive(j, "m");
     s->has_m = cJSON_IsObject(m);
+    s->vv = false;
     if (s->has_m) {
         copy(s->ms, sizeof s->ms, m, "s");
         copy(s->ti, sizeof s->ti, m, "ti");
@@ -113,6 +114,7 @@ static void parse_state(cJSON *j)
         s->pos = num(m, "pos", 0);
         s->dur = num(m, "dur", 0);
         copy(s->vid, sizeof s->vid, m, "vid");
+        s->vv = flag(m, "vv");
         copy(s->mu, sizeof s->mu, j, "mu");
     }
     const cJSON *w = cJSON_GetObjectItemCaseSensitive(j, "wx");

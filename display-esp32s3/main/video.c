@@ -32,7 +32,7 @@ static uint16_t *s_fb[3];             // decoded frames; s_front is the one the 
 static int s_front;
 static uint32_t s_seq;
 
-typedef struct { const uint8_t *p; size_t left; uint16_t *out; } dec_t;
+typedef struct { const uint8_t *p; size_t left; uint16_t *out; int x0, y0; } dec_t;   // x0/y0: where a smaller picture sits
 
 static UINT in_cb(JDEC *jd, BYTE *buf, UINT n)
 {
@@ -49,10 +49,11 @@ static UINT out_cb(JDEC *jd, void *bitmap, JRECT *r)
     dec_t *d = (dec_t *)jd->device;
     const uint8_t *s = (const uint8_t *)bitmap;      // RGB888
     for (int y = r->top; y <= r->bottom; y++) {
-        if (y >= H) { s += (r->right - r->left + 1) * 3; continue; }
-        uint16_t *o = d->out + y * W + r->left;
+        int oy = y + d->y0;
+        if (oy >= H) { s += (r->right - r->left + 1) * 3; continue; }
+        uint16_t *o = d->out + oy * W + r->left + d->x0;
         for (int x = r->left; x <= r->right; x++, s += 3, o++) {
-            if (x < W) *o = (uint16_t)(((s[0] & 0xF8) << 8) | ((s[1] & 0xFC) << 3) | (s[2] >> 3));
+            if (x + d->x0 < W) *o = (uint16_t)(((s[0] & 0xF8) << 8) | ((s[1] & 0xFC) << 3) | (s[2] >> 3));
         }
     }
     return 1;
@@ -61,9 +62,21 @@ static UINT out_cb(JDEC *jd, void *bitmap, JRECT *r)
 static bool decode(const uint8_t *jpg, size_t n, uint16_t *out, void *pool)
 {
     JDEC jd;
-    dec_t d = { jpg, n, out };
+    dec_t d = { jpg, n, out, 0, 0 };
     if (jd_prepare(&jd, in_cb, pool, 8192, &d) != JDR_OK) return false;
     if (jd.width > W || jd.height > H) return false;
+    // A 16:9 video from the speaker is 320x176: centre it, black above and below (the buffer may
+    // still hold a taller picture from before).
+    d.x0 = (W - jd.width) / 2;
+    d.y0 = (H - jd.height) / 2;
+    if (d.y0 > 0 || d.x0 > 0) {
+        memset(out, 0, (size_t)d.y0 * W * 2);
+        memset(out + (d.y0 + jd.height) * W, 0, (size_t)(H - d.y0 - jd.height) * W * 2);
+        if (d.x0 > 0) for (int y = d.y0; y < d.y0 + jd.height; y++) {
+            memset(out + y * W, 0, (size_t)d.x0 * 2);
+            memset(out + y * W + d.x0 + jd.width, 0, (size_t)(W - d.x0 - jd.width) * 2);
+        }
+    }
     return jd_decomp(&jd, out_cb, 0) == JDR_OK;
 }
 

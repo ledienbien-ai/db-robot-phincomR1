@@ -173,3 +173,11 @@ Gói `st` của loa có thêm `m.vid` (mã video 11 ký tự) và `mu` (địa c
 `<mu>/video_mjpeg?id=<vid>&ss=<giây>` — multipart/x-mixed-replace các ảnh JPEG baseline 4:2:0 320×240 — bằng `esp_http_client` (HTTPS dùng bộ chứng chỉ có sẵn),
 giải mã bằng TJpgDec trong ROM của ESP32-S3 ra RGB565 (3 bộ đệm trong PSRAM). Nút "Hình" ở trang nhạc mở lớp phủ toàn màn hình. Nếu `main/CMakeLists.txt` có `REQUIRES`,
 thêm `esp_http_client esp-tls mbedtls`.
+
+## Video YouTube (1.5.35)
+
+Khi loa phát một video YouTube ("mở video …"), gói `st` có `m.vv = 1`, `m.vid` là mã video và `mu` là
+chính địa chỉ của loa (`http://<loa>:8088`). Màn hình tự mở lớp phủ hình một lần cho mỗi video (chạm
+để đóng; mở lại bằng nút "Hình"), đọc `/video_mjpeg` của loa — cùng định dạng multipart như máy chủ
+nhạc, nhưng loa chỉ gửi mỗi ảnh khi tiếng đã phát tới nó và gửi lại ảnh đang hiện mỗi 2 giây khi tạm
+dừng. Ảnh video là 320×176 (16:9); `video.c` đặt ảnh nhỏ hơn 320×240 vào giữa, phần thừa tô đen.

@@ -3,6 +3,10 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.35
+
+- Mở video YouTube: nói "mở video …", "xem phim hoạt hình …" là loa tìm video trên máy chủ nhạc, phát tiếng ra loa và hình hiện trên màn hình phụ (màn hình tự mở hình, chạm để đóng). Tiếng và hình đi chung một luồng nên khớp nhau; tạm dừng, bài kế, dừng và gọi trợ lý giữa chừng đều như khi nghe nhạc. Tab Media, mục YouTube có thêm nút "loa + màn hình" ở mỗi video. Cần máy chủ nhạc youtube-music bản có `/yt/play`, ứng dụng loa 1.5.35 và firmware màn hình 1.5.35 (màn hình bản cũ vẫn xem được bằng nút "Hình" nhưng hình nằm sát mép trên).
+
 ## v1.5.34
 
 - Màn hình phụ có thêm ứng dụng "Nhà" trong menu Ứng dụng: danh sách thiết bị Home Assistant đã chọn trên trang loa, mỗi thiết bị một công tắc bật/tắt theo đúng trạng thái; chạm để bật/tắt, cảm biến hiện giá trị (nhiệt độ, độ ẩm…). Menu Ứng dụng xếp 9 ô: 5 + 4 khi nằm ngang, 3 × 3 khi dựng dọc. Cần cập nhật cả ứng dụng trên loa và firmware màn hình.

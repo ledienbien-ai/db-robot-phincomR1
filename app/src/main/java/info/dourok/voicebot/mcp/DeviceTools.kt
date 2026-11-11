@@ -70,9 +70,27 @@ object DeviceTools {
             success("Đang mở bài: $found")
         })
         .add(tool(
+            "self.video.play",
+            "Mở một VIDEO YouTube: tiếng phát trên loa, hình hiện trên màn hình phụ của loa.\n" +
+                "Dùng khi người dùng nói 'mở video', 'xem video', 'bật video', 'mở clip', 'cho xem', " +
+                "'mở phim hoạt hình', 'mở MV', 'xem trên YouTube', 'mở video ... trên màn hình'. " +
+                "Chỉ muốn NGHE nhạc thì dùng self.music.play_song.\n" +
+                "Args:\n" +
+                "  query: Tên video cần tìm trên YouTube (bắt buộc), ví dụ 'hoạt hình Doraemon tập mới'\n" +
+                "Return:\n" +
+                "  Video được mở ngay sau khi trợ lý nói xong; chỉ cần báo ngắn gọn tên video. " +
+                "Dừng video bằng self.music.stop.",
+            arguments(JSONObject().put("query", JSONObject().put("type", "string")), "query"),
+        ) { args ->
+            val title = MusicService.playVideo(args.optString("query", ""))
+            val note = if (info.dourok.voicebot.link.SpeakerLink.displays().length() == 0)
+                " Loa chưa nối màn hình phụ nên chỉ nghe được tiếng." else ""
+            success("Đang mở video: $title.$note")
+        })
+        .add(tool(
             "self.music.stop",
-            "Stop the music or radio that is playing on the speaker. Dùng khi người dùng nói " +
-                "'dừng nhạc', 'tắt nhạc', 'tắt radio', 'stop music'.",
+            "Stop the music, radio or video that is playing on the speaker. Dùng khi người dùng nói " +
+                "'dừng nhạc', 'tắt nhạc', 'tắt radio', 'tắt video', 'stop music'.",
             noArguments(),
         ) {
             LocalMusicPlayer.stop()

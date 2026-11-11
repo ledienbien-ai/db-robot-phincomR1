@@ -3,6 +3,8 @@
  * Pictures from the music server for the song that is playing: GET <server>/video_mjpeg?id=&ss=
  * answers with a multipart stream of 320x240 baseline JPEGs (about 10 per second, no sound — the
  * speaker plays that). A task reads it and decodes each frame with the ROM TJpgDec into RGB565.
+ * A YouTube video opened on the speaker (1.5.35) comes the same way from the speaker itself
+ * (<speaker>:8088/video_mjpeg), 320x176 and paced by its sound; smaller pictures are centred.
  */
 #include <stdbool.h>
 #include <stdint.h>

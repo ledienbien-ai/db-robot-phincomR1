@@ -178,6 +178,7 @@ static lv_obj_t *vid_btn, *v_layer, *v_img, *v_msg;   // picture of the song (vi
 static lv_image_dsc_t v_dsc;
 static uint32_t v_seq;
 static char v_vid[12];
+static char v_auto[12];   // the video that was opened by itself (once: a tap that closes it is final)
 static lv_obj_t *m_title, *m_artist, *m_bars[LINK_BANDS], *m_bar, *m_pos, *m_dur, *m_play;
 static uint8_t m_level[LINK_BANDS];
 static int m_base;                       // y of the spectrum's baseline (the progress bar and buttons hang below it)
@@ -648,6 +649,16 @@ static void update_video(void)
     if (vid_btn) {
         bool can = st.has_m && st.vid[0] && st.mu[0];
         if (can) lv_obj_remove_flag(vid_btn, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(vid_btn, LV_OBJ_FLAG_HIDDEN);
+    }
+    // a video from the speaker: open its pictures by itself, once per video
+    if (st.has_m && st.vv && st.vid[0] && st.mu[0] && !st.al_ring[0]) {
+        if (strcmp(v_auto, st.vid) && strcmp(st.ms, "stopped") && strcmp(st.ms, "error")) {
+            snprintf(v_auto, sizeof v_auto, "%s", st.vid);
+            if (v_layer && strcmp(v_vid, st.vid)) close_video();
+            open_video();
+        }
+    } else {
+        v_auto[0] = 0;
     }
     if (!v_layer) return;
     // another song, nothing playing, or the alarm: the picture is no longer the right one

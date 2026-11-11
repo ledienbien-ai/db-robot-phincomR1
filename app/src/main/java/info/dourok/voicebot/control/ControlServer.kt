@@ -331,6 +331,10 @@ class ControlServer @Inject constructor(
             // ...and to play one ON THE SPEAKER, the music server fetches its audio (yt-dlp) and
             // serves it as MP3 at /stream_mp3?id=yt_<id>; this asks it to get that ready.
             "/api/yt/prepare" -> json(handleYoutubePrepare(param(session, "id")))
+            // A YouTube video: sound on this speaker, pictures on the display (MusicService.videoTrack);
+            // the display reads the pictures from /video_mjpeg here, paced by the sound (VideoRelay).
+            "/api/video/play" -> json(if (sameOrigin(session)) handleVideoPlay(session) else FOREIGN_ORIGIN)
+            "/video_mjpeg" -> serveVideoFrames(param(session, "id"))
             // Podcasts: the built-in list, Apple's directory for search, a show's episodes, and
             // the relay the on-device player reads an episode through (see Podcasts).
             "/api/podcast/shows" -> json(buildPodcastShows())
@@ -1136,6 +1140,13 @@ class ControlServer @Inject constructor(
                     podcastTrack(it)?.let { t -> tracks.add(t) }
                     continue
                 }
+                if (id.startsWith(LocalMusicPlayer.VIDEO_PREFIX)) {
+                    val vid = id.removePrefix(LocalMusicPlayer.VIDEO_PREFIX)
+                    tracks.add(info.dourok.voicebot.media.MusicService.videoTrack(
+                        base, listOf(vid), it.optString("title", ""), it.optString("artist", ""),
+                        durationSeconds(it.optString("duration", ""))))
+                    continue
+                }
                 tracks.add(
                     LocalMusicPlayer.Track(
                         id = id,
@@ -1449,6 +1460,51 @@ class ControlServer @Inject constructor(
      * app's own, current root certificates) and this hands the audio on over plain local http.
      * Only stations from the built-in list can be asked for, so this is not an open proxy.
      */
+    /**
+     * `/api/video/play?q=` (search on the music server, play the best hit) or `?id=&title=&channel=&duration=`
+     * (a video the panel already found): its sound here, its pictures on the display.
+     */
+    private fun handleVideoPlay(session: IHTTPSession): String {
+        val out = JSONObject()
+        try {
+            val q = param(session, "q").trim()
+            val id = param(session, "id").trim().removePrefix("yt_")
+            if (q.isNotEmpty()) {
+                out.put("title", info.dourok.voicebot.media.MusicService.playVideo(q))
+            } else {
+                if (!Regex("[A-Za-z0-9_-]{11}").matches(id)) throw IllegalStateException("Mã video không hợp lệ.")
+                val base = musicBase()
+                if (base.isEmpty()) throw IllegalStateException("Chưa cài máy chủ nhạc cho loa.")
+                val title = param(session, "title").ifEmpty { "YouTube" }
+                LocalMusicPlayer.play(listOf(info.dourok.voicebot.media.MusicService.videoTrack(
+                    base, listOf(id), title, param(session, "channel"), durationSeconds(param(session, "duration")))), 0)
+                out.put("title", title)
+            }
+            out.put("ok", true).put("displays", info.dourok.voicebot.link.SpeakerLink.displays().length())
+        } catch (e: Exception) {
+            out.put("ok", false).put("error", e.message ?: "Không mở được video.")
+        }
+        return out.toString()
+    }
+
+    /** "3:45", "1:02:03" or plain seconds → seconds; 0 when it is none of those. */
+    private fun durationSeconds(s: String): Int {
+        val t = s.trim()
+        t.toDoubleOrNull()?.let { return it.toInt() }
+        var total = 0
+        for (part in t.split(':')) total = total * 60 + (part.trim().toIntOrNull() ?: return 0)
+        return total
+    }
+
+    /** The pictures of the video playing here, for a display (see VideoRelay). */
+    private fun serveVideoFrames(id: String): Response {
+        val relay = info.dourok.voicebot.media.VideoRelay.forVideo(id.removePrefix("yt_"))
+            ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "no such video playing")
+        val r = NanoHTTPD.newChunkedResponse(Response.Status.OK, info.dourok.voicebot.media.VideoRelay.CONTENT_TYPE, relay)
+        r.addHeader("Cache-Control", "no-store")
+        return r
+    }
+
     private fun serveRadioStream(id: String): Response {
         val station = info.dourok.voicebot.media.RadioStations.byKey(id)
             ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "unknown station")

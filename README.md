@@ -251,7 +251,8 @@ những thiết bị đó dùng được ngay với loa.
 | Bạn nói | Công cụ | Tham số |
 |---|---|---|
 | "Mở bài …", "phát nhạc …" | `self.music.play_song` | `song_name`, `artist_name` (tuỳ chọn) |
-| "Dừng nhạc", "tắt radio" | `self.music.stop` | — |
+| "Mở video …", "xem phim hoạt hình …" | `self.video.play` | `query` |
+| "Dừng nhạc", "tắt radio", "tắt video" | `self.music.stop` | — |
 | "Tăng/giảm âm lượng", "âm lượng 50" | `self.audio_speaker.set_volume` | `volume` 0–100 |
 | "Âm lượng đang bao nhiêu?" | `self.get_device_status` | — |
 | "Mở VOV1", "mở kênh giao thông" | `self.radio.play_station` | `station_name` |
@@ -335,8 +336,21 @@ chủ dự án); thẻ **Máy chủ nhạc** trong tab System có ô nhập cho 
 | `GET /stream_pcm?song=<tên bài>` | Bài khớp nhất: JSON `{"success":true,"title":…,"artist":…,"thumbnail":…,"audio_url":"/stream_mp3?id=…"}` |
 | `GET <audio_url>` | Luồng MP3 của bài hát |
 | `GET /youtube?id=<mã video>` | Chuẩn bị một video đã chọn trên trang điều khiển; JSON như trên, `audio_url` = `/stream_mp3?id=yt_<mã>` |
+| `GET /video_mjpeg?id=<mã>&ss=<giây>` | Hình của bài đang phát cho màn hình phụ (nút "Hình") |
+| `GET /yt/search?q=` và `GET /yt/play?id=&w=&h=&fps=&rate=&t=` | Video YouTube: tìm, rồi một luồng "DBYT" gồm ảnh JPEG và tiếng PCM xen kẽ (lệnh "mở video …") |
 
 Loa tự giải mã và phát MP3, nên nhạc không đi qua đường thoại của trợ lý.
+
+### Video YouTube (1.5.35)
+
+"Mở video …" (công cụ `self.video.play`) hoặc nút **loa + màn hình** ở một video trong mục YouTube
+của tab Media: loa hỏi `/yt/search` của máy chủ nhạc, rồi mở `/yt/play` cho video tìm được (video
+bị YouTube chặn thì thử video kế). Loa phát phần tiếng (44,1 kHz mono) và giữ phần hình; màn hình
+phụ tự mở hình, lấy từ chính loa ở `http://<loa>:8088/video_mjpeg` — mỗi ảnh chỉ được gửi khi tiếng
+đã phát tới đó, nên hình và tiếng khớp nhau, và tạm dừng là hình đứng theo. Một video chỉ chiếm
+một luồng của máy chủ nhạc (máy chủ cho tối đa hai), các thiết bị xiaozhi khác dùng máy chủ như cũ.
+Video không phát chung cho nhóm loa. Không tua được video. Luồng đứt giữa chừng thì loa tự nối lại
+từ chỗ đang phát (`media/YtVideoEngine.kt`, `media/VideoRelay.kt`).
 
 ## Báo thức
 
@@ -400,6 +414,8 @@ Hai hàng mới trong tab Media, ngay trên và dưới hàng Radio:
   lại hiện bên dưới và nằm trong danh sách phát tiếp. Mỗi kết quả có hai nút:
   - **▶ — phát ra loa** (bấm lần nữa để tạm dừng). Máy chủ nhạc lấy âm thanh của video và đổi sang
     MP3, đúng đường của lệnh phát nhạc bằng giọng nói.
+  - **Nút loa + màn hình — phát video**: tiếng ra loa, hình lên màn hình phụ (xem
+    [Video YouTube](#video-youtube-1535)). Không có cho video LIVE.
   - **Nút màn hình — xem trên thiết bị này.** Trình phát nhúng của YouTube thế chỗ trình phát của
     loa cho tới khi bấm ✕; hết video thì tự sang video kế. Phát trên điện thoại hoặc máy tính đang
     mở trang, loa không bị đụng tới. Một số video bị chủ kênh chặn phát nhúng; khi đó trang báo lỗi

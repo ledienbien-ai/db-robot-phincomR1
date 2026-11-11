@@ -427,6 +427,7 @@ object SpeakerLink {
         LocalMusicPlayer.nowPlayingBrief()?.let { np ->
             val id = np[3] as String
             val src = when {
+                id.startsWith(LocalMusicPlayer.VIDEO_PREFIX) -> "Video"
                 id.startsWith("radio:") -> "Radio"
                 id.startsWith("pod:") -> "Podcast"
                 id.contains("id=yt_") -> "YouTube"
@@ -435,7 +436,17 @@ object SpeakerLink {
             val m = JSONObject().put("s", np[0]).put("ti", tail(np[1] as String, 120))
                 .put("ar", tail(np[2] as String, 80)).put("src", src).put("pos", np[4]).put("dur", np[5])
             // a song from the music server: the display can fetch its cover / picture from there
-            if (src == "YouTube" || src == "Nhạc") {
+            if (src == "Video") {
+                // A video: its pictures come from this speaker, paced by the sound (VideoRelay), and
+                // the display opens them by itself ("vv").
+                val ip = SpeakerAddress.current()
+                val vid = LocalMusicPlayer.video?.videoId?.takeIf { it.isNotEmpty() }
+                    ?: id.removePrefix(LocalMusicPlayer.VIDEO_PREFIX)
+                if (SpeakerAddress.isAddress(ip)) {
+                    m.put("vid", vid).put("vv", 1)
+                    o.put("mu", "http://$ip:8088")
+                }
+            } else if (src == "YouTube" || src == "Nhạc") {
                 VIDEO_ID.find(id)?.let { mt ->
                     m.put("vid", mt.groupValues[1])
                     o.put("mu", Settings.musicUrl.trim().trimEnd('/'))

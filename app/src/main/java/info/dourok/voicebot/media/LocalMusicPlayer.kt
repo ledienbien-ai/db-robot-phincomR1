@@ -1,7 +1,5 @@
 package info.dourok.voicebot.media
 
-import android.media.AudioManager
-import android.media.MediaPlayer
 import android.media.audiofx.Visualizer
 import android.os.Handler
 import android.os.Looper
@@ -61,7 +59,14 @@ object LocalMusicPlayer {
     private const val FLOOR_DB = 48.0
 
     private val main = Handler(Looper.getMainLooper())
-    private var player: MediaPlayer? = null   // main thread only
+    private var player: PlayerEngine? = null  // main thread only
+    /** The video playing now, for the display's pictures (ControlServer /video_mjpeg). */
+    @Volatile var video: YtVideoEngine? = null
+        private set
+
+    /** A YouTube video (sound here, pictures on the display) rather than a song: see MusicService.videoTrack. */
+    fun isVideo(track: Track): Boolean = track.id.startsWith(VIDEO_PREFIX)
+    const val VIDEO_PREFIX = "ytv:"
     private var prepared = false              // main thread only
     private var wantPlaying = false           // main thread only: start as soon as it is prepared
 
@@ -73,6 +78,9 @@ object LocalMusicPlayer {
     // Set when a voice session interrupted a song that was playing, so only that song is resumed
     // afterwards -- one the user paused by hand stays paused.
     @Volatile private var heldForVoice = false
+    /** Why the last track failed, when its player could say (a video can). */
+    @Volatile var lastError = ""
+        private set
 
     // The platform's own analyser, attached to the playing song's audio session. Created and
     // released on the main thread with the player; read from HTTP worker threads, hence the lock.
@@ -236,7 +244,7 @@ object LocalMusicPlayer {
             // A live stream reports no duration and cannot be seeked; asking anyway makes some
             // MediaPlayer builds raise an error and stop the song.
             val p = player
-            if (p != null && prepared && durationMs > 0) {
+            if (p != null && prepared && durationMs > 0 && p.canSeek) {
                 try {
                     p.seekTo(positionS * 1000)
                     leaderCommand("seek", positionS)
@@ -365,7 +373,8 @@ object LocalMusicPlayer {
         wantPlaying = true
         holdReady = false
         holdToken = followToken
-        if (followToken.isEmpty() && !groupFollower) {
+        // A video is not shared with a group: the music server makes at most two video streams.
+        if (followToken.isEmpty() && !groupFollower && !isVideo(track)) {
             // leading a group: the others prepare the same track and everyone starts on "go"
             val leader = groupLeader
             if (leader != null) {
@@ -377,10 +386,12 @@ object LocalMusicPlayer {
         if (holdToken.isNotEmpty()) main.postDelayed(autoGo, HOLD_MAX_MS)
         AppLog.i("Phát nhạc: ${track.title}")
         try {
-            val p = MediaPlayer()
+            val v = if (isVideo(track)) YtVideoEngine(track.url) else null
+            val p: PlayerEngine = v ?: MediaPlayerEngine(track.url)
             player = p
-            p.setAudioStreamType(AudioManager.STREAM_MUSIC)
-            p.setOnPreparedListener { mp ->
+            video = v
+            p.setListeners(onPrepared = {
+                val mp = p
                 if (mp === player) {
                     prepared = true
                     durationMs = try { mp.duration.coerceAtLeast(0) } catch (e: Exception) { 0 }
@@ -395,24 +406,24 @@ object LocalMusicPlayer {
                         state = PAUSED
                     }
                 }
-            }
-            p.setOnCompletionListener { mp ->
-                if (mp === player) {
+            }, onCompletion = {
+                if (p === player) {
                     if (index + 1 < queue.size) startAt(index + 1)
                     else {
                         stopNow(STOPPED)
                         leaderCommand("stop")
                     }
                 }
-            }
-            p.setOnErrorListener { mp, what, extra ->
-                if (mp === player) {
-                    AppLog.e("Lỗi phát nhạc ($what/$extra): ${track.title}")
+            }, onError = { what, extra ->
+                // handled: MediaPlayerEngine does not also deliver onCompletion for a song that failed
+                if (p === player) {
+                    val why = p.errorText
+                    if (why.isNotEmpty()) AppLog.e("Lỗi phát video: $why (${track.title})")
+                    else AppLog.e("Lỗi phát nhạc ($what/$extra): ${track.title}")
+                    lastError = why
                     stopNow(ERROR)
                 }
-                true   // handled: do not also deliver onCompletion for a song that failed
-            }
-            p.setDataSource(track.url)
+            })
             p.prepareAsync()
         } catch (e: Exception) {
             AppLog.e("Không mở được luồng nhạc: ${e.message}")
@@ -509,10 +520,10 @@ object LocalMusicPlayer {
         detachVisualizer()
         val p = player
         player = null
+        video = null
         prepared = false
         if (p != null) {
             try {
-                p.reset()
                 p.release()
             } catch (e: Exception) {
                 // releasing a player that never finished preparing can throw; it is gone either way
