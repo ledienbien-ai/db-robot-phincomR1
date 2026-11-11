@@ -1046,7 +1046,8 @@ select:active,select:focus{box-shadow:0 0 0 4px var(--grad-dim);}
 
     <div class="card">
       <div class="ch"><span class="icon-badge ib-srv"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 3v9.2a3 3 0 101.5 2.6V6.9l6-1.2v6.5a3 3 0 101.5 2.6V3l-9 1.8V3z"/></svg></span><h2>Máy chủ nhạc</h2></div>
-      <div class="row"><label>Máy chủ</label><div class="segsel" style="flex:1"><button id="msDb" onclick="setMusicPreset()">DB-Robot</button></div></div>
+      <div class="row" id="msDbRow" hidden><label>Máy chủ</label><div class="segsel" style="flex:1"><button id="msDb" onclick="setMusicPreset()">DB-Robot</button></div></div>
+      <div class="hint" id="msNone" hidden style="margin-bottom:6px">Bản ứng dụng này không kèm máy chủ nhạc. Dựng máy chủ nhạc riêng (youtube-music) rồi nhập địa chỉ vào ô Tuỳ chỉnh.</div>
       <div class="row"><label>Tuỳ chỉnh</label><input class="codein" id="musicUrl" placeholder="http://địa-chỉ:cổng"></div>
       <div class="row" style="gap:8px"><button class="btn rec" style="flex:1;width:auto" onclick="saveMusicUrl()">Save</button><span class="hint" id="musicStat" style="flex:1"></span></div>
       <div class="hint">Tab Media tìm và phát nhạc từ máy chủ này, ngay trên loa. Bấm DB-Robot để dùng máy chủ nhạc mặc định; nếu có máy chủ nhạc riêng, nhập địa chỉ vào ô Tuỳ chỉnh rồi bấm Save.</div>
@@ -1730,6 +1731,8 @@ function render(s){
   if(!$('cardVoice').hidden&&s.tts_host&&s.tts_host!==TTS_HOST){TTS_HOST=s.tts_host;loadVoices();}
   // Populate the Setup inputs ONCE (from saved state); never on later polls, so unsaved edits
   // (text fields, provider combobox, model) are not clobbered every 1.5s.
+  if(MUSIC_PRESET!==(s.music_preset||'')){MUSIC_PRESET=s.music_preset||'';
+    $('msDbRow').hidden=!MUSIC_PRESET;$('msNone').hidden=!!MUSIC_PRESET;}
   if(!setupInit){setupInit=true;
     $('assistantPrompt').value=s.custom_prompt||'';
     // The custom boxes stay empty while one of the fixed servers is the one in use.
@@ -2698,7 +2701,7 @@ function listHead(img,title,sub){
 }
 
 // ── YouTube ──────────────────────────────────────
-// Search YouTube, play on the SPEAKER: the music server (ms.dbrobot.vn, YouTube source) fetches the
+// Search YouTube, play on the SPEAKER: the music server (youtube-music, YouTube source) fetches the
 // audio and serves it as MP3, exactly the path a "mở bài …" voice command takes. A second button
 // watches the video here instead, in YouTube's embedded player.
 let ytList=[],ytIndex=-1,ytCur=null,ytPlayer=null,ytApiP=null,ytPlaying=false,ytErrTimer=null,ytWatching=false;
@@ -3130,18 +3133,19 @@ const SRV_PRESET={
   db:{id:'srvDb',ota:'https://sv1.dbrobot.vn/xiaozhi/ota/',sr:16000,ch:1},
   xz:{id:'srvXz',ota:'https://api.tenclass.net/xiaozhi/ota/',sr:24000,ch:1}};
 const SRV_PRESET_IDS=Object.values(SRV_PRESET).map(p=>p.id);
-const MUSIC_PRESET='https://ms.dbrobot.vn';
+// The build's own music server (/api/state music_preset); empty in a build that has none.
+let MUSIC_PRESET='';
 const normUrl=u=>(u||'').trim().replace(/\/+$/,'').toLowerCase();
 function presetOf(ota){const n=normUrl(ota);
   for(const k in SRV_PRESET)if(normUrl(SRV_PRESET[k].ota)===n)return k;
   return null;}
-const isMusicPreset=u=>normUrl(u)===normUrl(MUSIC_PRESET);
+const isMusicPreset=u=>!!MUSIC_PRESET&&normUrl(u)===normUrl(MUSIC_PRESET);
 async function saveMusic(v){$('musicStat').textContent='Đang lưu…';
   try{await fetch('/api/set?key=music_url&value='+encodeURIComponent(v),{method:'POST'});
     $('msDb').classList.toggle('on',isMusicPreset(v));
     $('musicStat').textContent='Đã lưu — áp dụng ngay.';}
   catch(e){$('musicStat').textContent='✗ '+e;}}
-function setMusicPreset(){$('musicUrl').value='';saveMusic(MUSIC_PRESET);}
+function setMusicPreset(){if(!MUSIC_PRESET)return;$('musicUrl').value='';saveMusic(MUSIC_PRESET);}
 function saveMusicUrl(){const v=$('musicUrl').value.trim();
   if(!v){$('musicStat').textContent='Nhập địa chỉ vào ô Tuỳ chỉnh trước khi lưu.';return;}
   saveMusic(v);}

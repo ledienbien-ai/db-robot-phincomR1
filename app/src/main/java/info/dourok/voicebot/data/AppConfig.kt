@@ -19,10 +19,13 @@ object AppConfig {
 
     /**
      * Music server the Media tab searches and plays from (`/stream_pcm?song=` + the MP3 stream it
-     * points at). This is the DB-Robot one; the panel's Setup tab takes a custom address instead,
-     * and a blank one falls back to the upstream server-driven media path.
+     * points at). Not written in the source: the build fills it in (app/build.gradle.kts reads the
+     * DBR_MUSIC_URL environment variable -- a GitHub Actions secret for the official releases -- or
+     * `dbr.musicUrl` in local.properties). A build without it starts with no music server, and its
+     * owner sets one up and enters its address in the panel. The panel's Setup tab always takes a
+     * custom address instead; a blank one falls back to the upstream server-driven media path.
      */
-    const val MUSIC_URL = "https://ms.dbrobot.vn"
+    val MUSIC_URL: String = info.dourok.voicebot.BuildConfig.MUSIC_URL
 
     /**
      * Manifest the app reads to learn that a newer build exists (see update/Updater). It is the

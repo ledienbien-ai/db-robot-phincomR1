@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,6 +8,17 @@ plugins {
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
 }
+
+// The default music server is not written in the source (see AppConfig.MUSIC_URL): the official
+// releases take it from the DBR_MUSIC_URL secret of the GitHub workflow, a local build from
+// `dbr.musicUrl=` in local.properties (not committed). Without either, the app has none.
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.isFile) f.inputStream().use { load(it) }
+}
+val dbrMusicUrl: String = (System.getenv("DBR_MUSIC_URL")?.takeIf { it.isNotBlank() }
+    ?: localProps.getProperty("dbr.musicUrl")
+    ?: "").trim().replace("\"", "")
 
 android {
     namespace = "info.dourok.voicebot"
@@ -27,10 +40,12 @@ android {
         // One number per release, said in both places and by the git tag. Left at 1 / "1.0" for
         // months, which is how a fix measured on one build gets reported as still broken on
         // another -- nothing on the device could say which binary was running.
-        versionCode = 45
-        versionName = "1.5.36"
+        versionCode = 46
+        versionName = "1.5.37"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "MUSIC_URL", "\"$dbrMusicUrl\"")
 
         externalNativeBuild {
             cmake {
@@ -77,6 +92,7 @@ android {
         jvmTarget = "11"
     }
     buildFeatures {
+        buildConfig = true
         compose = true
         prefab = true
     }

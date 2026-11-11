@@ -3,6 +3,13 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.37
+
+- Công cụ mới cho trợ lý (đóng góp của hoanglt1223, #1): giá vàng hôm nay (bảng giá PNJ), giá xăng dầu (Petrolimex, PVOIL), đổi ngày dương ↔ âm lịch, can chi, giờ hoàng đạo, dữ kiện tử vi.
+- Dùng công cụ của bất kỳ máy chủ MCP nào (đóng góp của hoanglt1223, #2): thẻ mới trên trang điều khiển để thêm địa chỉ máy chủ MCP (Streamable HTTP hoặc SSE) và token.
+- Thêm giấy phép Apache-2.0 (LICENSE), tệp NOTICE và mục "Giấy phép và thương hiệu" trong README.
+- Địa chỉ máy chủ nhạc mặc định không còn nằm trong mã nguồn: bản phát hành chính thức lấy từ secret `DBR_MUSIC_URL` lúc build nên vẫn dùng như cũ; bản tự build phải dựng máy chủ nhạc riêng. Trang điều khiển ẩn nút "DB-Robot" ở thẻ Máy chủ nhạc khi bản build không có máy chủ mặc định. Loa đã lưu địa chỉ máy chủ nhạc thì giữ nguyên.
+
 ## v1.5.36
 
 - Màn hình phụ có thêm ứng dụng "YouTube" trong menu Ứng dụng: chọn một chủ đề có sẵn (hoạt hình thiếu nhi, ca nhạc thiếu nhi, truyện cổ tích, tin tức…) hoặc gõ tên video, chạm một video trong danh sách là loa phát tiếng và màn hình hiện hình. Menu Ứng dụng giờ có 10 ô.
@@ -49,7 +56,7 @@ và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết
 
 ## v1.5.26
 
-- Nút "Hình" qua HTTPS (ms.dbrobot.vn): sửa lỗi luồng đứt sau vài giây do mã hoá AES bằng phần cứng thiếu bộ nhớ trong (`esp-aes: Failed to allocate memory`). Màn hình giờ giải mã TLS bằng phần mềm, chậm hơn chút nhưng ổn định. Cần xoá file `sdkconfig` cũ trước khi build lại firmware màn hình.
+- Nút "Hình" qua HTTPS (máy chủ nhạc DB-Robot): sửa lỗi luồng đứt sau vài giây do mã hoá AES bằng phần cứng thiếu bộ nhớ trong (`esp-aes: Failed to allocate memory`). Màn hình giờ giải mã TLS bằng phần mềm, chậm hơn chút nhưng ổn định. Cần xoá file `sdkconfig` cũ trước khi build lại firmware màn hình.
 
 ## v1.5.25
 
@@ -57,7 +64,7 @@ và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết
 
 ## v1.5.24
 
-- Nút "Hình" qua HTTPS (ms.dbrobot.vn): TLS đã nối được; màn hình giờ chờ tối đa ~60 giây nếu máy chủ/proxy chưa gửi khung đầu tiên (trước đó chỉ chờ 10 giây rồi báo "Mất kết nối"), và thông báo lỗi ghi rõ mã đọc. Máy chủ nhạc thêm tiêu đề `X-Accel-Buffering: no` để nginx không giữ đệm luồng hình. Nếu dùng Nginx Proxy Manager, thêm `proxy_buffering off;` cho máy chủ ms.dbrobot.vn.
+- Nút "Hình" qua HTTPS (máy chủ nhạc DB-Robot): TLS đã nối được; màn hình giờ chờ tối đa ~60 giây nếu máy chủ/proxy chưa gửi khung đầu tiên (trước đó chỉ chờ 10 giây rồi báo "Mất kết nối"), và thông báo lỗi ghi rõ mã đọc. Máy chủ nhạc thêm tiêu đề `X-Accel-Buffering: no` để nginx không giữ đệm luồng hình. Nếu dùng Nginx Proxy Manager, thêm `proxy_buffering off;` cho máy chủ nhạc.
 
 ## v1.5.23
 

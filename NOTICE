@@ -1,0 +1,45 @@
+DB-Robot R1 — ứng dụng trợ lý giọng nói cho loa Harman Phicomm R1,
+và firmware màn hình phụ ESP32-S3 (display-esp32s3/)
+
+Copyright © 2026 DB-ROBOT (https://dbrobot.vn)
+
+Phần mã do DB-ROBOT viết được cấp phép theo Apache License 2.0 (tệp LICENSE).
+Ai phân phối lại mã nguồn hoặc bản build (kể cả bản đã sửa) phải giữ nguyên
+tệp NOTICE này và ghi rõ những chỗ đã thay đổi (Apache-2.0, điều 4).
+
+THƯƠNG HIỆU
+"DB-Robot", "DB-ROBOT", logo DB-Robot và các tên miền dbrobot.vn là thương
+hiệu của DB-ROBOT. Giấy phép Apache-2.0 không cho phép dùng chúng (điều 6).
+Bản phân phối đã sửa phải đổi tên ứng dụng, không dùng logo, và không trỏ tới
+các máy chủ của DB-ROBOT (máy chủ trợ lý, máy chủ nhạc, máy chủ cập nhật) nếu
+không được DB-ROBOT đồng ý bằng văn bản. Được phép ghi "dựa trên DB-Robot R1"
+kèm liên kết tới https://github.com/ledienbien-ai/db-robot-phincomR1.
+
+MÁY CHỦ
+Các máy chủ của DB-ROBOT (sv1.dbrobot.vn, máy chủ nhạc, máy chủ video) là dịch
+vụ riêng, không thuộc phạm vi giấy phép này. Bản build từ mã nguồn công khai
+không kèm địa chỉ máy chủ nhạc; người build tự dựng máy chủ của mình.
+
+MÃ KẾ THỪA VÀ THÀNH PHẦN CỦA BÊN THỨ BA
+Các phần sau thuộc về tác giả của chúng, theo điều khoản riêng của họ, và
+KHÔNG được cấp lại theo giấy phép của DB-ROBOT:
+
+- kuteo-git/xiaozhi-android và douo/xiaozhi-android: mã ứng dụng mà dự án này
+  phát triển từ đó. Tại thời điểm viết, hai kho này không kèm tệp giấy phép.
+- microWakeWord / TensorFlow Lite Micro (app/src/main/cpp/micro_features):
+  Apache License 2.0, xem tệp LICENSE trong thư mục đó.
+- libmicro_wake_word_jni.so: bản dựng sẵn đi kèm mã nguồn kuteo-git.
+- Snowboy (Kitt-AI): Apache License 2.0.
+- Opus: giấy phép BSD 3 điều khoản. OkHttp: Apache License 2.0.
+  NanoHTTPD: giấy phép BSD 3 điều khoản.
+- Danh sách chứng chỉ gốc của Mozilla (assets/cacert.pem, qua certifi):
+  Mozilla Public License 2.0.
+- TienHuyIoT/xiaozhi-esp32_vietnam: giấy phép MIT (danh sách kênh radio VOV,
+  mô tả công cụ nhạc và radio).
+- Firmware màn hình phụ: ESP-IDF (Apache License 2.0), LVGL (MIT), cJSON (MIT),
+  phông chữ Be Vietnam Pro (SIL Open Font License 1.1), biểu tượng Font Awesome
+  Free (biểu tượng CC BY 4.0, phông SIL OFL 1.1), hình emoji Twemoji
+  (Copyright Twitter, Inc. và các tác giả khác, CC BY 4.0,
+  https://github.com/twitter/twemoji).
+- Đóng góp của cộng đồng (ví dụ công cụ giá vàng, giá xăng, lịch âm và máy chủ
+  MCP của hoanglt1223) được nhận theo Apache License 2.0 như phần còn lại.

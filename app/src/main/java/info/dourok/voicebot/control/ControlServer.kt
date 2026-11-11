@@ -601,6 +601,7 @@ class ControlServer @Inject constructor(
         o.put("wake_engine", Settings.wakeEngine)
         o.put("ota_url", Settings.otaUrl)
         o.put("music_url", Settings.musicUrl)
+        o.put("music_preset", info.dourok.voicebot.data.AppConfig.MUSIC_URL)
         o.put("ws_url", Settings.wsUrl)
         // Identity the server knows this device by, and the code its owner types into the server
         // console while it is still unbound ("" once bound). See ServerProvisioner.

@@ -384,9 +384,14 @@ loa (bật bằng nút bấm); DB-Robot không tự phát Wi-Fi, nó chỉ làm 
 
 ## Máy chủ nhạc
 
-Tab Media và lệnh "mở bài …" phát nhạc từ một máy chủ nhạc qua HTTP. Mặc định là
-`https://ms.dbrobot.vn`, lấy nhạc từ **YouTube** (yt-dlp, mã nguồn ở thư mục `youtube-music` của
-chủ dự án); thẻ **Máy chủ nhạc** trong tab System có ô nhập cho máy chủ riêng. Máy chủ cần các địa chỉ:
+Tab Media và lệnh "mở bài …" phát nhạc từ một máy chủ nhạc qua HTTP. Bản phát hành chính thức
+(tải ở mục Releases hoặc tự cập nhật trên loa) đã kèm máy chủ nhạc của DB-ROBOT, lấy nhạc từ
+**YouTube** — dùng ngay, không phải cài gì.
+
+**Bản tự build từ mã nguồn không kèm máy chủ nhạc** (địa chỉ không nằm trong mã, xem
+[Build](#build)): hãy dựng máy chủ nhạc riêng rồi nhập địa chỉ vào ô **Tuỳ chỉnh** của thẻ **Máy
+chủ nhạc** trong tab System. Máy chủ nhạc của DB-ROBOT là dịch vụ riêng cho bản phát hành chính
+thức, vui lòng không dùng cho bản build khác. Máy chủ cần các địa chỉ:
 
 | Địa chỉ | Trả về |
 |---|---|
@@ -518,6 +523,12 @@ máy cần JDK 17, Android SDK 35, NDK 27 và CMake 3.22.1:
 ./gradlew :app:assembleRelease
 ```
 
+Máy chủ nhạc mặc định **không nằm trong mã nguồn**. Lúc build, `app/build.gradle.kts` lấy nó từ
+biến môi trường `DBR_MUSIC_URL`, hoặc từ dòng `dbr.musicUrl=<địa chỉ>` trong `local.properties`
+(tệp này không được commit). Không có cả hai thì bản build không có máy chủ nhạc mặc định; người
+dùng nhập địa chỉ máy chủ của mình trên trang điều khiển. Workflow GitHub Actions đọc secret
+`DBR_MUSIC_URL` của repo (Settings → Secrets and variables → Actions); fork không có secret này.
+
 Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `applicationId` là `vn.dbrobot.r1`,
 `minSdk` 22.
 
@@ -575,6 +586,23 @@ Khoá ký APK (`app/dbrobot.keystore`) nằm công khai trong repo để bản n
 nào, nên chữ ký không chứng minh APK do ai làm ra. Thứ bảo vệ đường cập nhật là `update.json` chỉ
 được tải qua https từ repo này, kèm SHA-256 của APK — đừng đổi `AppConfig.UPDATE_URL` sang http.
 
+## Giấy phép và thương hiệu
+
+Phần mã do DB-ROBOT viết được cấp phép theo [Apache License 2.0](LICENSE): được dùng, sửa và phân
+phối lại, kể cả cho mục đích thương mại, miễn là **giữ nguyên tệp [NOTICE](NOTICE)** và ghi rõ
+những chỗ đã sửa. Mã kế thừa và thư viện của bên thứ ba thuộc về tác giả của chúng, liệt kê trong
+NOTICE và mục [Ghi công và nguồn](#ghi-công-và-nguồn).
+
+**Thương hiệu.** Tên "DB-Robot" / "DB-ROBOT", logo và tên miền dbrobot.vn **không** nằm trong
+giấy phép (Apache-2.0, điều 6). Nếu bạn phát hành bản đã sửa:
+
+- đổi tên ứng dụng và `applicationId`, không dùng logo DB-Robot;
+- không trỏ tới các máy chủ của DB-ROBOT (máy chủ trợ lý, máy chủ nhạc, máy chủ cập nhật) nếu
+  chưa được DB-ROBOT đồng ý — hãy dựng máy chủ của riêng bạn;
+- được ghi "dựa trên DB-Robot R1" kèm liên kết về kho mã này.
+
+**Đóng góp.** Pull request được nhận theo cùng giấy phép Apache-2.0 (điều 5).
+
 ## Liên hệ
 
 **DB-ROBOT** — cộng đồng phát triển chatbot AI Xiaozhi tại Việt Nam. Theo dõi và liên hệ để nhận
@@ -613,5 +641,12 @@ DB-Robot Phicomm R1 được phát triển từ các dự án nguồn mở sau; 
 - [Opus](https://opus-codec.org/), [OkHttp](https://square.github.io/okhttp/),
   [NanoHTTPD](https://github.com/NanoHttpd/nanohttpd), [TensorFlow Lite](https://www.tensorflow.org/lite).
 
-Tại thời điểm viết, kho mã kuteo-git/xiaozhi-android không kèm tệp giấy phép. Phần mã do DB-Robot
-viết thêm nằm trong kho này; các phần kế thừa thuộc về tác giả của chúng.
+- Cộng đồng: [hoanglt1223](https://github.com/hoanglt1223) — công cụ giá vàng, giá xăng, lịch âm,
+  tử vi và kết nối máy chủ MCP bất kỳ (#1, #2).
+- Firmware màn hình phụ: [LVGL](https://lvgl.io) (MIT), [Be Vietnam Pro](https://github.com/bettergui/BeVietnamPro)
+  (SIL OFL 1.1), [Font Awesome Free](https://fontawesome.com) (biểu tượng CC BY 4.0),
+  [Twemoji](https://github.com/twitter/twemoji) (Twitter, Inc. và các tác giả khác, CC BY 4.0).
+
+Tại thời điểm viết, kho mã kuteo-git/xiaozhi-android và douo/xiaozhi-android không kèm tệp giấy
+phép. Phần mã do DB-Robot viết thêm nằm trong kho này và theo giấy phép Apache-2.0; các phần kế thừa
+thuộc về tác giả của chúng và không được cấp phép lại.

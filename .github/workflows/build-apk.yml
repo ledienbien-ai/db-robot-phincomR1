@@ -35,7 +35,11 @@ jobs:
       - name: Accept SDK licences
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
+      # The default music server comes from a repository secret, not from the source: a fork that
+      # builds this has none and must set up its own (see README, "Máy chủ nhạc").
       - name: Build release APK
+        env:
+          DBR_MUSIC_URL: ${{ secrets.DBR_MUSIC_URL }}
         run: |
           set -o pipefail
           ./gradlew :app:assembleRelease --stacktrace 2>&1 | tee build.log
@@ -82,6 +86,9 @@ jobs:
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "APK: v$NAME (versionCode $CODE)" >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$DBR_MUSIC_URL" ]; then
+            echo "::warning::Chưa đặt secret DBR_MUSIC_URL: APK này không có máy chủ nhạc mặc định."
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
