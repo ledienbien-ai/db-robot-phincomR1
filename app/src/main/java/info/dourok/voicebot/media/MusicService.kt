@@ -63,8 +63,31 @@ object MusicService {
      * @return the title of what was found.
      */
     fun playVideo(query: String): String {
+        val found = searchVideos(query)
+        val first = found.first()
+        start(videoTrack(musicBase(), found.map { it.id }, first.title, first.channel, first.durationS))
+        return first.title
+    }
+
+    /** Play [hits]`[index]` now (the display's YouTube app), the ones after it as fallbacks. */
+    fun playVideoHit(hits: List<VideoHit>, index: Int) {
+        val rest = hits.drop(index)
+        val first = rest.first()
+        LocalMusicPlayer.play(listOf(videoTrack(musicBase(), rest.map { it.id }, first.title, first.channel, first.durationS)), 0)
+    }
+
+    private fun musicBase(): String {
         val base = Settings.musicUrl.trim().trimEnd('/')
         if (base.isEmpty()) throw IllegalStateException("Chưa cài máy chủ nhạc cho loa.")
+        return base
+    }
+
+    /**
+     * Videos for [query] from the music server's `/yt/search` (about five).
+     * @throws IllegalStateException with a message fit to be read out or shown.
+     */
+    fun searchVideos(query: String): List<VideoHit> {
+        val base = musicBase()
         val q = query.trim()
         if (q.isEmpty()) throw IllegalStateException("Thiếu tên video.")
         val body = try {
@@ -82,9 +105,7 @@ object MusicService {
         }
         val found = parseVideoSearch(body)
         if (found.isEmpty()) throw IllegalStateException("Không tìm thấy video \"$q\".")
-        val first = found.first()
-        start(videoTrack(base, found.map { it.id }, first.title, first.channel, first.durationS))
-        return first.title
+        return found
     }
 
     /** One search result from `/yt/search`. */

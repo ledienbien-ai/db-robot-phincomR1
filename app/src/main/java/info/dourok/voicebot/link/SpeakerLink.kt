@@ -264,6 +264,35 @@ object SpeakerLink {
         return JSONObject().put("t", "list").put("k", "ha").put("id", "").put("items", items).toString()
     }
 
+    @Volatile private var lastVideos: List<info.dourok.voicebot.media.MusicService.VideoHit> = emptyList()
+
+    /**
+     * The display's YouTube app: videos for [query] as a list datagram, id = the video id, n = the title
+     * (cut at the end) and its length.
+     */
+    private fun ytList(query: String): String {
+        val q = query.trim()
+        if (q.isEmpty()) return res(false, "Chưa nhập tên video")
+        val hits = try {
+            info.dourok.voicebot.media.MusicService.searchVideos(q)
+        } catch (e: Exception) {
+            return res(false, e.message ?: "Không tìm được video")
+        }
+        lastVideos = hits
+        val items = JSONArray()
+        var used = 80 + q.length * 3
+        for (h in hits) {
+            val d = if (h.durationS > 0) " · %d:%02d".format(h.durationS / 60, h.durationS % 60) else " · LIVE"
+            val t = if (h.title.length > 48) h.title.take(47).trimEnd() + "…" else h.title
+            val o = JSONObject().put("id", h.id).put("n", t + d)
+            val len = o.toString().toByteArray(Charsets.UTF_8).size + 1
+            if (used + len > 1150) break
+            used += len
+            items.put(o)
+        }
+        return JSONObject().put("t", "list").put("k", "yt").put("id", "").put("items", items).toString()
+    }
+
     private fun handleApi(msg: JSONObject, from: InetSocketAddress) {
         AppLog.i("Màn hình phụ hỏi: ${msg.optString("t")} ${msg.optString("k")}${msg.optString("op")}")
         when (msg.optString("t")) {
@@ -294,6 +323,7 @@ object SpeakerLink {
                 }
                 "alarms" -> send(from, alarmsJson())
                 "ha" -> send(from, haList())
+                "yt" -> send(from, ytList(msg.optString("id")))
             }
             "play" -> when (msg.optString("k")) {
                 "ha" -> {
@@ -308,6 +338,18 @@ object SpeakerLink {
                         JSONObject().put("success", false).put("message", e.message ?: "Lỗi")
                     }
                     send(from, res(r.optBoolean("success"), tail(r.optString("message"), 90)))
+                }
+                "yt" -> {
+                    // one video of the last ytList(), by its id
+                    val hits = lastVideos
+                    val i = hits.indexOfFirst { it.id == msg.optString("id") }
+                    if (i < 0) { send(from, res(false, "Danh sách video đã cũ, tìm lại")); return }
+                    try {
+                        info.dourok.voicebot.media.MusicService.playVideoHit(hits, i)
+                        send(from, res(true, "Đang mở video: " + hits[i].title.take(60)))
+                    } catch (e: Exception) {
+                        send(from, res(false, e.message ?: "Không mở được video"))
+                    }
                 }
                 "radio" -> {
                     val r = local("/api/radio/play?id=" + java.net.URLEncoder.encode(msg.optString("id"), "UTF-8"))
@@ -443,7 +485,7 @@ object SpeakerLink {
                 val vid = LocalMusicPlayer.video?.videoId?.takeIf { it.isNotEmpty() }
                     ?: id.removePrefix(LocalMusicPlayer.VIDEO_PREFIX)
                 if (SpeakerAddress.isAddress(ip)) {
-                    m.put("vid", vid).put("vv", 1)
+                    m.put("vid", vid).put("vv", true)
                     o.put("mu", "http://$ip:8088")
                 }
             } else if (src == "YouTube" || src == "Nhạc") {

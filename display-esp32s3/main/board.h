@@ -23,7 +23,7 @@
 
 #define SPEAKER_PORT   8089
 
-#define FW_VERSION     "1.5.35"
+#define FW_VERSION     "1.5.36"
 
 /*
  * The 2.8" ST7789 touch module, with the vendor's own board parameters:

@@ -149,7 +149,7 @@ static int ui_w = 320, ui_h = 240;
 
 typedef enum { P_STATUS, P_CHOOSE, P_VOICE, P_MUSIC, P_IDLE, P_COUNT } page_t;
 
-enum { APP_FIND, APP_WIFI, APP_ALARM, APP_RADIO, APP_MUSIC, APP_PODCAST, APP_HOME, APP_SETTINGS, APP_INFO, APP_COUNT };
+enum { APP_FIND, APP_WIFI, APP_ALARM, APP_RADIO, APP_MUSIC, APP_YT, APP_PODCAST, APP_HOME, APP_SETTINGS, APP_INFO, APP_COUNT };
 
 static spk_state_t st;           // the copy the UI works from
 static uint32_t st_seq = 0xFFFFFFFF;
@@ -202,7 +202,7 @@ static void sheet_alarm(lv_obj_t *b);
 static void sheet_music(lv_obj_t *b);
 static void sheet_wifi(lv_obj_t *b);
 static void toast(const char *msg, bool ok);
-enum { LM_RADIO, LM_PODCAST, LM_EPISODES, LM_HA };
+enum { LM_RADIO, LM_PODCAST, LM_EPISODES, LM_HA, LM_YT };
 
 // ── helpers ──────────────────────────────────────────────────────────────────────
 
@@ -1048,6 +1048,7 @@ static const app_t APPS[APP_COUNT] = {
     [APP_ALARM]    = { I_BELL,    "Báo thức",  0xF59E0B },
     [APP_RADIO]    = { I_BCAST,   "Radio",     0xEA580C },
     [APP_MUSIC]    = { I_MUSIC,   "Nhạc",      0xDB2777 },
+    [APP_YT]       = { I_TV,      "YouTube",   0xDC2626 },
     [APP_PODCAST]  = { I_PODCAST, "Podcast",   0x7C3AED },
     [APP_HOME]     = { I_HOME,    "Nhà",       0x16A34A },
     [APP_SETTINGS] = { I_COG,     "Cài đặt",   0x0891B2 },
@@ -1070,8 +1071,8 @@ static void app_cb(lv_event_t *e)
 
 static void build_apps(lv_obj_t *p)
 {
-    // 9 apps: 3 x 3 standing up, 5 + 4 lying down
-    const int cols = PORT ? 3 : 5, cw = LCD_H_RES / cols, ch = PORT ? 96 : 100, sqs = PORT ? 54 : 48, gap = PORT ? 6 : 2;
+    // 10 apps: 3 + 3 + 3 + 1 standing up, 5 + 5 lying down
+    const int cols = PORT ? 3 : 5, cw = LCD_H_RES / cols, ch = PORT ? 72 : 100, sqs = PORT ? 42 : 48, gap = PORT ? 6 : 2;
     for (int i = 0; i < APP_COUNT; i++) {
         int x = (i % cols) * cw, y = 4 + (i / cols) * ch;
         lv_obj_t *cell = box(p, x + gap / 2, y, cw - gap, ch - 4);
@@ -1079,7 +1080,7 @@ static void build_apps(lv_obj_t *p)
         lv_obj_set_style_radius(cell, 14, 0);
         lv_obj_set_style_bg_color(cell, lv_color_hex(C_CARD2), 0);
         lv_obj_set_style_bg_opa(cell, LV_OPA_COVER, LV_STATE_PRESSED);
-        lv_obj_t *sq = box(cell, (cw - gap - sqs) / 2, 8, sqs, sqs);
+        lv_obj_t *sq = box(cell, (cw - gap - sqs) / 2, PORT ? 5 : 8, sqs, sqs);
         lv_obj_remove_flag(sq, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_style_radius(sq, 15, 0);
         lv_obj_set_style_bg_opa(sq, LV_OPA_COVER, 0);
@@ -1093,7 +1094,7 @@ static void build_apps(lv_obj_t *p)
         lv_obj_set_width(l, cw - gap);
         lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
         lv_label_set_long_mode(l, LV_LABEL_LONG_CLIP);
-        lv_obj_set_pos(l, 0, sqs + 14);
+        lv_obj_set_pos(l, 0, sqs + (PORT ? 8 : 14));
         lv_obj_add_event_cb(cell, app_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
     }
 }
@@ -1336,7 +1337,7 @@ static void calib_cb(lv_event_t *e)
 // ── radio, podcasts, music, alarms: the speaker's own lists, asked over the link ─────
 
 static int list_mode;
-static lv_obj_t *lst, *lst_note, *mu_ta;
+static lv_obj_t *lst, *lst_note, *mu_ta, *yt_kb;
 static link_list_t lst_data, rx_list;
 static uint32_t rx_seq, res_seq, al_seq;
 static char want_kind[10], want_id[40];
@@ -1349,7 +1350,7 @@ static bool wf_pw, wf_scanning;
 
 static void menu_reset(void)
 {
-    lst = lst_note = mu_ta = wf_ta = NULL;
+    lst = lst_note = mu_ta = wf_ta = yt_kb = NULL;
     lst_wait = play_wait = al_edit = wf_pw = wf_scanning = false;
 }
 
@@ -1423,6 +1424,12 @@ static void list_pick_cb(lv_event_t *e)
         toast("Đang gửi lệnh…", true);
         return;
     }
+    if (list_mode == LM_YT) {
+        link_play_video(lst_data.it[i].id);
+        play_wait = true;
+        toast("Đang mở video…", true);
+        return;
+    }
     if (list_mode == LM_RADIO) {
         link_play_radio(lst_data.it[i].id);
         play_wait = true;
@@ -1456,6 +1463,7 @@ static void lst_fill(void)
         lv_obj_set_width(l, LCD_H_RES - 16 - 36);
         lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
         lv_obj_align(l, LV_ALIGN_LEFT_MID, 12, 0);
+        if (list_mode == LM_YT) lv_obj_set_height(l, 36);   // two lines of a title, then "…"
         if (list_mode == LM_HA) {
             lv_obj_set_height(l, 18);   // one line, cut with "…"
             lv_obj_align(l, LV_ALIGN_LEFT_MID, 12, 0);
@@ -1736,6 +1744,109 @@ static void sheet_music(lv_obj_t *b)
 }
 
 
+// YouTube: a topic or typed words → the speaker searches the music server → tap a video: its sound
+// on the speaker, its pictures here (they open by themselves)
+
+static const char *const YT_TOPICS[] = {
+    "Hoạt hình thiếu nhi", "Ca nhạc thiếu nhi", "Truyện cổ tích", "Doraemon", "Nhạc trẻ mới nhất",
+    "Bolero", "Tin tức hôm nay", "Hài hước", "Nấu ăn ngon", "Thể dục buổi sáng",
+};
+static void yt_search(const char *q)
+{
+    if (!q || !q[0]) { toast("Gõ tên video", false); return; }
+    if (speaker_before(10536)) {
+        char t[200];
+        snprintf(t, sizeof t, "Loa đang chạy DB-Robot %s. Cần cập nhật loa lên 1.5.36 trở lên để mở YouTube từ màn hình.", st.ver);
+        lst_say(t);
+        return;
+    }
+    if (yt_kb) lv_obj_add_flag(yt_kb, LV_OBJ_FLAG_HIDDEN);
+    list_mode = LM_YT;
+    snprintf(want_kind, sizeof want_kind, "yt");
+    snprintf(want_id, sizeof want_id, "%s", q);
+    lst_say("Đang tìm trên YouTube…");
+    lst_wait = true;
+    lst_t0 = NOW_US();
+    link_request("yt", want_id);
+}
+
+static void yt_go_cb(lv_event_t *e) { if (mu_ta) yt_search(lv_textarea_get_text(mu_ta)); }
+
+static void yt_topic_cb(lv_event_t *e)
+{
+    int i = (int)(intptr_t)lv_event_get_user_data(e);
+    if (mu_ta) lv_textarea_set_text(mu_ta, YT_TOPICS[i]);
+    yt_search(YT_TOPICS[i]);
+}
+
+static void yt_kb_show_cb(lv_event_t *e) { if (yt_kb) lv_obj_remove_flag(yt_kb, LV_OBJ_FLAG_HIDDEN); }
+static void yt_kb_hide_cb(lv_event_t *e) { if (yt_kb) lv_obj_add_flag(yt_kb, LV_OBJ_FLAG_HIDDEN); }
+
+static void yt_topics(void)
+{
+    lv_obj_clean(lst);
+    lst_note = NULL;
+    lst_data.count = 0;
+    const int n = sizeof YT_TOPICS / sizeof YT_TOPICS[0];
+    for (int i = 0; i < n; i++) {
+        lv_obj_t *r = card_row(lst, 2 + i * 42, 38);
+        lv_obj_t *l = label(r, &font_vn14, C_TEXT, YT_TOPICS[i]);
+        lv_obj_align(l, LV_ALIGN_LEFT_MID, 12, 0);
+        lv_obj_t *ch = label(r, &font_vn14, C_ACCENT, ">");
+        lv_obj_align(ch, LV_ALIGN_RIGHT_MID, -10, 0);
+        lv_obj_add_event_cb(r, yt_topic_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+    }
+    box(lst, 0, 2 + n * 42, 1, 6);
+}
+
+static void sheet_yt(lv_obj_t *b)
+{
+    mu_ta = lv_textarea_create(b);
+    lv_obj_set_pos(mu_ta, 8, 4);
+    lv_obj_set_size(mu_ta, LCD_H_RES - 88, 38);
+    lv_textarea_set_one_line(mu_ta, true);
+    lv_textarea_set_max_length(mu_ta, 38);
+    lv_textarea_set_placeholder_text(mu_ta, PORT ? "Tên video" : "Tìm video (gõ không dấu)");
+    lv_obj_set_style_text_font(mu_ta, &font_vn14, 0);
+    lv_obj_set_style_text_color(mu_ta, lv_color_hex(C_TEXT), 0);
+    lv_obj_set_style_text_color(mu_ta, lv_color_hex(C_MUTED), LV_PART_TEXTAREA_PLACEHOLDER);
+    lv_obj_set_style_bg_color(mu_ta, lv_color_hex(C_CARD), 0);
+    lv_obj_set_style_bg_opa(mu_ta, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(mu_ta, 1, 0);
+    lv_obj_set_style_border_color(mu_ta, lv_color_hex(C_LINE), 0);
+    lv_obj_set_style_border_color(mu_ta, lv_color_hex(C_ACCENT), LV_STATE_FOCUSED);
+    lv_obj_set_style_radius(mu_ta, 10, 0);
+    lv_obj_add_event_cb(mu_ta, yt_kb_show_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *go = button(b, LCD_H_RES - 74, 4, 66, 38, "Tìm", &font_vn14, true, NULL);
+    lv_obj_add_event_cb(go, yt_go_cb, LV_EVENT_CLICKED, NULL);
+    // the list: topics first, then the videos found
+    lst = box(b, 0, 46, LCD_H_RES, PAGE_H - 40 - 46);
+    lv_obj_add_flag(lst, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(lst, LV_DIR_VER);
+    list_mode = LM_YT;
+    yt_topics();
+    // the keyboard covers the list while typing
+    yt_kb = lv_keyboard_create(b);
+    lv_obj_set_size(yt_kb, LCD_H_RES, PAGE_H - 40 - 46);
+    lv_obj_align(yt_kb, LV_ALIGN_TOP_LEFT, 0, 46);
+    lv_keyboard_set_textarea(yt_kb, mu_ta);
+    lv_obj_set_style_bg_color(yt_kb, lv_color_hex(C_BG), 0);
+    lv_obj_set_style_bg_opa(yt_kb, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_all(yt_kb, 2, 0);
+    lv_obj_set_style_pad_row(yt_kb, 3, 0);
+    lv_obj_set_style_pad_column(yt_kb, 3, 0);
+    lv_obj_set_style_bg_color(yt_kb, lv_color_hex(C_CARD2), LV_PART_ITEMS);
+    lv_obj_set_style_bg_opa(yt_kb, LV_OPA_COVER, LV_PART_ITEMS);
+    lv_obj_set_style_text_color(yt_kb, lv_color_hex(C_TEXT), LV_PART_ITEMS);
+    lv_obj_set_style_border_width(yt_kb, 0, LV_PART_ITEMS);
+    lv_obj_set_style_shadow_width(yt_kb, 0, LV_PART_ITEMS);
+    lv_obj_set_style_radius(yt_kb, 6, LV_PART_ITEMS);
+    lv_obj_set_style_bg_color(yt_kb, lv_color_hex(C_LINE), LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_add_event_cb(yt_kb, yt_go_cb, LV_EVENT_READY, NULL);
+    lv_obj_add_event_cb(yt_kb, yt_kb_hide_cb, LV_EVENT_CANCEL, NULL);
+    lv_obj_add_flag(yt_kb, LV_OBJ_FLAG_HIDDEN);
+}
+
 // ── Wi-Fi: join another network ──────────────────────────────────────────────────
 
 static wifi_ap_t wf_ap[16];
@@ -1934,11 +2045,19 @@ static void poll_menu(void)
         ha_cmd = false;
         play_wait = false;
     }
-    if (lst && lst_wait && NOW_US() - lst_t0 > 8000000) { lst_wait = false; char t[200]; snprintf(t, sizeof t, "Loa (DB-Robot %s) không trả lời. Cần bản 1.5.18 trở lên; kiểm tra loa đang bật và cùng mạng.", st.ver); lst_say(t); }
+    // a YouTube search waits for the music server (several seconds): a longer patience
+    if (lst && lst_wait && NOW_US() - lst_t0 > (list_mode == LM_YT ? 30000000 : 8000000)) { lst_wait = false; char t[200]; snprintf(t, sizeof t, "Loa (DB-Robot %s) không trả lời. Cần bản 1.5.18 trở lên; kiểm tra loa đang bật và cùng mạng.", st.ver); lst_say(t); }
 }
+
+static void yt_topics(void);
 
 static void sheet_back(void)
 {
+    if (sheet_app == APP_YT && lst && (lst_data.count > 0 || lst_wait)) {   // videos found → the topics again
+        lst_wait = false;
+        yt_topics();
+        return;
+    }
     if (sheet_app == APP_PODCAST && list_mode == LM_EPISODES) {
         lv_label_set_text(sheet_title, APPS[APP_PODCAST].label);
         list_load(LM_PODCAST, NULL);
@@ -1980,6 +2099,7 @@ static void open_sheet(int app)
     case APP_HOME:    sheet_list(sheet_body, LM_HA); break;
     case APP_PODCAST: sheet_list(sheet_body, LM_PODCAST); break;
     case APP_MUSIC:   sheet_music(sheet_body); break;
+    case APP_YT:      sheet_yt(sheet_body); break;
     case APP_INFO:    sheet_info(sheet_body); break;
     default: break;
     }

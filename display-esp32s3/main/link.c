@@ -114,7 +114,8 @@ static void parse_state(cJSON *j)
         s->pos = num(m, "pos", 0);
         s->dur = num(m, "dur", 0);
         copy(s->vid, sizeof s->vid, m, "vid");
-        s->vv = flag(m, "vv");
+        const cJSON *vv = cJSON_GetObjectItemCaseSensitive(m, "vv");   // true (1.5.35 sends 1: accept both)
+        s->vv = cJSON_IsTrue(vv) || (cJSON_IsNumber(vv) && vv->valuedouble != 0);
         copy(s->mu, sizeof s->mu, j, "mu");
     }
     const cJSON *w = cJSON_GetObjectItemCaseSensitive(j, "wx");
@@ -458,6 +459,13 @@ void link_play_music(const char *query)
 {
     cJSON *o = msg("play", "music");
     cJSON_AddStringToObject(o, "q", query);
+    send_obj(o);
+}
+
+void link_play_video(const char *id)
+{
+    cJSON *o = msg("play", "yt");
+    cJSON_AddStringToObject(o, "id", id);
     send_obj(o);
 }
 

@@ -349,7 +349,8 @@ bị YouTube chặn thì thử video kế). Loa phát phần tiếng (44,1 kHz m
 phụ tự mở hình, lấy từ chính loa ở `http://<loa>:8088/video_mjpeg` — mỗi ảnh chỉ được gửi khi tiếng
 đã phát tới đó, nên hình và tiếng khớp nhau, và tạm dừng là hình đứng theo. Một video chỉ chiếm
 một luồng của máy chủ nhạc (máy chủ cho tối đa hai), các thiết bị xiaozhi khác dùng máy chủ như cũ.
-Video không phát chung cho nhóm loa. Không tua được video. Luồng đứt giữa chừng thì loa tự nối lại
+Trên màn hình phụ còn có ứng dụng **YouTube** trong menu Ứng dụng (1.5.36): chọn chủ đề có sẵn
+hoặc gõ tên video, chạm một video để mở. Video không phát chung cho nhóm loa. Không tua được video. Luồng đứt giữa chừng thì loa tự nối lại
 từ chỗ đang phát (`media/YtVideoEngine.kt`, `media/VideoRelay.kt`).
 
 ## Báo thức

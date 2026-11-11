@@ -181,3 +181,10 @@ chính địa chỉ của loa (`http://<loa>:8088`). Màn hình tự mở lớp 
 để đóng; mở lại bằng nút "Hình"), đọc `/video_mjpeg` của loa — cùng định dạng multipart như máy chủ
 nhạc, nhưng loa chỉ gửi mỗi ảnh khi tiếng đã phát tới nó và gửi lại ảnh đang hiện mỗi 2 giây khi tạm
 dừng. Ảnh video là 320×176 (16:9); `video.c` đặt ảnh nhỏ hơn 320×240 vào giữa, phần thừa tô đen.
+(1.5.35 gửi `vv` là số 1, firmware 1.5.35 chỉ nhận `true` nên không tự mở; từ 1.5.36 loa gửi `true` và
+firmware nhận cả hai.)
+
+**Ứng dụng YouTube (1.5.36)**: ô tìm + bàn phím, danh sách chủ đề có sẵn (`YT_TOPICS` trong `ui.c`).
+Tìm = `{"t":"req","k":"yt","id":<chữ>}` → loa hỏi `/yt/search` của máy chủ nhạc, trả `list` `k:"yt"`
+(id = mã video, n = tên · độ dài); chạm = `{"t":"play","k":"yt","id":<mã>}` (các video sau nó trong
+danh sách làm dự phòng). Chờ kết quả tối đa 30 giây.
