@@ -4,6 +4,8 @@ Loa Phicomm R1 không có màn hình. Màn hình phụ là một mạch **ESP32-
 **2.8" SPI TFT 240×320 có cảm ứng** (chip ST7789 hoặc ILI9341, cảm ứng XPT2046). Nó vào cùng mạng
 Wi-Fi với loa, tự tìm loa và hiển thị:
 
+<p align="center"><img src="docs/man-hinh-hoan-thien.jpg" width="560" alt="Màn hình phụ DB-Robot đã lắp xong, đặt dựng đứng trên bàn"></p>
+
 - **Trò chuyện**: khuôn mặt theo trạng thái (đang nghe / đang nói) và cảm xúc của trợ lý, câu bạn
   vừa nói và câu trả lời của loa. Nút **Tắt nghe** kết thúc cuộc nói chuyện, quay về màn hình chính
   và loa thôi nghe từ đánh thức.
@@ -16,16 +18,23 @@ Wi-Fi với loa, tự tìm loa và hiển thị:
 - **Giao diện sáng / tối** giống trang điều khiển của loa (tối đỏ, hoặc sáng xanh dbrobot.vn); màn
   hình nhớ lựa chọn sau khi tắt nguồn.
 - **Đồng hồ lật (flip)** ở trang chính: bốn thẻ số, số nào đổi thì lật xuống như đồng hồ lật thật.
-- **Menu Ứng dụng**: **vuốt ngang** màn hình chính để mở, như màn hình điện thoại. 9 ứng dụng:
+- **Menu Ứng dụng**: **vuốt ngang** màn hình chính để mở, như màn hình điện thoại. 10 ứng dụng:
   *Tìm loa* (chọn loa khác), *Wifi* (quét, chọn mạng, nhập mật khẩu rồi màn hình khởi động lại để
   vào mạng mới; sai mật khẩu thì sau chừng 25 giây màn hình phát Wi-Fi `DBR1-Display-xxxx` để cài
   lại), *Báo thức* (danh sách, bật/tắt, thêm, sửa giờ + ngày lặp, xoá), *Radio*, *Nhạc* (gõ tên
-  bài hát không dấu, loa tìm và phát bài khớp nhất), *Podcast* (chương trình → tập), *Nhà*
+  bài hát không dấu, loa tìm và phát bài khớp nhất), *YouTube* (1.5.36: chọn chủ đề hoặc gõ tên
+  video, tiếng ra loa và hình lên màn hình), *Podcast* (chương trình → tập), *Nhà*
   (1.5.34: các thiết bị Home Assistant đã chọn trên trang loa, chạm để bật/tắt, cảm biến hiện giá
   trị; loa tự gọi Home Assistant, cần loa 1.5.34 trở lên), *Cài đặt*
   (âm lượng loa, độ sáng, giao diện sáng/tối, xoay 90° (4 hướng, ngang hoặc dọc), đảo màu, giảm sáng ban đêm, chỉnh lại cảm
   ứng) và *Thông tin* (loa, Wi-Fi, IP, khởi động lại). Không chạm 45 giây, hoặc khi có người nói
   chuyện với loa, màn hình tự quay về trang chính.
+
+Khi trò chuyện, màn hình vẽ câu trả lời thành hình (1.5.38): thời tiết, giá vàng, giá xăng dầu, lịch
+âm, phép tính, quốc kỳ, lệnh nhà thông minh; câu loa đang nói chạy thành phụ đề bên dưới. Hai hàng
+trên là màn hình đặt ngang, hai hàng dưới là dựng dọc:
+
+<p align="center"><img src="docs/the-hinh-tra-loi.jpg" width="720" alt="Các thẻ hình: thời tiết, giá vàng, giá xăng dầu, lịch âm, phép tính, quốc kỳ, nhà thông minh"></p>
 
 Cần loa chạy DB-Robot **1.5.15** trở lên (**1.5.16** để dùng nút Tắt nghe / Bật nghe; **1.5.18** để dùng Radio, Podcast, Nhạc và Báo thức). Một loa có thể có nhiều màn hình; trong trang điều khiển
 của loa, thẻ **Nhóm loa & màn hình phụ** (tab System) liệt kê các màn hình đang nối.
@@ -33,6 +42,8 @@ của loa, thẻ **Nhóm loa & màn hình phụ** (tab System) liệt kê các m
 ## Nối dây
 
 Màn hình và cảm ứng dùng chung một đường SPI.
+
+<p align="center"><img src="docs/so-do-noi-day.jpg" width="900" alt="Sơ đồ nối màn hình 2.8 inch SPI 240×320 với ESP32-S3-DevKitC-1"></p>
 
 | Chân màn hình | ESP32-S3 | Ghi chú |
 |---|---|---|
@@ -54,6 +65,18 @@ Màn hình và cảm ứng dùng chung một đường SPI.
 Không dùng GPIO 35, 36, 37: trên bản N16R8 các chân này đã nối vào PSRAM.
 
 Nếu màn hình quá tối, nối chân LED thẳng vào 3V3 (khi đó độ sáng không chỉnh được nữa).
+
+## Lắp ráp
+
+Vỏ in 3D gồm hai nửa: hộp màn hình và đế chứa mạch ESP32-S3. Hai nửa nối với nhau bằng hàng chân
+cắm của màn hình, nên tháo ra để nạp lại hay sửa dây rất dễ.
+
+| | |
+|:---:|:---:|
+| <img src="docs/lap-rap-3-man-hinh-trong-vo.jpg" width="200" alt="Màn hình 2.8 inch đặt trong hộp"> | <img src="docs/lap-rap-1-mat-sau.jpg" width="260" alt="Mặt sau hộp màn hình, hàng chân cắm ở dưới"> |
+| **1.** Đặt màn hình vào hộp, hàng chân cắm quay xuống dưới | **2.** Đóng nắp sau, hàng chân cắm lộ ra ở đáy hộp |
+| <img src="docs/lap-rap-2-mach-esp32.jpg" width="280" alt="Mạch ESP32-S3 bắt vít trong đế, dây nối ra đầu cắm"> | <img src="docs/lap-rap-4-ghep-hai-nua.jpg" width="230" alt="Hai nửa vỏ ghép lại, dây nối từ mạch lên màn hình"> |
+| **3.** Bắt mạch ESP32-S3 vào đế, hàn dây theo sơ đồ ra đầu cắm cái | **4.** Cắm hộp màn hình vào đầu cắm của đế rồi đóng nắp đế |
 
 ## Nạp firmware
 
