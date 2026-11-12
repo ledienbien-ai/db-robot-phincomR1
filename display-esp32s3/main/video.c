@@ -10,6 +10,7 @@
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
+#include "esp_wifi.h"
 #include "esp_crt_bundle.h"
 #include "esp_tls.h"
 #include "esp_log.h"
@@ -121,13 +122,15 @@ static void tls_diag(const char *url, int *code, int *flags)
     esp_tls_conn_destroy(t);
 }
 
-enum { SES_STOP = 0, SES_RETRY = 1, SES_FATAL = 2 };
+enum { SES_STOP = 0, SES_RETRY = 1, SES_FATAL = 2, SES_NOCONN = 3 };
 
 /* One connection. SES_RETRY: it broke in the middle of the stream (reconnect from where it was);
+   SES_NOCONN: it could not connect, or the speaker has no picture for it yet (try again: message set);
    SES_FATAL: it never worked (message already set); SES_STOP: it ended or the user closed it. */
 static int session(int gen, const char *url, uint8_t *buf, void *pool, bool *got_frame)
 {
-    esp_http_client_config_t cfg = { .url = url, .timeout_ms = 15000, .buffer_size = 1024, .buffer_size_tx = 512 };
+    // 8 s: a connection that is not answered is tried again (run()) rather than waited on
+    esp_http_client_config_t cfg = { .url = url, .timeout_ms = 8000, .buffer_size = 1024, .buffer_size_tx = 512 };
     if (!strncmp(url, "https://", 8)) cfg.crt_bundle_attach = esp_crt_bundle_attach;
     esp_http_client_handle_t c = esp_http_client_init(&cfg);
     if (!c) { fail(gen, "Không mở được kết nối"); return SES_FATAL; }
@@ -143,7 +146,7 @@ static int session(int gen, const char *url, uint8_t *buf, void *pool, bool *got
         esp_http_client_cleanup(c);
         if (*got_frame) return SES_RETRY;
         fail(gen, m);
-        return SES_FATAL;
+        return SES_NOCONN;
     }
     esp_http_client_fetch_headers(c);
     int code = esp_http_client_get_status_code(c);
@@ -152,7 +155,8 @@ static int session(int gen, const char *url, uint8_t *buf, void *pool, bool *got
         snprintf(m, sizeof m, code == 503 ? "Máy chủ đang bận" : "Máy chủ báo lỗi %d", code);
         fail(gen, m);
         esp_http_client_close(c); esp_http_client_cleanup(c);
-        return SES_FATAL;
+        // 404 from the speaker: the video is between tracks or still opening — worth another try
+        return code == 404 ? SES_NOCONN : SES_FATAL;
     }
     int result = SES_STOP;
     size_t len = 0;
@@ -229,16 +233,31 @@ static void run(int gen)
     // the screen meanwhile); one that never started is reported.
     bool got_frame = false;
     int64_t t0 = esp_timer_get_time();
-    for (int attempt = 0; attempt < 8 && gen == s_gen; attempt++) {
+    // Wi-Fi power saving off while pictures stream: in modem sleep the access point holds packets until
+    // the next beacon, which is what made a connection to the speaker time out now and then
+    esp_wifi_set_ps(WIFI_PS_NONE);
+    int noconn = 0;
+    for (int attempt = 0; attempt < 8 && gen == s_gen; ) {
         char url[260];
         int ss = s_ss0 + (int)((esp_timer_get_time() - t0) / 1000000);
         snprintf(url, sizeof url, "%s/video_mjpeg?id=%s&ss=%d", s_server, s_vid, ss);
         int r = session(gen, url, buf, pool, &got_frame);
-        if (r != SES_RETRY) return;
-        ESP_LOGW(TAG, "stream broke, reconnecting (%d)", attempt + 1);
+        if (r == SES_NOCONN && ++noconn < 6) {
+            // keep the reason on screen and try again: a busy speaker, a lost packet, a video that is
+            // still opening
+            ESP_LOGW(TAG, "no connection, trying again (%d)", noconn);
+            for (int i = 0; i < 15 && gen == s_gen; i++) vTaskDelay(pdMS_TO_TICKS(100));
+            if (gen == s_gen && !got_frame) setst(VID_LOADING, "");
+            continue;
+        }
+        if (r != SES_RETRY) break;
+        noconn = 0;
+        attempt++;
+        ESP_LOGW(TAG, "stream broke, reconnecting (%d)", attempt);
         vTaskDelay(pdMS_TO_TICKS(300));
+        if (attempt >= 8) fail(gen, "Mất kết nối nhiều lần, thử lại sau");
     }
-    fail(gen, "Mất kết nối nhiều lần, thử lại sau");
+    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 }
 
 static TaskHandle_t s_task;

@@ -3,6 +3,10 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.39 (chỉ firmware màn hình phụ)
+
+- Sửa lỗi thỉnh thoảng không hiện hình video, chỉ có tiếng, kèm thông báo "Không nối được …:8088/video_mjpeg: ESP_ERR_HTTP_CONNECT": màn hình giờ tự thử nối lại tối đa 6 lần (mỗi lần chờ 8 giây, nghỉ 1,5 giây) thay vì bỏ cuộc ngay lần đầu, và tắt chế độ tiết kiệm điện Wi-Fi trong lúc chiếu hình (ở chế độ đó điểm phát giữ gói tin tới nhịp beacon kế, khiến kết nối tới loa đôi khi quá hạn). Loa trả 404 (video đang chuyển bài hoặc chưa mở xong) cũng được thử lại. Ứng dụng loa giữ nguyên 1.5.38.
+
 ## v1.5.38
 
 - Màn hình phụ vẽ câu trả lời thành hình: thời tiết (biểu tượng, nhiệt độ, 3 ngày tới), giá vàng và giá xăng dầu (bảng), lịch âm (tờ lịch), phép tính (số to, kèm hình quả táo cho phép tính nhỏ của trẻ em), quốc kỳ của 259 nước và vùng lãnh thổ (Twemoji), lệnh nhà thông minh (đèn, quạt… bật/tắt). Câu trả lời của loa chạy thành phụ đề bên dưới. Câu trả lời không có hình thì màn hình hiện chữ loa đang nói.
