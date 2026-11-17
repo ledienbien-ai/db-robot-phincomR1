@@ -4,3 +4,6 @@ components/
 sdkconfig
 sdkconfig.old
 dependencies.lock
+build-freenove/
+sdkconfig.freenove
+sdkconfig.freenove.old

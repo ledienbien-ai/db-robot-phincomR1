@@ -161,8 +161,12 @@ void display_init(void)
         .rgb_ele_order = (g_cfg.bgr != (DISPLAY_RGB_ORDER == LCD_RGB_ELEMENT_ORDER_BGR)) ? LCD_RGB_ELEMENT_ORDER_BGR : LCD_RGB_ELEMENT_ORDER_RGB,
         .bits_per_pixel = 16,
     };
-    if (g_cfg.lcd_type == LCD_ILI9341) ESP_ERROR_CHECK(esp_lcd_new_panel_ili9341(io, &pc, &s_panel));
-    else ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io, &pc, &s_panel));
+    // the Freenove board's chip is known (BOARD_LCD_FIXED_ILI9341 keeps lcd_type at ILI9341 in cfg.c)
+    if (BOARD_LCD_FIXED_ILI9341 || g_cfg.lcd_type == LCD_ILI9341) {
+        ESP_ERROR_CHECK(esp_lcd_new_panel_ili9341(io, &pc, &s_panel));
+    } else {
+        ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io, &pc, &s_panel));
+    }
     esp_lcd_panel_reset(s_panel);
     esp_lcd_panel_init(s_panel);
     esp_lcd_panel_invert_color(s_panel, g_cfg.invert);
@@ -188,5 +192,5 @@ void display_init(void)
     lv_indev_set_read_cb(in, touch_cb);
 
     xTaskCreatePinnedToCore(lvgl_task, "lvgl", 12288, NULL, 4, NULL, 1);
-    ESP_LOGI(TAG, "%s %dx%d (native %dx%d) ready", g_cfg.lcd_type == LCD_ILI9341 ? "ILI9341" : "ST7789", LCD_H_RES, LCD_V_RES, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    ESP_LOGI(TAG, "%s: %s %dx%d (native %dx%d) ready", BOARD_NAME, g_cfg.lcd_type == LCD_ILI9341 ? "ILI9341" : "ST7789", LCD_H_RES, LCD_V_RES, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 }

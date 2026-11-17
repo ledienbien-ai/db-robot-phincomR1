@@ -1299,10 +1299,14 @@ static void sheet_settings(lv_obj_t *b)
     lv_obj_add_event_cb(o, orient_cb, LV_EVENT_CLICKED, NULL);
     row_switch(b, y0 + 60 + 2 * rh, "Đảo màu (nếu màu bị âm bản)", g_cfg.invert, sw_invert_cb);
     row_switch(b, y0 + 60 + 3 * rh, "Giảm sáng ban đêm 22:00–6:00", g_cfg.night_dim, sw_night_cb);
+#if !BOARD_TOUCH_CAPACITIVE   // a capacitive panel (Freenove) reports its own pixels: nothing to calibrate
     lv_obj_t *g = button(b, 8, y0 + 64 + 4 * rh, LCD_H_RES - 16, bh,
                          PORT ? I_HAND "  Hiệu chỉnh cảm ứng" : I_HAND "  Hiệu chỉnh cảm ứng (khởi động lại)", &font_vn14, false, NULL);
     lv_obj_add_event_cb(g, calib_cb, LV_EVENT_CLICKED, NULL);
-    if (PORT) note(b, 12, y0 + 64 + 4 * rh + bh + 4, LCD_H_RES - 24, "Chạm \"Hiệu chỉnh\" thì màn hình khởi động lại, rồi chạm vào các dấu + (làm một lần, dùng cho mọi hướng).", C_MUTED);
+#else
+    (void)calib_cb;
+#endif
+    if (PORT && !BOARD_TOUCH_CAPACITIVE) note(b, 12, y0 + 64 + 4 * rh + bh + 4, LCD_H_RES - 24, "Chạm \"Hiệu chỉnh\" thì màn hình khởi động lại, rồi chạm vào các dấu + (làm một lần, dùng cho mọi hướng).", C_MUTED);
 }
 
 /* info */

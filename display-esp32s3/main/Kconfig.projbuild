@@ -1,0 +1,25 @@
+menu "DB-Robot màn hình phụ"
+
+    choice DBR_BOARD
+        prompt "Mạch màn hình"
+        default DBR_BOARD_DEVKIT_SPI28
+        help
+            Chọn mạch đang dùng làm màn hình phụ cho loa Phicomm R1.
+            Đổi mạch thì build lại và nạp lại toàn bộ (idf.py fullclean nếu cần).
+
+        config DBR_BOARD_DEVKIT_SPI28
+            bool "ESP32-S3-DevKitC-1 N16R8 + màn 2.8\" SPI tự nối dây (ST7789/ILI9341, cảm ứng XPT2046)"
+            help
+                Mạch ESP32-S3-DevKitC-1 N16R8 nối dây với màn 2.8" SPI 240x320 có cảm ứng
+                điện trở XPT2046 (xem sơ đồ nối dây trong README). Cảm ứng cần hiệu chỉnh.
+
+        config DBR_BOARD_FREENOVE_ES3N28P
+            bool "Freenove ESP32-S3 2.8\" có sẵn chip (ES3N28P: ILI9341 + cảm ứng điện dung FT6336)"
+            help
+                Mạch màn hình 2.8" Freenove gắn sẵn ESP32-S3 (N16R8), không cần nối dây.
+                Màn ILI9341 trên SPI (SCK 12, MOSI 11, CS 10, DC 46, đèn nền 45), cảm ứng
+                điện dung FT6336 trên I2C (SDA 16, SCL 15, RST 18, INT 17). Cảm ứng không
+                cần hiệu chỉnh. Loa nhỏ và micro trên mạch không dùng.
+    endchoice
+
+endmenu

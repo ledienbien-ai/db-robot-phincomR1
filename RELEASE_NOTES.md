@@ -3,6 +3,11 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.40 (chỉ firmware màn hình phụ)
+
+- Thêm lựa chọn mạch thứ hai cho màn hình phụ: **Freenove ESP32-S3 2.8" có sẵn chip** (ES3N28P: màn ILI9341, cảm ứng điện dung FT6336), không cần nối dây, không cần hiệu chỉnh cảm ứng. Firmware riêng `firmware/DBR1-Display-Freenove-ES3N28P.bin`.
+- Tự build: chọn mạch trong `idf.py menuconfig` → "DB-Robot màn hình phụ" → "Mạch màn hình" (`main/Kconfig.projbuild`), hoặc build mạch Freenove bằng `sdkconfig.defaults.freenove` (xem README màn hình phụ). Mạch ESP32-S3-DevKitC-1 tự nối dây vẫn là mặc định, chạy như cũ.
+
 ## v1.5.39 (chỉ firmware màn hình phụ)
 
 - Sửa lỗi thỉnh thoảng không hiện hình video, chỉ có tiếng, kèm thông báo "Không nối được …:8088/video_mjpeg: ESP_ERR_HTTP_CONNECT": màn hình giờ tự thử nối lại tối đa 6 lần (mỗi lần chờ 8 giây, nghỉ 1,5 giây) thay vì bỏ cuộc ngay lần đầu, và tắt chế độ tiết kiệm điện Wi-Fi trong lúc chiếu hình (ở chế độ đó điểm phát giữ gói tin tới nhịp beacon kế, khiến kết nối tới loa đôi khi quá hạn). Loa trả 404 (video đang chuyển bài hoặc chưa mở xong) cũng được thử lại. Ứng dụng loa giữ nguyên 1.5.38.

@@ -14,11 +14,15 @@ static void defaults(void)
 {
     memset(&g_cfg, 0, sizeof g_cfg);
     strcpy(g_cfg.name, "Màn hình phụ");
+#if BOARD_LCD_FIXED_ILI9341
+    g_cfg.lcd_type = LCD_ILI9341;
+#else
     g_cfg.lcd_type = LCD_ST7789;
+#endif
     g_cfg.invert = DISPLAY_INVERT_COLOR;
     g_cfg.bright = 80;
     g_cfg.night_dim = 1;
-    g_cfg.want_cal = 1;     // offer the calibration on the first start
+    g_cfg.want_cal = !BOARD_TOUCH_CAPACITIVE;   // offer the calibration on the first start (resistive touch only)
 }
 
 void cfg_load(void)
@@ -40,6 +44,9 @@ void cfg_load(void)
         }
     }
     if (g_cfg.orient > 3) g_cfg.orient = 0;
+#if BOARD_LCD_FIXED_ILI9341
+    g_cfg.lcd_type = LCD_ILI9341;   // the chip of this board is known
+#endif
     nvs_close(h);
     if (g_cfg.bright < 5 || g_cfg.bright > 100) g_cfg.bright = 80;
 }

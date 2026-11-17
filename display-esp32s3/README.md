@@ -1,8 +1,13 @@
 # Màn hình phụ DB-Robot (ESP32-S3)
 
-Loa Phicomm R1 không có màn hình. Màn hình phụ là một mạch **ESP32-S3-DevKitC-1 N16R8** gắn màn
-**2.8" SPI TFT 240×320 có cảm ứng** (chip ST7789 hoặc ILI9341, cảm ứng XPT2046). Nó vào cùng mạng
-Wi-Fi với loa, tự tìm loa và hiển thị:
+Loa Phicomm R1 không có màn hình. Màn hình phụ dùng một trong hai loại mạch:
+
+1. **ESP32-S3-DevKitC-1 N16R8** tự nối dây với màn **2.8" SPI TFT 240×320 có cảm ứng** (chip ST7789
+   hoặc ILI9341, cảm ứng điện trở XPT2046) — xem [Nối dây](#nối-dây).
+2. **Mạch Freenove 2.8" có sẵn ESP32-S3** (ES3N28P: màn ILI9341, cảm ứng điện dung FT6336) — không
+   cần nối dây, xem [Mạch Freenove 2.8"](#mạch-freenove-28-có-sẵn-chip-1540).
+
+Màn hình phụ vào cùng mạng Wi-Fi với loa, tự tìm loa và hiển thị:
 
 <p align="center"><img src="docs/man-hinh-hoan-thien.jpg" width="560" alt="Màn hình phụ DB-Robot đã lắp xong, đặt dựng đứng trên bàn"></p>
 
@@ -66,6 +71,38 @@ Không dùng GPIO 35, 36, 37: trên bản N16R8 các chân này đã nối vào 
 
 Nếu màn hình quá tối, nối chân LED thẳng vào 3V3 (khi đó độ sáng không chỉnh được nữa).
 
+## Mạch Freenove 2.8" có sẵn chip (1.5.40)
+
+Mạch màn hình 2.8" của Freenove gắn sẵn ESP32-S3 (N16R8), màn ILI9341 và cảm ứng điện dung FT6336,
+nên **không phải nối dây** và **không phải hiệu chỉnh cảm ứng**. Chỉ cần nạp đúng firmware của mạch
+này: `firmware/DBR1-Display-Freenove-ES3N28P.bin` (cách nạp như mục [Nạp firmware](#nạp-firmware)).
+
+| Phần | Chân trên mạch |
+|---|---|
+| Màn ILI9341 (SPI) | SCK 12, MOSI 11, CS 10, DC 46, không có chân RESET |
+| Đèn nền | GPIO 45 (chỉnh độ sáng được) |
+| Cảm ứng FT6336 (I2C, địa chỉ 0x38) | SDA 16, SCL 15, RST 18, INT 17 |
+| Loa nhỏ, micro, thẻ nhớ trên mạch | không dùng (ampli GPIO 1 được giữ tắt) |
+
+Trang cài đặt Wi-Fi của mạch này không cần chọn chip màn hình (luôn là ILI9341). Hình bị lật hoặc
+ngược thì chỉnh bằng **Cài đặt › Xoay 90°**; cảm ứng tự xoay theo hình.
+
+### Vỏ in 3D cho mạch 2.8 inch
+
+<p align="center"><img src="docs/vo-cyd-desk-buddy.jpg" width="800" alt="Màn hình phụ DB-Robot trong vỏ CYD Desk Buddy: bản trắng giao diện tối và bản đỏ đen giao diện sáng"></p>
+
+Hình dựng 3D từ tệp in của vỏ **CYD Desk Buddy** (bản 45° đối xứng), gắn giao diện màn hình chính.
+Hai mẫu vỏ đặt bàn trên MakerWorld, thiết kế cho mạch màn hình 2.8 inch cỡ ESP32-2432S028:
+
+- [CYD Desk Buddy](https://makerworld.com/fr/models/2787810-cyd-desk-buddy-for-bambu-lab-home-assistant#profileId-3099382)
+  — vỏ nghiêng, nắp mặt trước in khác màu; có bản 45° đối xứng và bản không đối xứng.
+- [Desk Stand for XTouch (ESP32-2432S028)](https://makerworld.com/fr/models/49607-desk-stand-for-xtouch-using-esp32-2432s028#profileId-51458)
+  — chân đế đặt bàn.
+
+Mạch ESP32-2432S028 gốc dùng chip ESP32 đời cũ, không có PSRAM, nên **không chạy được** firmware
+này; với các vỏ trên hãy dùng mạch Freenove ESP32-S3 2.8" và so kích thước mạch với vỏ trước khi in.
+Tệp in và quyền sử dụng thuộc tác giả của từng mẫu trên MakerWorld.
+
 ## Lắp ráp
 
 Vỏ in 3D gồm hai nửa: hộp màn hình và đế chứa mạch ESP32-S3. Hai nửa nối với nhau bằng hàng chân
@@ -80,8 +117,15 @@ cắm của màn hình, nên tháo ra để nạp lại hay sửa dây rất d�
 
 ## Nạp firmware
 
-Tệp `firmware/DBR1-Display-ESP32S3.bin` là bản đã gộp sẵn, nạp **một lần ở địa chỉ 0x0**. Tệp này
-cũng có trong mỗi bản phát hành trên GitHub.
+Mỗi loại mạch có một tệp firmware riêng, đã gộp sẵn, nạp **một lần ở địa chỉ 0x0**:
+
+| Mạch | Tệp |
+|---|---|
+| ESP32-S3-DevKitC-1 N16R8 + màn 2.8" SPI tự nối dây | `firmware/DBR1-Display-ESP32S3.bin` |
+| Freenove 2.8" có sẵn chip (ES3N28P) | `firmware/DBR1-Display-Freenove-ES3N28P.bin` |
+
+Các tệp này cũng có trong mỗi bản phát hành trên GitHub. Nạp nhầm tệp của mạch kia thì màn hình tối
+hoặc cảm ứng không chạy; nạp lại đúng tệp là được.
 
 **Cách dễ nhất, bằng trình duyệt** (Chrome hoặc Edge trên máy tính):
 
@@ -160,8 +204,23 @@ Cần ESP-IDF **5.3** trở lên.
 ```
 cd display-esp32s3
 idf.py set-target esp32s3
+idf.py menuconfig        # chọn mạch, xem dưới
 idf.py build
 idf.py -p COM5 flash monitor
+```
+
+**Chọn mạch trong menuconfig:** `DB-Robot màn hình phụ` → `Mạch màn hình`:
+
+- `ESP32-S3-DevKitC-1 N16R8 + màn 2.8" SPI tự nối dây` (mặc định)
+- `Freenove ESP32-S3 2.8" có sẵn chip (ES3N28P …)`
+
+Lựa chọn nằm trong `main/Kconfig.projbuild` và được lưu vào `sdkconfig`. Đổi mạch xong nên
+`idf.py fullclean` rồi build lại. Muốn build cả hai mà không phải đổi qua lại, dùng thư mục build và
+tệp cấu hình riêng cho mạch Freenove:
+
+```
+idf.py -B build-freenove -D SDKCONFIG=sdkconfig.freenove -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.freenove" build
+idf.py -B build-freenove -D SDKCONFIG=sdkconfig.freenove -p COM5 flash monitor
 ```
 
 Màn 2.8" ST7789 dùng đúng thông số của nhà sản xuất, ở `main/board.h`: 240×320 dọc, không lật, không
@@ -181,9 +240,10 @@ esptool.py --chip esp32s3 merge_bin -o DBR1-Display-ESP32S3.bin --flash_mode dio
 
 | Tệp | Nội dung |
 |---|---|
-| `main/board.h` | chân GPIO, tốc độ SPI |
+| `main/Kconfig.projbuild` | chọn mạch trong menuconfig |
+| `main/board.h` | chân GPIO, tốc độ SPI, thông số màn của từng mạch |
 | `main/display.c` | màn hình (ST7789/ILI9341), đèn nền, LVGL; xoay hình bằng phần mềm |
-| `main/touch.c` | cảm ứng XPT2046 |
+| `main/touch.c` | cảm ứng XPT2046 (SPI) hoặc FT6336 (I2C, mạch Freenove) |
 | `main/net.c` | Wi-Fi, Wi-Fi cài đặt, DNS cho trang cài đặt tự mở |
 | `main/portal.c` | trang cài đặt |
 | `main/link.c` | tìm loa và nhận trạng thái qua UDP 8089 |

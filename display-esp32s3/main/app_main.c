@@ -8,6 +8,7 @@
 #include "nvs_flash.h"
 #include "esp_log.h"
 #include "cfg.h"
+#include "board.h"
 #include "display.h"
 #include "net.h"
 #include "portal.h"
@@ -23,7 +24,7 @@ void app_main(void)
     }
     cfg_load();
     display_init();
-    if (g_cfg.want_cal) ui_calibrate();
+    if (g_cfg.want_cal && !BOARD_TOUCH_CAPACITIVE) ui_calibrate();
     net_init();
     portal_start();
     link_init();            // before the UI: the UI reads its state

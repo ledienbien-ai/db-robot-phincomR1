@@ -1,0 +1,4 @@
+# Freenove ESP32-S3 2.8" (ES3N28P): ILI9341 + FT6336 capacitive touch, N16R8.
+# Build:  idf.py -B build-freenove -D SDKCONFIG=sdkconfig.freenove -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.freenove" build
+# or choose it in idf.py menuconfig → "DB-Robot màn hình phụ" → "Mạch màn hình".
+CONFIG_DBR_BOARD_FREENOVE_ES3N28P=y

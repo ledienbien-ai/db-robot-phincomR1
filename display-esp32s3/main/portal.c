@@ -13,6 +13,7 @@
 #include "net.h"
 #include "link.h"
 #include "cfg.h"
+#include "board.h"
 
 static void restart_task(void *a) { vTaskDelay(pdMS_TO_TICKS(1200)); esp_restart(); }
 static void restart_soon(void) { xTaskCreate(restart_task, "rst", 2048, NULL, 5, NULL); }
@@ -140,7 +141,9 @@ static esp_err_t post_save(httpd_req_t *r)
     if (field(body, "name", v, sizeof v) && v[0]) strlcpy(g_cfg.name, v, sizeof g_cfg.name - 1);
     if (field(body, "spk", v, sizeof v)) strlcpy(g_cfg.spk_id, v, sizeof g_cfg.spk_id - 1);
     if (field(body, "spkip", v, sizeof v)) strlcpy(g_cfg.spk_ip, v, sizeof g_cfg.spk_ip - 1);
+#if !BOARD_LCD_FIXED_ILI9341
     if (field(body, "lcd", v, sizeof v)) g_cfg.lcd_type = atoi(v) == 1 ? LCD_ILI9341 : LCD_ST7789;
+#endif
     if (field(body, "br", v, sizeof v)) { int b = atoi(v); g_cfg.bright = b < 5 ? 5 : b > 100 ? 100 : b; }
     g_cfg.invert = field(body, "inv", v, sizeof v);
     g_cfg.bgr = field(body, "bgr", v, sizeof v);
