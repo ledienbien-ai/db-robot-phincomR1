@@ -87,21 +87,12 @@ này: `firmware/DBR1-Display-Freenove-ES3N28P.bin` (cách nạp như mục [Nạ
 Trang cài đặt Wi-Fi của mạch này không cần chọn chip màn hình (luôn là ILI9341). Hình bị lật hoặc
 ngược thì chỉnh bằng **Cài đặt › Xoay 90°**; cảm ứng tự xoay theo hình.
 
-### Vỏ in 3D cho mạch 2.8 inch
+### Vỏ in 3D
 
-<p align="center"><img src="docs/vo-cyd-desk-buddy.jpg" width="800" alt="Màn hình phụ DB-Robot trong vỏ CYD Desk Buddy: bản trắng giao diện tối và bản đỏ đen giao diện sáng"></p>
+<p align="center"><img src="docs/vo-man-hinh-freenove.jpg" width="800" alt="Màn hình phụ DB-Robot dùng mạch Freenove ESP32-S3 2.8 inch trong vỏ in 3D đặt bàn: bản trắng giao diện tối và bản đỏ đen giao diện sáng"></p>
 
-Hình dựng 3D từ tệp in của vỏ **CYD Desk Buddy** (bản 45° đối xứng), gắn giao diện màn hình chính.
-Hai mẫu vỏ đặt bàn trên MakerWorld, thiết kế cho mạch màn hình 2.8 inch cỡ ESP32-2432S028:
-
-- [CYD Desk Buddy](https://makerworld.com/fr/models/2787810-cyd-desk-buddy-for-bambu-lab-home-assistant#profileId-3099382)
-  — vỏ nghiêng, nắp mặt trước in khác màu; có bản 45° đối xứng và bản không đối xứng.
-- [Desk Stand for XTouch (ESP32-2432S028)](https://makerworld.com/fr/models/49607-desk-stand-for-xtouch-using-esp32-2432s028#profileId-51458)
-  — chân đế đặt bàn.
-
-Mạch ESP32-2432S028 gốc dùng chip ESP32 đời cũ, không có PSRAM, nên **không chạy được** firmware
-này; với các vỏ trên hãy dùng mạch Freenove ESP32-S3 2.8" và so kích thước mạch với vỏ trước khi in.
-Tệp in và quyền sử dụng thuộc tác giả của từng mẫu trên MakerWorld.
+Hình dựng 3D vỏ đặt bàn cho mạch Freenove ESP32-S3 2.8", gắn giao diện màn hình chính. Mạch đặt vào
+vỏ là chạy, không cần nối dây; nắp mặt trước in khác màu cho nổi.
 
 ## Lắp ráp
 
