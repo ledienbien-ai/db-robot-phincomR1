@@ -3,6 +3,10 @@
 Mỗi bản một mục `## v<versionName>`. Khi phát hành, đoạn văn dưới mục đó được đưa vào trang Release
 và vào ô "Bản mới nhất" trong trang điều khiển của loa -- viết ngắn, cho người dùng đọc.
 
+## v1.5.41 (chỉ firmware màn hình phụ)
+
+- Màn hình chờ (đồng hồ và thời tiết) có nền bầu trời: giao diện sáng là trời xanh ban ngày có mặt trời và mây, giao diện tối là bầu trời đêm có trăng lưỡi liềm và sao lấp lánh. Áp dụng cho cả hai mạch (ESP32-S3 tự nối dây và Freenove 2.8").
+
 ## v1.5.40 (chỉ firmware màn hình phụ)
 
 - Thêm lựa chọn mạch thứ hai cho màn hình phụ: **Freenove ESP32-S3 2.8" có sẵn chip** (ES3N28P: màn ILI9341, cảm ứng điện dung FT6336), không cần nối dây, không cần hiệu chỉnh cảm ứng. Firmware riêng `firmware/DBR1-Display-Freenove-ES3N28P.bin`.

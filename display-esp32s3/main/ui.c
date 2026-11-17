@@ -910,10 +910,92 @@ static void build_flip(lv_obj_t *p, int y)
     }
 }
 
+/* The idle page's sky: a day sky behind the light theme, a night sky with stars behind the dark one.
+ * Plain LVGL objects drawn once (no images, no shadows); a few stars twinkle, which only redraws
+ * their own few pixels. */
+static void star_anim_cb(void *o, int32_t v) { lv_obj_set_style_bg_opa((lv_obj_t *)o, (lv_opa_t)v, 0); }
+
+static lv_obj_t *sky_dot(lv_obj_t *p, int x, int y, int d, uint32_t col, lv_opa_t opa)
+{
+    lv_obj_t *o = box(p, x - d / 2, y - d / 2, d, d);
+    lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_radius(o, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(o, lv_color_hex(col), 0);
+    lv_obj_set_style_bg_opa(o, opa, 0);
+    return o;
+}
+
+static void build_sky(lv_obj_t *p)
+{
+    const int w = LCD_H_RES, h = PAGE_H;
+    lv_obj_t *sky = box(p, 0, 0, w, h);
+    lv_obj_remove_flag(sky, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_opa(sky, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_grad_dir(sky, LV_GRAD_DIR_VER, 0);
+    if (P->light) {
+        // day: deeper blue at the top, almost white at the horizon, a soft sun and a few clouds
+        lv_obj_set_style_bg_color(sky, lv_color_hex(0x6DB8F2), 0);
+        lv_obj_set_style_bg_grad_color(sky, lv_color_hex(0xE4F3FF), 0);
+        const int sx = w - 18, sy = 14;                       // the sun, half out of the corner
+        if (!PORT) {                                          // standing up, the clock fills the top
+            sky_dot(sky, sx, sy, 92, 0xFFF4C2, LV_OPA_20);
+            sky_dot(sky, sx, sy, 64, 0xFFF0B0, LV_OPA_40);
+            sky_dot(sky, sx, sy, 38, 0xFFE58A, LV_OPA_80);
+        }
+        // clouds: overlapping white ellipses, low in the sky and at the sides (behind the text)
+        static const int16_t cl[][4] = {   // x, y, width, height, in thousandths of the page
+            { 40, 560, 300, 110 }, { 150, 520, 220, 130 }, { 720, 640, 330, 120 }, { 850, 600, 220, 130 },
+            { 0, 860, 380, 140 }, { 260, 900, 420, 120 }, { 620, 880, 420, 150 },
+        };
+        for (unsigned i = 0; i < sizeof cl / sizeof cl[0]; i++) {
+            lv_obj_t *c = box(sky, cl[i][0] * w / 1000, cl[i][1] * h / 1000, cl[i][2] * w / 1000, cl[i][3] * h / 1000);
+            lv_obj_remove_flag(c, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_style_radius(c, LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_color(c, lv_color_hex(0xFFFFFF), 0);
+            lv_obj_set_style_bg_opa(c, i < 4 ? LV_OPA_40 : LV_OPA_60, 0);
+        }
+    } else {
+        // night: deep blue to black, a faint moon glow and stars of a few sizes
+        lv_obj_set_style_bg_color(sky, lv_color_hex(0x020510), 0);
+        lv_obj_set_style_bg_grad_color(sky, lv_color_hex(0x10234A), 0);
+        const int mx = w - 20, my = 16;
+        if (!PORT) {                                          // standing up, the clock fills the top
+            sky_dot(sky, mx, my, 70, 0x8FA8E0, LV_OPA_10);
+            sky_dot(sky, mx, my, 44, 0xB8C8F0, LV_OPA_20);
+            sky_dot(sky, mx, my, 24, 0xF4F1D0, LV_OPA_90);
+            sky_dot(sky, mx + 6, my - 4, 20, 0x020510, LV_OPA_COVER);   // the crescent: the dark sky bites the disc
+        }
+        uint32_t r = 0x2F6E2B1u;                                     // fixed seed: the same sky every time
+        for (int i = 0; i < 46; i++) {
+            r = r * 1664525u + 1013904223u;
+            int x = (r >> 8) % w;
+            r = r * 1664525u + 1013904223u;
+            int y = (r >> 8) % (h * 3 / 4);                          // fewer near the horizon
+            r = r * 1664525u + 1013904223u;
+            int big = (r >> 12) % 7 == 0;
+            lv_opa_t o = (lv_opa_t)(110 + (r >> 16) % 140);
+            lv_obj_t *s = sky_dot(sky, x, y, big ? 3 : 2, big ? 0xFFF7E0 : 0xDCE6FF, o);
+            if (i % 6 == 0) {                                        // every sixth star twinkles
+                lv_anim_t a;
+                lv_anim_init(&a);
+                lv_anim_set_var(&a, s);
+                lv_anim_set_exec_cb(&a, star_anim_cb);
+                lv_anim_set_values(&a, 40, 255);
+                lv_anim_set_duration(&a, 1400 + (r >> 20) % 1600);
+                lv_anim_set_playback_duration(&a, 1400 + (r >> 20) % 1600);
+                lv_anim_set_delay(&a, (r >> 10) % 2000);
+                lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+                lv_anim_start(&a);
+            }
+        }
+    }
+}
+
 static void build_idle(lv_obj_t *p)
 {
+    build_sky(p);
     build_flip(p, 0);
-    i_date = label(p, &font_vn18, C_MUTED, "");
+    i_date = label(p, &font_vn18, P->light ? 0x0B3A75 : C_MUTED, "");
     lv_obj_align(i_date, LV_ALIGN_TOP_MID, 0, PORT ? 96 : 72);
     if (PORT) lv_obj_set_style_text_font(i_date, &font_vn14, 0);   // the long date does not fit 240 px in the big font
 
@@ -930,7 +1012,7 @@ static void build_idle(lv_obj_t *p)
         i_wicon = label(row, &font_icon40, C_ORANGE, "");
         i_temp = label(row, &font_vn24, C_TEXT, "");
         i_wdesc = label(w, &font_vn14, C_TEXT, "");
-        i_city = label(w, &font_vn14, C_MUTED, "");
+        i_city = label(w, &font_vn14, P->light ? 0x0B3A75 : C_MUTED, "");
         lv_obj_t *tl[2] = { i_wdesc, i_city };
         for (int i = 0; i < 2; i++) {      // one line each, centred, cut with "…" when too long
             lv_obj_set_width(tl[i], LCD_H_RES - 20);
@@ -948,10 +1030,10 @@ static void build_idle(lv_obj_t *p)
     lv_obj_t *col = box(w, 0, 0, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
     i_wdesc = label(col, &font_vn14, C_TEXT, "");
-    i_city = label(col, &font_vn14, C_MUTED, "");
+    i_city = label(col, &font_vn14, P->light ? 0x0B3A75 : C_MUTED, "");
     }
 
-    i_info = label(p, &font_vn14, C_MUTED, "");
+    i_info = label(p, &font_vn14, P->light ? 0x0B3A75 : C_MUTED, "");
     lv_obj_set_width(i_info, LCD_H_RES - 20);
     lv_obj_set_style_text_align(i_info, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_long_mode(i_info, LV_LABEL_LONG_DOT);
