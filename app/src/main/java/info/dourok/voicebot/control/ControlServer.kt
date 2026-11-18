@@ -35,6 +35,7 @@ import info.dourok.voicebot.update.UpdateManager
 import info.dourok.voicebot.weather.LocationManager
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import info.dourok.voicebot.net.withBundledRoots
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
@@ -355,6 +356,8 @@ class ControlServer @Inject constructor(
                 )
             )
             "/podcast/stream" -> servePodcastStream(session)
+            // A music-server song over https, for the on-device player (see playableMusicUrl).
+            "/music/stream" -> serveMusicStream(session)
             "/api/radio/play" -> json(handleRadioPlay(param(session, "id")))
             "/radio/stream" -> serveRadioStream(param(session, "id"))
             // Where the speaker is: city search, the chosen place, local time and weather there.
@@ -667,6 +670,7 @@ class ControlServer @Inject constructor(
     private val http = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
+        .withBundledRoots()
         .build()
 
     /**
@@ -699,6 +703,7 @@ class ControlServer @Inject constructor(
     private val musicHttp = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS)
+        .withBundledRoots()
         .build()
 
     /**
@@ -1451,6 +1456,24 @@ class ControlServer @Inject constructor(
     private fun servePodcastStream(session: IHTTPSession): Response {
         val url = info.dourok.voicebot.media.Podcasts.urlOf(param(session, "t"))
             ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "unknown episode")
+        return relayAudio(session, url, "Podcast")
+    }
+
+    /**
+     * A song from the music server, handed on over plain local http: MediaPlayer trusts only the
+     * system's roots, which on Android 5.1 lack Let's Encrypt's. Only addresses on the configured
+     * music server are relayed, so this is not an open proxy.
+     */
+    private fun serveMusicStream(session: IHTTPSession): Response {
+        val url = param(session, "u")
+        val base = musicBase()
+        if (base.isEmpty() || !url.startsWith("$base/", ignoreCase = true))
+            return newFixedLengthResponse(Response.Status.FORBIDDEN, "text/plain", "not on the music server")
+        return relayAudio(session, url, "Nhạc")
+    }
+
+    /** GET [url] with the app's own roots and pass it on, Range and all. */
+    private fun relayAudio(session: IHTTPSession, url: String, tag: String): Response {
         val headers = HashMap<String, String>()
         headers["User-Agent"] = userAgent()
         session.headers["range"]?.let { headers["Range"] = it }
@@ -1459,7 +1482,7 @@ class ControlServer @Inject constructor(
             val code = c.responseCode
             if (code !in 200..299) {
                 c.disconnect()
-                AppLog.e("Podcast: máy chủ trả HTTP $code")
+                AppLog.e("$tag: máy chủ trả HTTP $code")
                 return newFixedLengthResponse(Response.Status.lookup(code) ?: Response.Status.INTERNAL_ERROR, "text/plain", "upstream $code")
             }
             val type = c.contentType?.takeIf { it.startsWith("audio/") } ?: "audio/mpeg"
@@ -1476,7 +1499,7 @@ class ControlServer @Inject constructor(
             c.getHeaderField("Content-Range")?.let { resp.addHeader("Content-Range", it) }
             resp
         } catch (e: Exception) {
-            AppLog.e("Podcast: không mở được tập (${e.message})")
+            AppLog.e("$tag: không mở được luồng (${e.message})")
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "stream error")
         }
     }

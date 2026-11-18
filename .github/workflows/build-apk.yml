@@ -73,6 +73,8 @@ jobs:
       # carries would make every speaker "update" to the same build over and over.
       - name: Read version from the APK
         id: apk
+        env:
+          DBR_MUSIC_URL: ${{ secrets.DBR_MUSIC_URL }}
         run: |
           APK=app/build/outputs/apk/release/app-release.apk
           AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -n 1)
@@ -100,6 +102,7 @@ jobs:
         env:
           NAME: ${{ steps.apk.outputs.name }}
           WANT: ${{ inputs.publish }}
+          DBR_MUSIC_URL: ${{ secrets.DBR_MUSIC_URL }}
         run: |
           PUBLISH=false
           TAG="v$NAME"
@@ -111,6 +114,13 @@ jobs:
             PUBLISH=true
           elif [ "$WANT" = "true" ]; then
             PUBLISH=true
+          fi
+          # The project's own releases always carry its music server: refuse to publish one without it
+          # (a fork's releases may go out without; their owners set up their own server).
+          if [ "$PUBLISH" = "true" ] && [ -z "$DBR_MUSIC_URL" ] \
+             && [ "$(echo "$GITHUB_REPOSITORY" | tr 'A-Z' 'a-z')" = "ledienbien-ai/db-robot-phincomr1" ]; then
+            echo "::error::Chưa đặt secret DBR_MUSIC_URL (Settings → Secrets and variables → Actions). Không phát hành bản không có máy chủ nhạc."
+            exit 1
           fi
           echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"

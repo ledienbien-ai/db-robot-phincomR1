@@ -531,6 +531,13 @@ biến môi trường `DBR_MUSIC_URL`, hoặc từ dòng `dbr.musicUrl=<địa c
 (tệp này không được commit). Không có cả hai thì bản build không có máy chủ nhạc mặc định; người
 dùng nhập địa chỉ máy chủ của mình trên trang điều khiển. Workflow GitHub Actions đọc secret
 `DBR_MUSIC_URL` của repo (Settings → Secrets and variables → Actions); fork không có secret này.
+Ở repo gốc, workflow từ chối phát hành (tag `v*`) khi chưa đặt secret này, để bản phát hành chính
+thức luôn có máy chủ nhạc.
+
+Máy chủ nhạc dùng HTTPS với chứng chỉ Let's Encrypt (hoặc CA mới khác mà Android 5.1 không có)
+vẫn chạy được từ 1.5.39: loa hỏi máy chủ bằng bộ chứng chỉ gốc kèm trong ứng dụng, và bài hát được
+phát qua `http://127.0.0.1:8088/music/stream` trên chính loa (chỉ chuyển tiếp địa chỉ thuộc máy
+chủ nhạc đã cài).
 
 Bản release là bản để chạy trên loa (đã tối ưu bằng R8). `applicationId` là `vn.dbrobot.r1`,
 `minSdk` 22.

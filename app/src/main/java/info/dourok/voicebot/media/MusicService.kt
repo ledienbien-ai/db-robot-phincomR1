@@ -2,6 +2,7 @@ package info.dourok.voicebot.media
 
 import info.dourok.voicebot.data.Settings
 import info.dourok.voicebot.domain.voice.VoiceDebugState
+import info.dourok.voicebot.net.withBundledRoots
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
@@ -23,6 +24,7 @@ object MusicService {
     private val http = OkHttpClient.Builder()
         .connectTimeout(8, TimeUnit.SECONDS)
         .readTimeout(25, TimeUnit.SECONDS)
+        .withBundledRoots()
         .build()
 
     /**

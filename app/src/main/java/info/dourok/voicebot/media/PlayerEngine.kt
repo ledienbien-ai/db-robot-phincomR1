@@ -41,7 +41,7 @@ class MediaPlayerEngine(private val url: String) : PlayerEngine {
     }
 
     override fun prepareAsync() {
-        p.setDataSource(url)
+        p.setDataSource(playableMusicUrl(url, info.dourok.voicebot.data.Settings.musicUrl))
         p.prepareAsync()
     }
 

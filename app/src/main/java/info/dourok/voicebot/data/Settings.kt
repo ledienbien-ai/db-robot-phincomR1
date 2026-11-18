@@ -114,9 +114,13 @@ object Settings {
     var otaUrl: String
         get() = prefs.getString("ota_url", AppConfig.OTA_URL)!!
         set(v) = prefs.edit().putString("ota_url", v).apply()
-    /** Base url of the music server behind the Media tab; "" = upstream server-driven media. */
+    /**
+     * Base url of the music server behind the Media tab; "" = upstream server-driven media. A blank
+     * saved value means "the build's own" (the panel never saves a blank one), so a speaker that once
+     * ran a build without a music server gets it back with the next build that has one.
+     */
     var musicUrl: String
-        get() = prefs.getString("music_url", AppConfig.MUSIC_URL)!!
+        get() = prefs.getString("music_url", "")!!.ifBlank { AppConfig.MUSIC_URL }
         set(v) = prefs.edit().putString("music_url", v.trim()).apply()
     /** Install a newer build by itself once the speaker is idle (off = only offer it in the panel). */
     var autoUpdate: Boolean

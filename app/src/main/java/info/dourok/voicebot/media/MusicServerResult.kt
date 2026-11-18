@@ -31,3 +31,19 @@ fun musicStreamUrl(base: String, audioUrl: String): String = when {
     audioUrl.startsWith("/") -> base.trimEnd('/') + audioUrl
     else -> base.trimEnd('/') + "/" + audioUrl
 }
+
+/** Where this device's own web server relays a music-server song from (ControlServer `/music/stream`). */
+const val MUSIC_RELAY = "http://127.0.0.1:8088/music/stream?u="
+
+/**
+ * The address the on-device player should open for [url]. MediaPlayer checks https certificates
+ * against the system's roots only, and Android 5.1 lacks newer ones (Let's Encrypt's among them),
+ * so an https song from the music server at [base] goes through the local relay, which trusts the
+ * app's own roots too. Anything else is opened as it is.
+ */
+fun playableMusicUrl(url: String, base: String): String {
+    val b = base.trim().trimEnd('/')
+    if (b.isEmpty() || !url.startsWith("https://", ignoreCase = true)) return url
+    if (!url.startsWith("$b/", ignoreCase = true)) return url
+    return MUSIC_RELAY + java.net.URLEncoder.encode(url, "UTF-8")
+}
