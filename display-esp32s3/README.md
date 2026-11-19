@@ -118,6 +118,12 @@ Mỗi loại mạch có một tệp firmware riêng, đã gộp sẵn, nạp **m
 Các tệp này cũng có trong mỗi bản phát hành trên GitHub. Nạp nhầm tệp của mạch kia thì màn hình tối
 hoặc cảm ứng không chạy; nạp lại đúng tệp là được.
 
+Màn hình đen và log cổng COM lặp lại `abort() was called` rồi `Rebooting...` ngay sau dòng
+`DHCP server started` là bản 1.5.41 hết RAM trong lúc mạch còn ở chế độ cài đặt Wi-Fi (gặp ở mạch
+mới nạp, chưa vào mạng). Từ 1.5.42 giao diện nằm trong PSRAM nên không còn lỗi này; nạp bản mới là
+được. Dòng `DB-Robot display started (RAM trong còn … KB, PSRAM còn … KB)` trong log cho biết RAM
+còn lại sau khi khởi động.
+
 **Cách dễ nhất, bằng trình duyệt** (Chrome hoặc Edge trên máy tính):
 
 1. Cắm cáp USB vào cổng **UART** (hoặc cổng USB) của mạch.

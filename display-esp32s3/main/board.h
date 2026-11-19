@@ -75,7 +75,7 @@
 
 #define SPEAKER_PORT   8089
 
-#define FW_VERSION     "1.5.41"
+#define FW_VERSION     "1.5.42"
 
 /* The landscape picture (LCD_H_RES x LCD_V_RES) is made by LVGL's software rotation. */
 #define DISPLAY_WIDTH   240
